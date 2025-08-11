@@ -8,22 +8,28 @@ Participants must choose one of the following app ideas. Each app should be buil
 
 Here’s the numbered list so you can copy the numbers too:
 
-# 1. Enable preorder for selected products or variants via tag or manual switch
-2. Display a preorder badge or label on product listings
-3. Set a release/shipping date per item
+Here’s your list with numbering added:
+
+1. Enable preorder for selected products or variants via tag or manual switch
+# 2. Preorder badge or label display
+3. Set release/shipping date per item
 4. Allow full or partial payment (e.g., 30% upfront)
-5. Provide messaging options for preorder status (on product page and cart)
-6. Show a countdown timer for preorder window or expected availability
+5. Messaging options for preorder status (on product page and cart)
+6. Countdown timer for preorder window or expected availability
 7. Capture customer consent before placing preorder
+10. Limit number of preorder units available
+
+
+
 8. Add notes or tags in Shopify Orders to mark as preorder
-9. Limit the number of preorder units available
-10. Option to auto-cancel if customer fails to complete payment in X days
-11. Handle partial refunds automatically if product release is delayed or canceled
 
 
-9. Send optional email notifications: confirm preorder, notify when item ships, request balance payment
+
+11. Option to auto-cancel if customer fails to complete payment in X days
+12. Handle partial refunds automatically if product release is delayed or canceled
 
 
+9. Email notifications (optional): confirm preorder, notify when item ships, request balance payment
 
 Reference App:
 Essential Pre-Order
