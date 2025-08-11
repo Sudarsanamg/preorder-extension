@@ -1,12 +1,23 @@
+
+import type { LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import {
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData
 } from "@remix-run/react";
+import polarisTranslations from "./polarisTranslations.server";
+import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
+
+export async function loader() {
+  return json({ polarisTranslations });
+}
 
 export default function App() {
+  const { polarisTranslations } = useLoaderData<typeof loader>();
   return (
     <html>
       <head>
@@ -21,7 +32,9 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <Outlet />
+        <PolarisAppProvider i18n={polarisTranslations}>
+          <Outlet />
+        </PolarisAppProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

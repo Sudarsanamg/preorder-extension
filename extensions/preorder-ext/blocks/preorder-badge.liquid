@@ -1,0 +1,12 @@
+{{ 'badge.css' | asset_url | stylesheet_tag }}
+
+{% if product.metafields.custom.preorder == true %}
+  <span class="badge badge-preorder">Preorder</span>
+{% endif %}
+{% schema %}
+{
+  "name": "Preorder badge",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
