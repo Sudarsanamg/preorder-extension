@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 
 import {
@@ -16,7 +16,7 @@ import {
   DatePicker,
   Popover,
 } from "@shopify/polaris";
-import "@shopify/polaris/build/esm/styles.css"; // Import Polaris styles
+import "@shopify/polaris/build/esm/styles.css"; 
 import { authenticate } from "../shopify.server";
 import { useSubmit, useLoaderData } from "@remix-run/react";
 import {
@@ -26,6 +26,8 @@ import {
   CalendarCheckIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
+import {ResourcePicker} from '@shopify/app-bridge/actions';
+import { useAppBridge } from "../components/AppBridgeProvider"; 
 
 import { json } from "@remix-run/node";
 
@@ -57,7 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const products = data.data.products.edges.map(({ node }) => ({
     id: node.id.replace("gid://shopify/Product/", ""), // numeric id for metafield updates
-    gid: node.id, // keep original GID if needed
+    gid: node.id, 
     title: node.title,
     stock: node.totalInventory,
     price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
@@ -105,6 +107,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function NewCampaign() {
   const submit = useSubmit();
 
+
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState(true);
 
@@ -131,7 +134,27 @@ export default function NewCampaign() {
 
   const [popoverActive, setPopoverActive] = useState(false);
   const [inputValue, setInputValue] = useState(new Date().toLocaleDateString());
-  
+
+  const appBridge = useAppBridge();
+
+  const openResourcePicker = () => {
+    const picker = ResourcePicker.create(appBridge, {
+      resourceType: ResourcePicker.ResourceType.Product,
+      options: {
+        selectMultiple: true,
+      },
+    });
+    picker.subscribe(ResourcePicker.Action.SELECT, (payload) => {
+      const selection = payload.selection;
+      console.log("Selected products:", selection);
+      selection.forEach((product: { id: any; title: any; variants: any; }) => {
+        console.log("Product ID:", product.id);
+        console.log("Product Title:", product.title);
+        console.log("Product Variants:", product.variants);
+      });
+    });
+    picker.dispatch(ResourcePicker.Action.OPEN);
+  };
 
   const togglePopover = useCallback(
     () => setPopoverActive((active) => !active),
@@ -149,19 +172,7 @@ export default function NewCampaign() {
     setPopoverActive(false); // Close after selecting
   }, []);
 
-  // const handleSelectProduct = (id) => {
-  //   setSelectedProductIds((prev) =>
-  //     prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
-  //   );
-  // };
-
-  const handleAddPreorder = () => {
-    submit(
-      { productIds: JSON.stringify(selectedProductIds) },
-      { method: "post" },
-    );
-  };
-
+ 
   const tabs = [
     {
       id: "content",
@@ -564,16 +575,51 @@ export default function NewCampaign() {
                 </div>
                 <div>
                   <ButtonGroup>
-                    <Button>Add Specific Product</Button>
+                    <Button 
+                    // onClick={() => shopify.modal.show('my-modal')}
+                    onClick={openResourcePicker}
+                    >Add Specific Product</Button>
                     <Button variant="primary">Add all products</Button>
                   </ButtonGroup>
                 </div>
               </div>
             </Card>
+            {/* <Modal id="my-modal">
+              <div style={{display:'flex',flexDirection:"column",gap:10 ,padding:10}} >
+                <div>
+                <RadioButton
+                  label="specific Product"
+                  checked={productRadio === "option1"}
+                  id="option1"
+                  onChange={() => setproductRadio("option1")}
+                />
+                </div>
+
+                <div>
+
+                <RadioButton
+                  label="Collection"
+                  checked={productRadio === "option2"}
+                  id="option2"
+                  onChange={() => setproductRadio("option2")}
+                />
+                </div>
+              </div>
+              <TitleBar title="Add products">
+                <button variant="primary"  >Continue</button>
+                <button 
+                // onClick={() => shopify.modal.hide('my-modal')}
+                >Cancel</button>
+              </TitleBar>
+            </Modal>
+             */}
+
           </div>
         )}
         {/* </div> */}
       </Page>
     </AppProvider>
+
   );
+
 }

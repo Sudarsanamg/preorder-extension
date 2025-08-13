@@ -11,7 +11,7 @@ import {
 } from "@remix-run/react";
 import polarisTranslations from "./polarisTranslations.server";
 import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
-
+import { AppBridgeProvider } from "./components/AppBridgeProvider";
 export async function loader() {
   return json({ polarisTranslations });
 }
@@ -33,7 +33,9 @@ export default function App() {
       </head>
       <body>
         <PolarisAppProvider i18n={polarisTranslations}>
-          <Outlet />
+          <AppBridgeProvider>
+            <Outlet />
+          </AppBridgeProvider>
         </PolarisAppProvider>
         <ScrollRestoration />
         <Scripts />
