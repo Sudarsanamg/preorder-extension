@@ -16,7 +16,9 @@ import {
   DatePicker,
   Popover,
 } from "@shopify/polaris";
-import "@shopify/polaris/build/esm/styles.css"; 
+import { Icon } from "@shopify/polaris";
+import { DeleteIcon } from '@shopify/polaris-icons';
+import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
 import { useSubmit, useLoaderData } from "@remix-run/react";
 import {
@@ -26,8 +28,9 @@ import {
   CalendarCheckIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
-import {ResourcePicker} from '@shopify/app-bridge/actions';
-import { useAppBridge } from "../components/AppBridgeProvider"; 
+import { ResourcePicker } from '@shopify/app-bridge/actions';
+import { useAppBridge } from "../components/AppBridgeProvider";
+import { Modal, TitleBar } from '@shopify/app-bridge-react';
 
 import { json } from "@remix-run/node";
 
@@ -59,7 +62,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const products = data.data.products.edges.map(({ node }) => ({
     id: node.id.replace("gid://shopify/Product/", ""), // numeric id for metafield updates
-    gid: node.id, 
+    gid: node.id,
     title: node.title,
     stock: node.totalInventory,
     price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
@@ -134,10 +137,14 @@ export default function NewCampaign() {
 
   const [popoverActive, setPopoverActive] = useState(false);
   const [inputValue, setInputValue] = useState(new Date().toLocaleDateString());
+  const [productRadio, setproductRadio] = useState("option1");
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const appBridge = useAppBridge();
 
   const openResourcePicker = () => {
+    shopify.modal.hide('my-modal')
     const picker = ResourcePicker.create(appBridge, {
       resourceType: ResourcePicker.ResourceType.Product,
       options: {
@@ -146,12 +153,7 @@ export default function NewCampaign() {
     });
     picker.subscribe(ResourcePicker.Action.SELECT, (payload) => {
       const selection = payload.selection;
-      console.log("Selected products:", selection);
-      selection.forEach((product: { id: any; title: any; variants: any; }) => {
-        console.log("Product ID:", product.id);
-        console.log("Product Title:", product.title);
-        console.log("Product Variants:", product.variants);
-      });
+      setSelectedProducts(payload.selection);
     });
     picker.dispatch(ResourcePicker.Action.OPEN);
   };
@@ -172,7 +174,7 @@ export default function NewCampaign() {
     setPopoverActive(false); // Close after selecting
   }, []);
 
- 
+
   const tabs = [
     {
       id: "content",
@@ -186,6 +188,10 @@ export default function NewCampaign() {
       panelID: "add-products-content",
     },
   ];
+
+  const filteredProducts = selectedProducts.filter(product =>
+    product.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -280,7 +286,7 @@ export default function NewCampaign() {
 
               <div style={{ marginTop: 20 }}>
                 <Card>
-                  <Text as="h4" variant="headingLg">
+                  <Text as="h4" variant="headingSm">
                     Preorder Button
                   </Text>
                   <TextField
@@ -412,7 +418,7 @@ export default function NewCampaign() {
                                         <TextField
                                           value={inputValue}
                                           onFocus={togglePopover}
-                                          onChange={() => {}}
+                                          onChange={() => { }}
                                           autoComplete="off"
                                         />
                                       </div>
@@ -552,7 +558,7 @@ export default function NewCampaign() {
         )}
         {selected === 1 && (
           <div>
-            <Card padding={"3200"}>
+            {selectedProducts.length === 0 && <Card padding={"3200"}>
               <div
                 style={{
                   display: "flex",
@@ -575,51 +581,122 @@ export default function NewCampaign() {
                 </div>
                 <div>
                   <ButtonGroup>
-                    <Button 
-                    // onClick={() => shopify.modal.show('my-modal')}
-                    onClick={openResourcePicker}
+                    <Button
+                      onClick={() => shopify.modal.show('my-modal')}
                     >Add Specific Product</Button>
                     <Button variant="primary">Add all products</Button>
                   </ButtonGroup>
                 </div>
               </div>
             </Card>
-            {/* <Modal id="my-modal">
-              <div style={{display:'flex',flexDirection:"column",gap:10 ,padding:10}} >
+            }
+            {
+              selectedProducts.length > 0 && (
+                <Card title="Selected Products">
+                  <div style={{display:'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px'}}>
+                  <TextField
+                    label="Search products"
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    autoComplete="off"
+                    placeholder="Search by product name"
+                  />
+                  <ButtonGroup>
+                    <Button>Add More Products</Button>
+                    <Button onClick={()=>setSelectedProducts([])}>Remove all Products</Button>
+
+                  </ButtonGroup>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #eee" }}>Image</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #eee" }}>Product</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #eee" }}>Inventory</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #eee" }}>Inventory limit</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #eee" }}>Price</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProducts.map(product => (
+                          <tr key={product.id}>
+                            <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+                              <img
+                                src={product.images?.[0]?.originalSrc || ""}
+                                alt={product.title}
+                                style={{ width: 50, height: 50, objectFit: "cover" }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{product.title}</td>
+                            <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{product.totalInventory}</td>
+                            <td style={{ padding: "8px", borderBottom: "1px solid #eee" ,width: "100px"}}>
+                              <TextField
+                                type="number"
+                                min={0}
+                                value={product.preorderQuantity || ""}
+                                // onChange={qty => {
+                                //   setSelectedProducts(prev =>
+                                //     prev.map(p =>
+                                //       p.id === product.id
+                                //         ? { ...p, preorderQuantity: qty }
+                                //         : p
+                                //     )
+                                //   );
+                                // }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{product.variants?.[0]?.price || "N/A"}</td>
+                            <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+                              <Icon source={DeleteIcon}  />
+
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )
+            }
+            <Modal id="my-modal">
+              <div style={{ display: 'flex', flexDirection: "column", gap: 10, padding: 10 }} >
                 <div>
-                <RadioButton
-                  label="specific Product"
-                  checked={productRadio === "option1"}
-                  id="option1"
-                  onChange={() => setproductRadio("option1")}
-                />
+                  <RadioButton
+                    label="specific Product"
+                    checked={productRadio === "option1"}
+                    id="option1"
+                    onChange={() => setproductRadio("option1")}
+                  />
                 </div>
 
                 <div>
 
-                <RadioButton
-                  label="Collection"
-                  checked={productRadio === "option2"}
-                  id="option2"
-                  onChange={() => setproductRadio("option2")}
-                />
+                  <RadioButton
+                    label="Collection"
+                    checked={productRadio === "option2"}
+                    id="option2"
+                    onChange={() => setproductRadio("option2")}
+                  />
                 </div>
               </div>
               <TitleBar title="Add products">
-                <button variant="primary"  >Continue</button>
-                <button 
-                // onClick={() => shopify.modal.hide('my-modal')}
+                <button variant="primary"
+                  onClick={openResourcePicker}
+                >Continue</button>
+                <button
+                  onClick={() => shopify.modal.hide('my-modal')}
                 >Cancel</button>
               </TitleBar>
             </Modal>
-             */}
-
           </div>
         )}
         {/* </div> */}
       </Page>
     </AppProvider>
-
   );
 
 }

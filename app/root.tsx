@@ -28,6 +28,8 @@ export default function App() {
           rel="stylesheet"
           href="https://cdn.shopify.com/static/fonts/inter/v4/styles.css"
         />
+         <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
         <Meta />
         <Links />
       </head>
