@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://shoppers-decide-webshots-worm.trycloudflare.com"
+application_url = "https://usb-bradley-victim-naturally.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://shoppers-decide-webshots-worm.trycloudflare.com/auth/callback", "https://shoppers-decide-webshots-worm.trycloudflare.com/auth/shopify/callback", "https://shoppers-decide-webshots-worm.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://usb-bradley-victim-naturally.trycloudflare.com/auth/callback", "https://usb-bradley-victim-naturally.trycloudflare.com/auth/shopify/callback", "https://usb-bradley-victim-naturally.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

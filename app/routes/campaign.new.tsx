@@ -116,7 +116,7 @@ export default function NewCampaign() {
 
   const { products } = useLoaderData<typeof loader>();
   const [loading, setLoading] = useState(false);
-  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  // const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [selectedOption, setSelectedOption] = useState("preorder");
   const [buttonText, setButtonText] = useState("Preorder");
   const [shippingMessage, setShippingMessage] = useState(
@@ -140,6 +140,8 @@ export default function NewCampaign() {
   const [productRadio, setproductRadio] = useState("option1");
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [campaignEndDate, setCampaignEndDate] = useState(new Date());
+  const [campaignEndTime, setCampaignEndTime] = useState("");
 
   const appBridge = useAppBridge();
 
@@ -169,11 +171,12 @@ export default function NewCampaign() {
 
   const handleDateChange = useCallback((range) => {
     setSelectedDates(range);
-    const formatted = range.start.toLocaleDateString();
-    setInputValue(formatted);
-    setPopoverActive(false); // Close after selecting
+    setPopoverActive(false);
   }, []);
 
+  const handleTimeChange = (value) => {
+    setCampaignEndTime(value);
+  };
 
   const tabs = [
     {
@@ -192,6 +195,12 @@ export default function NewCampaign() {
   const filteredProducts = selectedProducts.filter(product =>
     product.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  function handleRemoveProduct(id: any) {
+    setSelectedProducts(prev =>
+      prev.filter(product => product.id !== id)
+    );
+  }
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -458,6 +467,40 @@ export default function NewCampaign() {
                   </div>
                 </Card>
               </div>
+              <div>
+                <Card>
+                  <Text as="h4" variant="headingSm">
+                    Campaign End Date and Time
+                  </Text>
+                  <div style={{ display: "flex", gap: 10, alignSelf: "center" }}>
+                    <div style={{ flex: 1 }}>
+                      <DatePicker
+                        month={month}
+                        year={year}
+                        onChange={handleDateChange}
+                        onMonthChange={handleMonthChange}
+                        selected={selectedDates}
+
+                      />
+                      {/* </Popover> */}
+                    </div>
+                    <div>
+                      <TextField
+                        id="campaignEndTime"
+                        autoComplete="off"
+                        type="time"
+                        label="Time"
+                        placeholder="Select time"
+                        value={campaignEndTime}
+                        onChange={handleTimeChange}
+                      />
+                    </div>
+                  </div>
+                  <Text as="p" variant="bodyMd">
+                    Campaign will end at the selected date and time.
+                  </Text>
+                </Card>
+              </div>
             </div>
             {/* right */}
             <div style={{ flex: 1, marginLeft: 20 }}>
@@ -593,19 +636,23 @@ export default function NewCampaign() {
             {
               selectedProducts.length > 0 && (
                 <Card title="Selected Products">
-                  <div style={{display:'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px'}}>
-                  <TextField
-                    label="Search products"
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    autoComplete="off"
-                    placeholder="Search by product name"
-                  />
-                  <ButtonGroup>
-                    <Button>Add More Products</Button>
-                    <Button onClick={()=>setSelectedProducts([])}>Remove all Products</Button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px' }}>
+                    <div>
+                      <TextField
+                        // label="Search products"
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        autoComplete="off"
+                        placeholder="Search by product name"
+                      />
+                    </div>
+                    <div>
+                      <ButtonGroup>
+                        <Button onClick={openResourcePicker}>Add More Products</Button>
+                        <Button onClick={() => setSelectedProducts([])}>Remove all Products</Button>
 
-                  </ButtonGroup>
+                      </ButtonGroup>
+                    </div>
                   </div>
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -633,25 +680,29 @@ export default function NewCampaign() {
                             </td>
                             <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{product.title}</td>
                             <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{product.totalInventory}</td>
-                            <td style={{ padding: "8px", borderBottom: "1px solid #eee" ,width: "100px"}}>
+                            <td style={{ padding: "8px", borderBottom: "1px solid #eee", width: "100px" }}>
                               <TextField
                                 type="number"
                                 min={0}
                                 value={product.preorderQuantity || ""}
-                                // onChange={qty => {
-                                //   setSelectedProducts(prev =>
-                                //     prev.map(p =>
-                                //       p.id === product.id
-                                //         ? { ...p, preorderQuantity: qty }
-                                //         : p
-                                //     )
-                                //   );
-                                // }}
+                              // onChange={qty => {
+                              //   setSelectedProducts(prev =>
+                              //     prev.map(p =>
+                              //       p.id === product.id
+                              //         ? { ...p, preorderQuantity: qty }
+                              //         : p
+                              //     )
+                              //   );
+                              // }}
                               />
                             </td>
                             <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{product.variants?.[0]?.price || "N/A"}</td>
                             <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
-                              <Icon source={DeleteIcon}  />
+                              <div onClick={() => {
+                                handleRemoveProduct(product.id);
+                              }}>
+                                <Icon source={DeleteIcon} />
+                              </div>
 
                             </td>
                           </tr>
