@@ -15,7 +15,7 @@ Here’s your list with numbering added:
 3. Set release/shipping date per item
 4. Allow full or partial payment (e.g., 30% upfront)
 5. Messaging options for preorder status (on product page and cart)
-6. Countdown timer for preorder window or expected availability
+# 6. Countdown timer for preorder window or expected availability
 7. Capture customer consent before placing preorder
 10. Limit number of preorder units available
 
@@ -57,4 +57,7 @@ Shopify API: Admin API, Storefront API, App Bridge, Checkout UI Extensions, Func
 📎 Deliverables
 GitHub repo access
 Working demo 
+
+
+
 
