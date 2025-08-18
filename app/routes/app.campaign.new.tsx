@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { LoaderFunctionArgs, ActionFunctionArgs, json } from "@remix-run/node";
 
 import {
@@ -261,10 +261,10 @@ export default function Newcampaign() {
 
   const handleSubmit = () => {
 
-     if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
-      alert("Please fill all required fields and add at least one product.");
-      return;
-    }
+    //  if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
+    //   alert("Please fill all required fields and add at least one product.");
+    //   return;
+    // }
 
   console.log('function hit')
   const formData = new FormData();
@@ -278,6 +278,11 @@ export default function Newcampaign() {
 
   submit(formData, { method: "post" });
 };
+
+
+useEffect(() => {
+  console.log(selectedProducts);
+},[selectedProducts])
 
 
 
@@ -761,6 +766,8 @@ export default function Newcampaign() {
             </div>
           </div>
         )}
+        </form>
+
         {selected === 1 && (
           <div>
             {selectedProducts.length === 0 && (
@@ -1003,7 +1010,6 @@ export default function Newcampaign() {
           </div>
         )}
         {/* </div> */}
-        </form>
       </Page>
     </AppProvider>
   );
