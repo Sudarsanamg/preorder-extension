@@ -16,6 +16,8 @@ import {
   Popover,
   Icon,
   FormLayout,
+  Tabs,
+  Form,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -37,44 +39,46 @@ import {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
 
-  const query = `
-    query {
-      products(first: 20) {
-        edges {
-          node {
-            id
-            title
-            totalInventory
-            priceRangeV2 {
-              minVariantPrice {
-                amount
-                currencyCode
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
+  // const query = `
+  //   query {
+  //     products(first: 20) {
+  //       edges {
+  //         node {
+  //           id
+  //           title
+  //           totalInventory
+  //           priceRangeV2 {
+  //             minVariantPrice {
+  //               amount
+  //               currencyCode
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  // `;
 
-  const response = await admin.graphql(query);
-  const data = await response.json();
+  // const response = await admin.graphql(query);
+  // const data = await response.json();
 
-  const products = data.data.products.edges.map(({ node }) => ({
-    id: node.id.replace("gid://shopify/Product/", ""), // numeric id for metafield updates
-    gid: node.id,
-    title: node.title,
-    stock: node.totalInventory,
-    price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
-  }));
+  // const products = data.data.products.edges.map(({ node }) => ({
+  //   id: node.id.replace("gid://shopify/Product/", ""), // numeric id for metafield updates
+  //   gid: node.id,
+  //   title: node.title,
+  //   stock: node.totalInventory,
+  //   price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
+  // }));
 
-  return json({ products });
+  return json({ success:true });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   console.log("[Remix action] /campaign/new action triggered");
   const formData = await request.formData();
   const intent = formData.get("intent");
+  console.log(intent);
+
   console.log(
     "action-hit*************************************************************",
   );
@@ -255,16 +259,14 @@ export default function Newcampaign() {
   };
 
 
+  const handleSubmit = () => {
 
-    // if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
-    //   alert("Please fill all required fields and add at least one product.");
-    //   return;
-    // }
+     if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
+      alert("Please fill all required fields and add at least one product.");
+      return;
+    }
 
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-
+  console.log('function hit')
   const formData = new FormData();
   formData.append("intent", "create-campaign");
   formData.append("name", campaignName);
@@ -286,21 +288,22 @@ export default function Newcampaign() {
         backAction={{ content: "Back", url: "/" }}
         primaryAction={{
           content: "Publish",
+          onAction: handleSubmit,
         }}
       >
-        {/* <button
-          type="button"
-          onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent<HTMLFormElement>)}
-        >
-          Submit
-        </button> */}
-        <form method="post" onSubmit={handleSubmit}>
-           <div style={{ display: "flex", justifyContent: "flex-end", margin: "10px" }}>
-              <button type="submit">
-                Create
-              </button>
-            </div>
-          <FormLayout>
+      
+        <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
+
+  <form method="post" onSubmit={handleSubmit}>
+    <input type="hidden" name="intent" value="create-campaign" />
+    <input type="hidden" name="products" value={JSON.stringify(selectedProducts)} />
+    <input type="hidden" name="name" value={campaignName} />
+    <input type="hidden" name="depositPercent" value={String(partialPaymentPercentage)} />
+    <input type="hidden" name="balanceDueDate" value={DueDateinputValue} />
+    <input type="hidden" name="refundDeadlineDays" value="0" />
+    <input type="hidden" name="releaseDate" value={campaignEndDate.toISOString()} />
+
+        <button type="submit">Submit</button>
         {selected === 0 && (
           <div
             style={{
@@ -1000,7 +1003,6 @@ export default function Newcampaign() {
           </div>
         )}
         {/* </div> */}
-        </FormLayout>
         </form>
       </Page>
     </AppProvider>
