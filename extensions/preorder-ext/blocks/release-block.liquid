@@ -1,0 +1,15 @@
+{% if product.metafields.custom.preorder == true 
+      and product.metafields.custom.release_date.value != blank 
+
+    %}
+  <p>Preorder available. Ships on 
+     {{ product.metafields.custom.release_date.value | date: "%B %d, %Y" }}.
+  </p>
+{% endif %}
+{% schema %}
+{
+  "name": "release block",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

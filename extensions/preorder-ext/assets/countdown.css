@@ -1,5 +1,6 @@
 .countdown {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   gap: 12px;
   margin: 20px 0;
@@ -9,11 +10,16 @@
 .countdown-item {
   background: #111;
   color: #fff;
-  padding: 12px 16px;
+  padding: 5px 5px;
   border-radius: 8px;
   text-align: center;
-  min-width: 70px;
+  min-width: 40px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.countdown-timer {
+  display: flex;
+  gap: 8px;
 }
 
 .countdown-item span {

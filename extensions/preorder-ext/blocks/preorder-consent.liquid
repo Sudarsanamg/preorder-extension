@@ -1,0 +1,56 @@
+ {% assign has_preorder = false %}
+{% for item in cart.items %}
+  {% if item.product.metafields.custom.preorder.value == true %}
+    {% assign has_preorder = true %}
+  {% endif %}
+{% endfor %} 
+{% if has_preorder %} 
+  <div id="preorder-consent-block" class="preorder-consent">
+    <label>
+      <input type="checkbox" id="cart-preorder-consent">
+      I confirm that I understand this is a preorder item.
+    </label>
+  </div>
+ {% endif %} 
+
+ <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const consentCheckbox = document.getElementById("cart-preorder-consent");
+  const checkoutBtn = document.querySelector("#checkout");
+
+  if (consentCheckbox && checkoutBtn) {
+    checkoutBtn.addEventListener("click", (event) => {
+      if (!consentCheckbox.checked) {
+        event.preventDefault();
+
+        alert("Please confirm preorder consent before checkout.");
+      }
+      
+    });
+  }
+});
+</script> 
+
+<style>
+.preorder-consent {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fdf7f0;
+}
+.preorder-consent label {
+  font-size: 14px;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+</style>
+
+{% schema %}
+{
+  "name": "Preorder Consent",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

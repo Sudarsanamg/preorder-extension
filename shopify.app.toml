@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://une-safari-travelling-june.trycloudflare.com"
+application_url = "https://nations-ln-excerpt-entries.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://une-safari-travelling-june.trycloudflare.com/auth/callback", "https://une-safari-travelling-june.trycloudflare.com/auth/shopify/callback", "https://une-safari-travelling-june.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://nations-ln-excerpt-entries.trycloudflare.com/auth/callback", "https://nations-ln-excerpt-entries.trycloudflare.com/auth/shopify/callback", "https://nations-ln-excerpt-entries.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

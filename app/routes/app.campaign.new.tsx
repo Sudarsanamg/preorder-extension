@@ -86,8 +86,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         depositPercent: Number(formData.get("depositPercent")),
         balanceDueDate: new Date(formData.get("balanceDueDate") as string),
         refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-        releaseDate: formData.get("releaseDate")
-          ? new Date(formData.get("releaseDate") as string)
+        releaseDate: formData.get("campaignEndDate")
+          ? new Date(formData.get("campaignEndDate") as string)
           : undefined,
       });
 
@@ -117,24 +117,45 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 `;
 
 
+console.log('hitted mid****************************');
 
+console.log('^^^^^^^^^^^^^^^^^^',new Date(formData.get("campaignEndDate") as string).toISOString());
 
-  const metafields = products.map((product) => ({
-    ownerId: product.id,       
-    namespace: "custom",      
-    key: "preorder",          
+const metafields = products.flatMap((product) => [
+  {
+    ownerId: product.id,
+    namespace: "custom",
+    key: "preorder",
     type: "boolean",
     value: "true",
-  }));
+  },
+  {
+    ownerId: product.id,
+    namespace: "custom",
+    key: "release_date",
+    type: "date",
+    value: "2025-08-30", 
+  },
+  {
+    ownerId: product.id,
+    namespace: "custom",
+    key: "preorder_end_date",
+    type: "date_time",
+    value: new Date(formData.get("campaignEndDate") as string).toISOString()
+  },
+]);
 
 
-  console.log("Updating metafields for products:", metafields);
+  // console.log("Updating metafields for products:", metafields);
+
+
+  console.log('hitted almost end')
 
 
    const response = await admin.graphql(mutation, { variables: { metafields } });
 const result = await response.json();
 
-console.log("Metafields update result:", JSON.stringify(result, null, 2));
+console.log("Metafields update result:%%%%%%%%%%%%%%%%%%%%%%%%%");
 
           }
 
@@ -311,7 +332,7 @@ export default function Newcampaign() {
   formData.append("depositPercent", String(partialPaymentPercentage));
   formData.append("balanceDueDate", DueDateinputValue);
   formData.append("refundDeadlineDays", "0");
-  formData.append("releaseDate", campaignEndDate.toISOString());
+  formData.append("campaignEndDate", campaignEndDate.toISOString());
   formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
 
   submit(formData, { method: "post" });
@@ -344,8 +365,8 @@ useEffect(() => {
     <input type="hidden" name="depositPercent" value={String(partialPaymentPercentage)} />
     <input type="hidden" name="balanceDueDate" value={DueDateinputValue} />
     <input type="hidden" name="refundDeadlineDays" value="0" />
-    <input type="hidden" name="releaseDate" value={campaignEndDate.toISOString()} />
-      
+    <input type="hidden" name="campaignEndDate" value={campaignEndDate.toISOString()} />
+
         <div style={{display:'flex',justifyContent:'flex-end',margin:10}}>
         <button type="submit" style={{backgroundColor:'black',color:"white",padding:5,borderRadius:5}}>Publish</button>
         </div>
