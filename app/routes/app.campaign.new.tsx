@@ -74,15 +74,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log("[Remix action] /campaign/new action triggered");
+  console.log('Action hitted**************************');
   const formData = await request.formData();
   const intent = formData.get("intent");
-  console.log(intent);
-
-  console.log(
-    "action-hit*************************************************************",
-  );
-
+  const { admin } = await authenticate.admin(request);
+  
   switch (intent) {
     case "create-campaign": {
       const campaign = await createPreorderCampaign({
@@ -98,9 +94,51 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const products = JSON.parse((formData.get("products") as string) || "[]");
       if (products.length > 0) {
         await addProductsToCampaign(campaign.id, products);
-      }
+        // await updatePreorderMetafields(request, products);
 
-      return json({ success: "Unknown intent" }, { status: 400 });
+      // console.log(products)
+
+      const mutation = `
+  mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
+    metafieldsSet(metafields: $metafields) {
+      metafields {
+        id
+        namespace
+        key
+        type
+        value
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+
+
+
+  const metafields = products.map((product) => ({
+    ownerId: product.id,       
+    namespace: "custom",      
+    key: "preorder",          
+    type: "boolean",
+    value: "true",
+  }));
+
+
+  console.log("Updating metafields for products:", metafields);
+
+
+   const response = await admin.graphql(mutation, { variables: { metafields } });
+const result = await response.json();
+
+console.log("Metafields update result:", JSON.stringify(result, null, 2));
+
+          }
+
+    return json({ success: "Product added to campaign" }, { status: 200 });
     }
 
     default:
@@ -291,10 +329,10 @@ useEffect(() => {
       <Page
         title="Create Preorder campaign"
         backAction={{ content: "Back", url: "/" }}
-        primaryAction={{
-          content: "Publish",
-          onAction: handleSubmit,
-        }}
+        // primaryAction={{
+        //   content: "Publish",
+        //   onAction: handleSubmit,
+        // }}
       >
       
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
@@ -307,8 +345,10 @@ useEffect(() => {
     <input type="hidden" name="balanceDueDate" value={DueDateinputValue} />
     <input type="hidden" name="refundDeadlineDays" value="0" />
     <input type="hidden" name="releaseDate" value={campaignEndDate.toISOString()} />
-
-        <button type="submit">Submit</button>
+      
+        <div style={{display:'flex',justifyContent:'flex-end',margin:10}}>
+        <button type="submit" style={{backgroundColor:'black',color:"white",padding:5,borderRadius:5}}>Publish</button>
+        </div>
         {selected === 0 && (
           <div
             style={{

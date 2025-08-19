@@ -29,7 +29,6 @@ export async function addProductsToCampaign(
   campaignId: string,
   products: { id: string; variantId?: string; totalInventory: number }[]
 ) {
-  console.log('&&&&&&&&&&&&&&&&&&&',products);
   return prisma.preorderCampaignProduct.createMany({
     data: products.map((p) => ({
       campaignId,

@@ -1,8 +1,9 @@
 {{ 'badge.css' | asset_url | stylesheet_tag }}
 
-{% if product.metafields.custom.preorder == true %}
+ {% if product.metafields.custom.preorder == true %}
   <span class="badge badge-preorder">Preorder</span>
-{% endif %}
+{% endif %} 
+
 {% schema %}
 {
   "name": "Preorder badge",

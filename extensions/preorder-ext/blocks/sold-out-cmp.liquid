@@ -1,0 +1,16 @@
+{% if true %}
+  <div>
+    <p>We're sorry, but this item is currently sold out for preorders.</p>
+  </div>
+  <script>
+   .product-form { display: none; }
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Sold Out (Preorder)",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
