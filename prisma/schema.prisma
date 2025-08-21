@@ -43,6 +43,7 @@ model PreorderCampaign {
   products           PreorderCampaignProduct[]
   preorders          Preorder[]
   campaignEndDate    DateTime
+  totalOrders        Int       @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -51,7 +52,7 @@ model PreorderCampaign {
 model PreorderCampaignProduct {
   id           String   @id @default(cuid())
   campaignId   String
-  campaign     PreorderCampaign @relation(fields: [campaignId], references: [id])
+  campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   productId    String   // Shopify Product ID
   variantId    String?  // Shopify Variant ID
   maxQuantity  Int      // Limit per product

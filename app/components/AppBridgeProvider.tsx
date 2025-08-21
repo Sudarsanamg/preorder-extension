@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { useNavigate, useLocation } from "@remix-run/react";
 import createApp from "@shopify/app-bridge";
-import { Redirect } from "@shopify/app-bridge/actions";
 
 interface AppBridgeContextType {
   appBridge: any | null;
@@ -18,32 +18,44 @@ export function useAppBridge() {
 
 export function AppBridgeProvider({ children }: { children: React.ReactNode }) {
   const [appBridge, setAppBridge] = useState<any | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const apiKey = "409fb8e80f3145241daeff0fccc04a8c";
-      const host = urlParams.get("host")!;
+      const host = urlParams.get("host");
 
+      // Only proceed if we have both apiKey and host
       if (apiKey && host) {
-        // Initialize Shopify App Bridge
-        const app = createApp({
-          apiKey,
-          host,
-          forceRedirect: true,
-        });
+        try {
+          // Initialize Shopify App Bridge
+          const app = createApp({
+            apiKey,
+            host,
+            forceRedirect: true,
+          });
 
-        setAppBridge(app);
+          setAppBridge(app);
 
-        // Initialize the Redirect action
-        const redirect = Redirect.create(app);
+          // Simple navigation integration
+          // Store the navigate function on the app for use elsewhere
+          (app as any).navigate = (path: string) => {
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            navigate(cleanPath);
+          };
 
-        // Redirect to Shopify Admin (the payload needs to be a URL or string here)
-        const adminUrl = "https://prorderstore.myshopify.com/admin";
-        redirect.dispatch(Redirect.Action.APP, adminUrl); // Provide a string URL for the redirect
+          console.log('App Bridge initialized successfully');
+
+        } catch (error) {
+          console.error('Error initializing App Bridge:', error);
+        }
+      } else {
+        console.warn('Missing API key or host parameter for App Bridge');
       }
     }
-  }, []);
+  }, []); // Removed dependencies to prevent re-initialization
 
   return (
     <AppBridgeContext.Provider value={{ appBridge }}>

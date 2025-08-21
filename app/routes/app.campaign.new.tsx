@@ -15,13 +15,12 @@ import {
   DatePicker,
   Popover,
   Icon,
-  FormLayout,
   Tabs,
-  Form,
+  Link
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
-import {  useSubmit } from "@remix-run/react";
+import { useSubmit, useNavigate } from "@remix-run/react";
 import {
   DiscountIcon,
   CalendarCheckIcon,
@@ -29,12 +28,12 @@ import {
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker } from "@shopify/app-bridge/actions";
-import { useAppBridge } from "../components/AppBridgeProvider";
 import { Modal, TitleBar } from "@shopify/app-bridge-react";
 import {
   createPreorderCampaign,
   addProductsToCampaign,
 } from "../models/campaign.server";
+import { useAppBridge } from "../components/AppBridgeProvider";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -70,116 +69,164 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   //   price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
   // }));
 
-  return json({ success:true });
+  return json({ success: true });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log('Action hitted**************************');
-  const formData = await request.formData();
-  const intent = formData.get("intent");
-  const { admin } = await authenticate.admin(request);
-  
-  switch (intent) {
-    case "create-campaign": {
-      const campaign = await createPreorderCampaign({
-        name: formData.get("name") as string,
-        depositPercent: Number(formData.get("depositPercent")),
-        balanceDueDate: new Date(formData.get("balanceDueDate") as string),
-        refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-        releaseDate: formData.get("campaignEndDate")
-          ? new Date(formData.get("campaignEndDate") as string)
-          : undefined,
-      });
+  console.log("Action hitted**************************");
 
-      const products = JSON.parse((formData.get("products") as string) || "[]");
-      if (products.length > 0) {
-        await addProductsToCampaign(campaign.id, products);
-        // await updatePreorderMetafields(request, products);
+  try {
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    console.log("Intent:", intent);
 
-      // console.log(products)
-
-      const mutation = `
-  mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-    metafieldsSet(metafields: $metafields) {
-      metafields {
-        id
-        namespace
-        key
-        type
-        value
-      }
-      userErrors {
-        field
-        message
-      }
+    // -------------------------------
+    // ADMIN AUTHENTICATION
+    // -------------------------------
+    let admin;
+    try {
+      const auth = await authenticate.admin(request);
+      admin = auth.admin;
+      console.log("Admin authenticated successfully");
+    } catch (err) {
+      console.error("Admin authentication failed:", err);
+      return json({ error: "Admin authentication failed" }, { status: 500 });
     }
-  }
-`;
 
+    // -------------------------------
+    // HANDLE INTENT
+    // -------------------------------
+    switch (intent) {
+      case "create-campaign": {
+        const campaign = await createPreorderCampaign({
+          name: formData.get("name") as string,
+          depositPercent: Number(formData.get("depositPercent")),
+          balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+          refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
+          releaseDate: formData.get("campaignEndDate")
+            ? new Date(formData.get("campaignEndDate") as string)
+            : undefined,
+        });
 
-console.log('hitted mid****************************');
+        console.log("Campaign created:", campaign.id);
 
-console.log('^^^^^^^^^^^^^^^^^^',new Date(formData.get("campaignEndDate") as string).toISOString());
+        const products = JSON.parse(
+          (formData.get("products") as string) || "[]",
+        );
+        console.log("Products to add:", products.length);
 
-const metafields = products.flatMap((product) => [
-  {
-    ownerId: product.id,
-    namespace: "custom",
-    key: "preorder",
-    type: "boolean",
-    value: "true",
-  },
-  {
-    ownerId: product.id,
-    namespace: "custom",
-    key: "release_date",
-    type: "date",
-    value: "2025-08-30", 
-  },
-  {
-    ownerId: product.id,
-    namespace: "custom",
-    key: "preorder_end_date",
-    type: "date_time",
-    value: new Date(formData.get("campaignEndDate") as string).toISOString()
-  },
-]);
+        if (products.length > 0) {
+          await addProductsToCampaign(campaign.id, products);
+          console.log("Products added to campaign");
 
+          // -------------------------------
+          // PREORDER METAFIELDS UPDATE
+          // -------------------------------
+          const mutation = `
+            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
+              metafieldsSet(metafields: $metafields) {
+                metafields {
+                  id
+                  namespace
+                  key
+                  type
+                  value
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
 
-  // console.log("Updating metafields for products:", metafields);
+          const metafields = products.flatMap((product) => [
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "true",
+            },
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "release_date",
+              type: "date",
+              value: "2025-08-30", // example static value
+            },
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "preorder_end_date",
+              type: "date_time",
+              value: new Date(
+                formData.get("campaignEndDate") as string,
+              ).toISOString(),
+            },
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "deposit_percent",
+              type: "number_integer",
+              value: Number(formData.get("depositPercent") || 0),
+            },
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "balance_due_date",
+              type: "date",
+              value: new Date(
+                formData.get("balanceDueDate") as string,
+              ).toISOString(),
+            },
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "preorder_max_units",
+              type: "number_integer",
+              value: Number(product?.maxUnit || 0),
+            }
+          ]);
 
+          console.log("Metafields prepared:", metafields);
 
-  console.log('hitted almost end')
-
-
-   const response = await admin.graphql(mutation, { variables: { metafields } });
-const result = await response.json();
-
-console.log("Metafields update result:%%%%%%%%%%%%%%%%%%%%%%%%%");
-
+          try {
+            const response = await admin.graphql(mutation, {
+              variables: { metafields },
+            });
+            console.log("GraphQL response:", response);
+          } catch (err) {
+            console.error("GraphQL mutation failed:", err);
+            return json(
+              { error: "Failed to update product metafields" },
+              { status: 500 },
+            );
           }
+        }
 
-    return json({ success: "Product added to campaign" }, { status: 200 });
+        return json({ success: "Product added to campaign" }, { status: 200 });
+      }
+
+      default:
+        console.warn("Unknown intent:", intent);
+        return json({ error: "Unknown intent" }, { status: 400 });
     }
-
-    default:
-      return json({ error: "Unknown intent" }, { status: 400 });
+  } catch (err) {
+    console.error("Action failed:", err);
+    return json({ error: "Unexpected error occurred" }, { status: 500 });
   }
 };
 
 export default function Newcampaign() {
   const submit = useSubmit();
+  const navigate = useNavigate();
   const [campaignName, setCampaignName] = useState("");
   const [selected, setSelected] = useState(0);
-  // const [open, setOpen] = useState(true);
-
-  // const { products } = useLoaderData<typeof loader>();
-  // const [loading, setLoading] = useState(false);
-  // const [selectedProductIds, setSelectedProductIds] = useState([]);
-  const [productTagInput,setProductTagInput] = useState("");
+  const [productTagInput, setProductTagInput] = useState("");
   const [productTags, setProductTags] = useState([]);
-  const [preOrderNoteKey,setPreOrderNoteKey] = useState("Note");
-  const [preOrderNoteValue,setPreOrderNoteValue] = useState("Preorder");
+  const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
+  const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
   const [selectedOption, setSelectedOption] = useState("preorder");
   const [buttonText, setButtonText] = useState("Preorder");
   const [shippingMessage, setShippingMessage] = useState(
@@ -193,12 +240,10 @@ export default function Newcampaign() {
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
   });
-
   const [selectedDates, setSelectedDates] = useState({
     start: new Date(),
     end: new Date(),
   });
-
   const [popoverActive, setPopoverActive] = useState(false);
   const [DueDateinputValue, setDueDateInputValue] = useState(
     new Date().toLocaleDateString(),
@@ -252,22 +297,60 @@ export default function Newcampaign() {
     setCampaignEndTime(value);
   }, []);
 
-  const appBridge = useAppBridge();
 
   const openResourcePicker = () => {
-    shopify.modal.hide("my-modal");
-    const picker = ResourcePicker.create(appBridge, {
-      resourceType: ResourcePicker.ResourceType.Product,
-      options: {
-        selectMultiple: true,
-      },
-    });
-    picker.subscribe(ResourcePicker.Action.SELECT, (payload) => {
-      const selection = payload.selection;
+  shopify.modal.hide("my-modal");
+
+  async function fetchProductsInCollection(collectionId: string) {
+  const res = await fetch("/api/products-in-collection", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collectionId }),
+  });
+
+  if (!res.ok) throw new Error("Failed to fetch products");
+
+  const data = await res.json();
+  return data.products;
+}
+
+
+  const picker = ResourcePicker.create(appBridge, {
+    resourceType: productRadio === "option1"
+      ? ResourcePicker.ResourceType.Product
+      : ResourcePicker.ResourceType.Collection,
+    options: {
+      selectMultiple: true,
+    },
+  });
+
+  picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
+    if (productRadio === "option1") {
+      // ✅ products directly selected
       setSelectedProducts(payload.selection);
-    });
-    picker.dispatch(ResourcePicker.Action.OPEN);
-  };
+    } else {
+      // ✅ collections selected → fetch products inside
+      let allProducts: any[] = [];
+
+      for (const collection of payload.selection) {
+        const productsInCollection = await fetchProductsInCollection(collection.id);
+        allProducts = [...allProducts, ...productsInCollection];
+      }
+
+      // remove duplicates by product id
+      const uniqueProducts = Array.from(
+        new Map(allProducts.map((p) => [p.id, p])).values()
+      );
+
+      setSelectedProducts(uniqueProducts);
+    }
+  });
+
+  picker.dispatch(ResourcePicker.Action.OPEN);
+};
+
+     
+
 
   const togglePopover = useCallback(
     () => setPopoverActive((active) => !active),
@@ -280,7 +363,6 @@ export default function Newcampaign() {
 
   const handleDateChange = useCallback((range) => {
     setSelectedDates(range);
-    // Format the selected date for the input field
     if (range && range.start) {
       setDueDateInputValue(range.start.toLocaleDateString());
     }
@@ -317,516 +399,598 @@ export default function Newcampaign() {
     }
   };
 
-
   const handleSubmit = () => {
-
     //  if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
     //   alert("Please fill all required fields and add at least one product.");
     //   return;
     // }
 
-  console.log('function hit')
-  const formData = new FormData();
-  formData.append("intent", "create-campaign");
-  formData.append("name", campaignName);
-  formData.append("depositPercent", String(partialPaymentPercentage));
-  formData.append("balanceDueDate", DueDateinputValue);
-  formData.append("refundDeadlineDays", "0");
-  formData.append("campaignEndDate", campaignEndDate.toISOString());
-  formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
+    console.log("function hit");
+    const formData = new FormData();
+    formData.append("intent", "create-campaign");
+    formData.append("name", campaignName);
+    formData.append("depositPercent", String(partialPaymentPercentage));
+    formData.append("balanceDueDate", DueDateinputValue);
+    formData.append("refundDeadlineDays", "0");
+    formData.append("campaignEndDate", campaignEndDate.toISOString());
+    formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
 
-  submit(formData, { method: "post" });
-};
+    submit(formData, { method: "post" });
+  };
 
+  useEffect(() => {
+    console.log(selectedProducts);
+  }, [selectedProducts]);
 
-useEffect(() => {
-  console.log(selectedProducts);
-},[selectedProducts])
+  const handleMaxUnitChange = (id: string, value: number) => {
+    setSelectedProducts((prev: any) =>
+      prev.map((product) =>
+        product.id === id
+          ? { ...product, maxUnit: value } // add/update maxUnit
+          : product,
+      ),
+    );
+  };
 
+  useEffect(() => {
+    console.log(selectedProducts);
+  }, [selectedProducts]);
 
+  const appBridge = useAppBridge();
+
+  const handleNavigation = () => {
+    // Use Remix Link for normal navigation
+    // Or use appBridge.navigate for programmatic navigation
+    if (appBridge && appBridge.navigate) {
+      appBridge.navigate('/your-route');
+    }
+  };
 
   return (
     <AppProvider i18n={enTranslations}>
       <Page
         title="Create Preorder campaign"
-        backAction={{ content: "Back", url: "/" }}
+        backAction={{ content: "Back", url: "/app/_index" }}
         // primaryAction={{
         //   content: "Publish",
         //   onAction: handleSubmit,
         // }}
       >
-      
+              <Link to="/your-route">Go to route</Link>
+
+        <Button onClick={handleNavigation}>Create Campaign</Button>
+
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
 
-  <form method="post" onSubmit={handleSubmit}>
-    <input type="hidden" name="intent" value="create-campaign" />
-    <input type="hidden" name="products" value={JSON.stringify(selectedProducts)} />
-    <input type="hidden" name="name" value={campaignName} />
-    <input type="hidden" name="depositPercent" value={String(partialPaymentPercentage)} />
-    <input type="hidden" name="balanceDueDate" value={DueDateinputValue} />
-    <input type="hidden" name="refundDeadlineDays" value="0" />
-    <input type="hidden" name="campaignEndDate" value={campaignEndDate.toISOString()} />
+        <form method="post" onSubmit={handleSubmit}>
+          <input type="hidden" name="intent" value="create-campaign" />
+          <input
+            type="hidden"
+            name="products"
+            value={JSON.stringify(selectedProducts)}
+          />
+          <input type="hidden" name="name" value={campaignName} />
+          <input
+            type="hidden"
+            name="depositPercent"
+            value={String(partialPaymentPercentage)}
+          />
+          <input
+            type="hidden"
+            name="balanceDueDate"
+            value={DueDateinputValue}
+          />
+          <input type="hidden" name="refundDeadlineDays" value="0" />
+          <input
+            type="hidden"
+            name="campaignEndDate"
+            value={campaignEndDate.toISOString()}
+          />
 
-        <div style={{display:'flex',justifyContent:'flex-end',margin:10}}>
-        <button type="submit" style={{backgroundColor:'black',color:"white",padding:5,borderRadius:5}}>Publish</button>
-        </div>
-        {selected === 0 && (
           <div
-            style={{
-              display: "flex",
-              position: "relative",
-              paddingBottom: 20,
-            }}
+            style={{ display: "flex", justifyContent: "flex-end", margin: 10 }}
           >
-            {/*  */}
-            {/* left */}
-            <div style={{ flex: 1 }}>
-              <Card>
-                <BlockStack>
-                  <Text as="h1" variant="headingLg">
-                    New Campaign
-                  </Text>
-                </BlockStack>
-                <TextField
-                  id="campaignName"
-                  label="Campaign Name"
-                  placeholder="Enter campaign name"
-                  autoComplete="off"
-                  value={campaignName}
-                  onChange={setCampaignName}
-                />
-                <div style={{ marginTop: 6 }}>
-                  <p>This is only visible for you</p>
-                </div>
-                <div>
-                  <Text as="h4" variant="headingSm">
-                    Preorder
-                  </Text>
-                </div>
-                <LegacyStack vertical>
-                  <RadioButton
-                    label="Show Preorder when product is out of stock"
-                    checked={selectedOption === "out-of-stock"}
-                    id="preorder"
-                    name="preorder"
-                    onChange={() => setSelectedOption("out-of-stock")}
+            <button
+              type="submit"
+              style={{
+                backgroundColor: "black",
+                color: "white",
+                padding: 5,
+                borderRadius: 5,
+              }}
+            >
+              Publish
+            </button>
+          </div>
+          {selected === 0 && (
+            <div
+              style={{
+                display: "flex",
+                position: "relative",
+                paddingBottom: 20,
+              }}
+            >
+              {/*  */}
+              {/* left */}
+              <div style={{ flex: 1 }}>
+                <Card>
+                  <BlockStack>
+                    <Text as="h1" variant="headingLg">
+                      New Campaign
+                    </Text>
+                  </BlockStack>
+                  <TextField
+                    id="campaignName"
+                    label="Campaign Name"
+                    placeholder="Enter campaign name"
+                    autoComplete="off"
+                    value={campaignName}
+                    onChange={setCampaignName}
                   />
-                  {selectedOption === "out-of-stock" && (
-                    <ol>
-                      {/* <li>
+                  <div style={{ marginTop: 6 }}>
+                    <p>This is only visible for you</p>
+                  </div>
+                  <div>
+                    <Text as="h4" variant="headingSm">
+                      Preorder
+                    </Text>
+                  </div>
+                  <LegacyStack vertical>
+                    <RadioButton
+                      label="Show Preorder when product is out of stock"
+                      checked={selectedOption === "out-of-stock"}
+                      id="preorder"
+                      name="preorder"
+                      onChange={() => setSelectedOption("out-of-stock")}
+                    />
+                    {selectedOption === "out-of-stock" && (
+                      <ol>
+                        {/* <li>
                         The Preorder button appears when stock reaches 0 and
                         switches to "Add to cart" once inventory is replenished.
                       </li>
                       <li>
                         When the campaign is active, the app enables "Continue selling when out of stock" and "Track quantity".
                       </li> */}
-                    </ol>
-                  )}
-                  <RadioButton
-                    label="Always show Preorder button"
-                    checked={selectedOption === "always-preorder"}
-                    id="always-preorder"
-                    name="always-preorder"
-                    onChange={() => {
-                      setSelectedOption("always-preorder");
-                    }}
-                  />
-                  {selectedOption === "always-preorder" && (
-                    <Text as="p">
-                      Preorder lets customers buy before stock is available.
-                    </Text>
-                  )}
-                  <RadioButton
-                    label="Show Preorder only when product in stock"
-                    checked={selectedOption === "in-stock"}
-                    id="back-in-stock"
-                    name="back-in-stock"
-                    onChange={() => {
-                      setSelectedOption("in-stock");
-                    }}
-                  />
-                  {selectedOption === "in-stock" && (
-                    <Text>
-                      Preorder lets customers buy before stock is available.
-                    </Text>
-                  )}
-                </LegacyStack>
-                {/* </div> */}
-              </Card>
-
-              <div style={{ marginTop: 20 }}>
-                <Card>
-                  <Text as="h4" variant="headingSm">
-                    Preorder Button
-                  </Text>
-                  <TextField
-                    id="preorderButtonText"
-                    label="Button Text"
-                    placeholder="Enter button text"
-                    autoComplete="off"
-                    value={buttonText}
-                    onChange={(e) => setButtonText(e)}
-                  />
-                  <TextField
-                    id="preorderMessage"
-                    label="Message"
-                    placeholder="Enter message"
-                    value={shippingMessage}
-                    onChange={(e) => setShippingMessage(e)}
-                    autoComplete="off"
-                  />
+                      </ol>
+                    )}
+                    <RadioButton
+                      label="Always show Preorder button"
+                      checked={selectedOption === "always-preorder"}
+                      id="always-preorder"
+                      name="always-preorder"
+                      onChange={() => {
+                        setSelectedOption("always-preorder");
+                      }}
+                    />
+                    {selectedOption === "always-preorder" && (
+                      <Text as="p">
+                        Preorder lets customers buy before stock is available.
+                      </Text>
+                    )}
+                    <RadioButton
+                      label="Show Preorder only when product in stock"
+                      checked={selectedOption === "in-stock"}
+                      id="back-in-stock"
+                      name="back-in-stock"
+                      onChange={() => {
+                        setSelectedOption("in-stock");
+                      }}
+                    />
+                    {selectedOption === "in-stock" && (
+                      <Text>
+                        Preorder lets customers buy before stock is available.
+                      </Text>
+                    )}
+                  </LegacyStack>
+                  {/* </div> */}
                 </Card>
-              </div>
 
-              {/* preorder Note */}
-              <div style={{ marginTop: 20 }}>
-                <Card>
-                  <Text as="h4" variant="headingSm">
-                    Preorder note
-                  </Text>
-                  <p>Visible in cart, checkout, transactional emails</p>
-                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                    <TextField id="preorderNote" label="Preorder Note Key" autoComplete="off" value={preOrderNoteKey} onChange={setPreOrderNoteKey}  />
-                    <TextField id="preorderNote" label="Preorder Note Key" autoComplete="off" value={preOrderNoteValue} onChange={setPreOrderNoteValue} />
-                  </div>
-                </Card>
-              </div>
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <Text as="h4" variant="headingSm">
+                      Preorder Button
+                    </Text>
+                    <TextField
+                      id="preorderButtonText"
+                      label="Button Text"
+                      placeholder="Enter button text"
+                      autoComplete="off"
+                      value={buttonText}
+                      onChange={(e) => setButtonText(e)}
+                    />
+                    <TextField
+                      id="preorderMessage"
+                      label="Message"
+                      placeholder="Enter message"
+                      value={shippingMessage}
+                      onChange={(e) => setShippingMessage(e)}
+                      autoComplete="off"
+                    />
+                  </Card>
+                </div>
 
-              {/* payment type */}
-              <div style={{ marginTop: 20 }}>
-                <Card>
-                  <Text as="h4" variant="headingSm">
-                    Payment
-                  </Text>
-                  <div>
-                    <LegacyStack vertical>
-                      <RadioButton
-                        label="Full payment"
-                        checked={paymentMode === "full"}
-                        id="full-payment"
-                        name="full-payment"
-                        onChange={() => setPaymentMode("full")}
+                {/* preorder Note */}
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <Text as="h4" variant="headingSm">
+                      Preorder note
+                    </Text>
+                    <p>Visible in cart, checkout, transactional emails</p>
+                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                      <TextField
+                        id="preorderNote"
+                        label="Preorder Note Key"
+                        autoComplete="off"
+                        value={preOrderNoteKey}
+                        onChange={setPreOrderNoteKey}
                       />
-                      {paymentMode === "full" && (
-                        <>
-                          <TextField
-                            id="fullPaymentNote"
-                            autoComplete="off"
-                            label="Full payment text"
-                          />
-                          <Text as="p" variant="bodyMd">
-                            Visible in cart, checkout, transactional emails
-                          </Text>
-                        </>
-                      )}
-                      <RadioButton
-                        label="Partial payment"
-                        id="partial-payment"
-                        name="partial-payment"
-                        checked={paymentMode === "partial"}
-                        onChange={() => setPaymentMode("partial")}
+                      <TextField
+                        id="preorderNote"
+                        label="Preorder Note Key"
+                        autoComplete="off"
+                        value={preOrderNoteValue}
+                        onChange={setPreOrderNoteValue}
                       />
-                      {paymentMode === "partial" && (
-                        <div>
-                          <div style={{ display: "flex", gap: 10 }}>
-                            <div>
-                              <ButtonGroup variant="segmented">
-                                <Button
-                                  pressed={partialPaymentType === "percent"}
-                                  onClick={() =>
-                                    setPartialPaymentType("percent")
-                                  }
-                                  icon={DiscountIcon}
-                                ></Button>
-                                {/* <Button
+                    </div>
+                  </Card>
+                </div>
+
+                {/* payment type */}
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <Text as="h4" variant="headingSm">
+                      Payment
+                    </Text>
+                    <div>
+                      <LegacyStack vertical>
+                        <RadioButton
+                          label="Full payment"
+                          checked={paymentMode === "full"}
+                          id="full-payment"
+                          name="full-payment"
+                          onChange={() => setPaymentMode("full")}
+                        />
+                        {paymentMode === "full" && (
+                          <>
+                            <TextField
+                              id="fullPaymentNote"
+                              autoComplete="off"
+                              label="Full payment text"
+                            />
+                            <Text as="p" variant="bodyMd">
+                              Visible in cart, checkout, transactional emails
+                            </Text>
+                          </>
+                        )}
+                        <RadioButton
+                          label="Partial payment"
+                          id="partial-payment"
+                          name="partial-payment"
+                          checked={paymentMode === "partial"}
+                          onChange={() => setPaymentMode("partial")}
+                        />
+                        {paymentMode === "partial" && (
+                          <div>
+                            <div style={{ display: "flex", gap: 10 }}>
+                              <div>
+                                <ButtonGroup variant="segmented">
+                                  <Button
+                                    pressed={partialPaymentType === "percent"}
+                                    onClick={() =>
+                                      setPartialPaymentType("percent")
+                                    }
+                                    icon={DiscountIcon}
+                                  ></Button>
+                                  {/* <Button
                                   pressed={partialPaymentType === "flat"}
                                   onClick={() => setPartialPaymentType("flat")}
                                   icon={CashDollarFilledIcon}
                                   aria-label="Flat payment"
                                 ></Button> */}
-                              </ButtonGroup>
+                                </ButtonGroup>
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <TextField
+                                  autoComplete="off"
+                                  suffix={` ${partialPaymentType === "percent" ? "%" : "₹"}`}
+                                  value={partialPaymentPercentage}
+                                  onChange={setPartialPaymentPercentage}
+                                />
+                              </div>
                             </div>
-                            <div style={{ flex: 1 }}>
-                              <TextField
-                                autoComplete="off"
-                                suffix={` ${partialPaymentType === "percent" ? "%" : "₹"}`}
-                                value={partialPaymentPercentage}
-                                onChange={setPartialPaymentPercentage}
-                              />
-                            </div>
-                          </div>
-                          <div
-                            style={{ marginTop: 10, display: "flex", gap: 10 }}
-                          >
-                            <div>
-                              <ButtonGroup variant="segmented">
-                                {/* <Button
+                            <div
+                              style={{
+                                marginTop: 10,
+                                display: "flex",
+                                gap: 10,
+                              }}
+                            >
+                              <div>
+                                <ButtonGroup variant="segmented">
+                                  {/* <Button
                                   pressed={duePaymentType === 1}
                                   onClick={() => setDuePaymentType(1)}
                                   icon={ClockIcon}
                                 ></Button> */}
-                                <Button
-                                  pressed={duePaymentType === 2}
-                                  onClick={() => setDuePaymentType(2)}
-                                  icon={CalendarCheckIcon}
-                                ></Button>
-                              </ButtonGroup>
+                                  <Button
+                                    pressed={duePaymentType === 2}
+                                    onClick={() => setDuePaymentType(2)}
+                                    icon={CalendarCheckIcon}
+                                  ></Button>
+                                </ButtonGroup>
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                {duePaymentType === 1 && (
+                                  <TextField
+                                    id="partialPaymentNote"
+                                    autoComplete="off"
+                                    suffix="days after checkout"
+                                  />
+                                )}
+                                {duePaymentType === 2 && (
+                                  <div>
+                                    <Popover
+                                      active={popoverActive}
+                                      activator={
+                                        <div style={{ flex: 1 }}>
+                                          <TextField
+                                            label="Select date for due payment"
+                                            value={DueDateinputValue}
+                                            onFocus={togglePopover}
+                                            onChange={() => {}}
+                                            autoComplete="off"
+                                          />
+                                        </div>
+                                      }
+                                      onClose={() => setPopoverActive(false)}
+                                    >
+                                      <DatePicker
+                                        month={month}
+                                        year={year}
+                                        onChange={handleDateChange}
+                                        onMonthChange={handleMonthChange}
+                                        selected={selectedDates}
+                                      />
+                                    </Popover>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ flex: 1 }}>
-                              {duePaymentType === 1 && (
-                                <TextField
-                                  id="partialPaymentNote"
-                                  autoComplete="off"
-                                  suffix="days after checkout"
-                                />
-                              )}
-                              {duePaymentType === 2 && (
-                                <div>
-                                  <Popover
-                                    active={popoverActive}
-                                    activator={
-                                      <div style={{ flex: 1 }}>
-                                        <TextField
-                                          label="Select date for due payment"
-                                          value={DueDateinputValue}
-                                          onFocus={togglePopover}
-                                          onChange={() => {}}
-                                          autoComplete="off"
-                                        />
-                                      </div>
-                                    }
-                                    onClose={() => setPopoverActive(false)}
-                                  >
-                                    <DatePicker
-                                      month={month}
-                                      year={year}
-                                      onChange={handleDateChange}
-                                      onMonthChange={handleMonthChange}
-                                      selected={selectedDates}
-                                    />
-                                  </Popover>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <TextField
-                            autoComplete="off"
-                            label="Partial payment text"
-                          />
-                          <Text as="p" variant="bodyMd">
-                            Visible in cart, checkout, transactional emails
-                          </Text>
-                          <div>
-                            <TextField autoComplete="off" label="Text" />
-                            <Text as="p" variant="bodyMd">
-                              Use {"{payment}"} and {"{remaining}"} to display
-                              partial payment amounts and {"{date}"} for full
-                              amount charge date.
-                            </Text>
-                          </div>
-                        </div>
-                      )}
-                    </LegacyStack>
-                  </div>
-                </Card>
-              </div>
-              <div style={{ marginTop: 20 }}>
-                <Card>
-                  <Text as="h4" variant="headingSm">
-                    Campaign End Date and Time
-                  </Text>
-                  <div
-                    style={{ display: "flex", gap: 10, alignItems: "center" }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <Popover
-                        active={campaignEndPicker.popoverActive}
-                        activator={
-                          <div style={{ flex: 1 }}>
                             <TextField
-                              label="Select end date"
-                              value={campaignEndPicker.inputValue}
-                              onFocus={toggleCampaignEndPopover}
-                              onChange={() => {}}
                               autoComplete="off"
+                              label="Partial payment text"
                             />
+                            <Text as="p" variant="bodyMd">
+                              Visible in cart, checkout, transactional emails
+                            </Text>
+                            <div>
+                              <TextField autoComplete="off" label="Text" />
+                              <Text as="p" variant="bodyMd">
+                                Use {"{payment}"} and {"{remaining}"} to display
+                                partial payment amounts and {"{date}"} for full
+                                amount charge date.
+                              </Text>
+                            </div>
                           </div>
-                        }
-                        onClose={toggleCampaignEndPopover}
-                      >
-                        <DatePicker
-                          month={campaignEndPicker.month}
-                          year={campaignEndPicker.year}
-                          onChange={handleCampaignEndDateChange}
-                          onMonthChange={handleCampaignEndMonthChange}
-                          selected={campaignEndPicker.selected}
-                        />
-                      </Popover>
+                        )}
+                      </LegacyStack>
                     </div>
-                    <div>
+                  </Card>
+                </div>
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <Text as="h4" variant="headingSm">
+                      Campaign End Date and Time
+                    </Text>
+                    <div
+                      style={{ display: "flex", gap: 10, alignItems: "center" }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <Popover
+                          active={campaignEndPicker.popoverActive}
+                          activator={
+                            <div style={{ flex: 1 }}>
+                              <TextField
+                                label="Select end date"
+                                value={campaignEndPicker.inputValue}
+                                onFocus={toggleCampaignEndPopover}
+                                onChange={() => {}}
+                                autoComplete="off"
+                              />
+                            </div>
+                          }
+                          onClose={toggleCampaignEndPopover}
+                        >
+                          <DatePicker
+                            month={campaignEndPicker.month}
+                            year={campaignEndPicker.year}
+                            onChange={handleCampaignEndDateChange}
+                            onMonthChange={handleCampaignEndMonthChange}
+                            selected={campaignEndPicker.selected}
+                          />
+                        </Popover>
+                      </div>
+                      <div>
+                        <TextField
+                          id="campaignEndTime"
+                          autoComplete="off"
+                          type="time"
+                          label="Time"
+                          placeholder="Select time"
+                          value={campaignEndTime}
+                          onChange={handleCampaignEndTimeChange}
+                        />
+                      </div>
+                    </div>
+                    <Text as="p" variant="bodyMd">
+                      Campaign will end at the selected date and time.
+                    </Text>
+                  </Card>
+                </div>
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <Text as="h4" variant="headingSm">
+                      Order tags
+                    </Text>
+                    <div onKeyDown={handleKeyDown}>
                       <TextField
-                        id="campaignEndTime"
+                        label="Order Tags"
+                        value={productTagInput}
+                        onChange={(value) => setProductTagInput(value)} // Polaris style
                         autoComplete="off"
-                        type="time"
-                        label="Time"
-                        placeholder="Select time"
-                        value={campaignEndTime}
-                        onChange={handleCampaignEndTimeChange}
                       />
                     </div>
-                  </div>
-                  <Text as="p" variant="bodyMd">
-                    Campaign will end at the selected date and time.
-                  </Text>
-                </Card>
-              </div>
-              <div style={{ marginTop: 20 }}>
-                <Card>
-                  <Text as="h4" variant="headingSm">
-                    Order tags
-                  </Text>
-                  <div
-                    onKeyDown={handleKeyDown}
-                  >
-                    <TextField
-                      label="Order Tags"
-                      value={productTagInput}
-                      onChange={(value) => setProductTagInput(value)} // Polaris style
-                      autoComplete="off"
-                    />
-                  </div>
-                  <Text as="h4" variant="headingSm">
-                    For customers who placed preorders
-                  </Text>
-                  <div>
-                    {productTags.map((tag, index) => (
-                      <span key={index} style={{ marginRight: 5 ,backgroundColor:'gray',padding:5,borderRadius:5}}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-            </div>
-            {/* right */}
-            <div style={{ flex: 1, marginLeft: 20 }}>
-              {/* preview */}
-              <div style={{ position: "sticky", top: 20 }}>
-                <Card>
-                  <div style={{ display: "flex", justifyContent: "center" }}>
                     <Text as="h4" variant="headingSm">
-                      Preview
+                      For customers who placed preorders
                     </Text>
-                  </div>
-                  <div style={{}}>
-                    <Text as="h1" variant="headingLg">
-                      White T-shirt
-                    </Text>
-                    <div style={{ marginTop: 10 }}>
-                      <Text as="h1" variant="headingMd">
-                        ₹499.00
-                      </Text>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 20 }}>
-                    <Text as="h1" variant="headingSm">
-                      Size
-                    </Text>
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <div
-                        style={{
-                          border: "1px solid black",
-                          borderRadius: 80,
-                          padding: 2,
-                          minWidth: "60px",
-                          textAlign: "center",
-                        }}
-                      >
-                        Small
-                      </div>
-                      <div
-                        style={{
-                          border: "1px solid black",
-                          borderRadius: 80,
-                          padding: 3,
-                          backgroundColor: "black",
-                          minWidth: "60px",
-                        }}
-                      >
-                        <span style={{ color: "white", textAlign: "center" }}>
-                          Medium
+                    <div>
+                      {productTags.map((tag, index) => (
+                        <span
+                          key={index}
+                          style={{
+                            marginRight: 5,
+                            backgroundColor: "gray",
+                            padding: 5,
+                            borderRadius: 5,
+                          }}
+                        >
+                          {tag}
                         </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 20,
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: 50,
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        backgroundColor: "#000",
-                        borderRadius: 5,
-                        marginTop: "auto",
-                      }}
-                    >
-                      <span style={{ color: "white", fontWeight: "bold" }}>
-                        {buttonText}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      padding: 5,
-                    }}
-                  >
-                    <Text as="h1" variant="headingMd">
-                      {shippingMessage}
-                    </Text>
-                  </div>
-                  {paymentMode === 'partial' && (
-                    <div style={{ display: "flex", justifyContent: "center" }}>
-                      <Text as="h1" variant="headingMd">
-                        Pay ₹3.92 now and ₹35.28 will be charged on {DueDateinputValue}
-                      </Text>
-                    </div>
-                  )}
-                </Card>
-                <div>
-                  <Card>
-                    <div style={{ padding: 3, textAlign: "center" }}>
-                      <Text as="p" variant="headingSm">
-                        CART, CHECKOUT, EMAIL PREVIEW
-                      </Text>
-                    </div>
-                    <div style={{display:'flex',gap:25}}>
-                      <div>
-                        <img src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg" alt="" height={80} />
-                      </div>
-                      <div>
-                        <p style={{ fontWeight: "bold" ,fontSize:"16px"}}>Baby Pink T-shirt</p>
-                        {
-                        paymentMode === 'partial' ?
-                         <p>Partial payment</p> 
-                         : 
-                         <p>Pay in full</p>
-                         }
-                         <p>{preOrderNoteKey} : {preOrderNoteValue}</p>
-                      </div>
+                      ))}
                     </div>
                   </Card>
                 </div>
               </div>
+              {/* right */}
+              <div style={{ flex: 1, marginLeft: 20 }}>
+                {/* preview */}
+                <div style={{ position: "sticky", top: 20 }}>
+                  <Card>
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <Text as="h4" variant="headingSm">
+                        Preview
+                      </Text>
+                    </div>
+                    <div style={{}}>
+                      <Text as="h1" variant="headingLg">
+                        White T-shirt
+                      </Text>
+                      <div style={{ marginTop: 10 }}>
+                        <Text as="h1" variant="headingMd">
+                          ₹499.00
+                        </Text>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 20 }}>
+                      <Text as="h1" variant="headingSm">
+                        Size
+                      </Text>
+                      <div style={{ display: "flex", gap: 10 }}>
+                        <div
+                          style={{
+                            border: "1px solid black",
+                            borderRadius: 80,
+                            padding: 2,
+                            minWidth: "60px",
+                            textAlign: "center",
+                          }}
+                        >
+                          Small
+                        </div>
+                        <div
+                          style={{
+                            border: "1px solid black",
+                            borderRadius: 80,
+                            padding: 3,
+                            backgroundColor: "black",
+                            minWidth: "60px",
+                          }}
+                        >
+                          <span style={{ color: "white", textAlign: "center" }}>
+                            Medium
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 20,
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: 50,
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: "#000",
+                          borderRadius: 5,
+                          marginTop: "auto",
+                        }}
+                      >
+                        <span style={{ color: "white", fontWeight: "bold" }}>
+                          {buttonText}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        padding: 5,
+                      }}
+                    >
+                      <Text as="h1" variant="headingMd">
+                        {shippingMessage}
+                      </Text>
+                    </div>
+                    {paymentMode === "partial" && (
+                      <div
+                        style={{ display: "flex", justifyContent: "center" }}
+                      >
+                        <Text as="h1" variant="headingMd">
+                          Pay ₹3.92 now and ₹35.28 will be charged on{" "}
+                          {DueDateinputValue}
+                        </Text>
+                      </div>
+                    )}
+                  </Card>
+                  <div>
+                    <Card>
+                      <div style={{ padding: 3, textAlign: "center" }}>
+                        <Text as="p" variant="headingSm">
+                          CART, CHECKOUT, EMAIL PREVIEW
+                        </Text>
+                      </div>
+                      <div style={{ display: "flex", gap: 25 }}>
+                        <div>
+                          <img
+                            src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg"
+                            alt=""
+                            height={80}
+                          />
+                        </div>
+                        <div>
+                          <p style={{ fontWeight: "bold", fontSize: "16px" }}>
+                            Baby Pink T-shirt
+                          </p>
+                          {paymentMode === "partial" ? (
+                            <p>Partial payment</p>
+                          ) : (
+                            <p>Pay in full</p>
+                          )}
+                          <p>
+                            {preOrderNoteKey} : {preOrderNoteValue}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </form>
 
         {selected === 1 && (
@@ -991,16 +1155,10 @@ useEffect(() => {
                             <TextField
                               type="number"
                               min={0}
-                              value={product.preorderQuantity || ""}
-                              // onChange={qty => {
-                              //   setSelectedProducts(prev =>
-                              //     prev.map(p =>
-                              //       p.id === product.id
-                              //         ? { ...p, preorderQuantity: qty }
-                              //         : p
-                              //     )
-                              //   );
-                              // }}
+                              value={product?.maxUnit?.toString() || "0"} // Polaris expects string
+                              onChange={(value) =>
+                                handleMaxUnitChange(product.id, Number(value))
+                              }
                             />
                           </td>
                           <td

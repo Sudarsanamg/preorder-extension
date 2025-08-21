@@ -1,0 +1,59 @@
+{% assign deposit_percent = product.metafields.custom.deposit_percent.value | default: 0 %}
+{% assign product_price = product.price | money_without_currency %}
+{% assign unitsSold = product.metafields.custom.preorder_units_sold %}
+{% assign maxUnits  = product.metafields.custom.preorder_max_units %}
+
+{% if deposit_percent > 0 %}
+  {% assign initial_payment = product_price | times: deposit_percent | divided_by: 100 %}
+  {% assign balance_payment = product_price | minus: initial_payment %}
+  {% assign balance_due_date = product.metafields.custom.balance_due_date.value %}
+
+  <div class="preorder-payment-info">
+    <p>
+      Pay ₹{{ initial_payment | round }} now and ₹{{ balance_payment | round }} on {{ balance_due_date | date: "%d %b %Y" }}
+    </p>
+  </div>
+
+  
+{% endif %}
+
+
+{% if unitsSold >= maxUnits %}
+  <div id="sold-out">
+    <p>Sold Out</p>
+</div>
+{% endif %}
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // safer button selector inside product form
+    const btn = document.querySelector('#product-form-template--22700276023319__main > div > div > shopify-accelerated-checkout > shopify-buy-it-now-button > button');
+    const cartbtn = document.querySelector('#ProductSubmitButton-template--22700276023319__main');
+
+    // Liquid prints safe numbers
+    const maxUnits = Number("{{ product.metafields.custom.preorder_max_units.value | default: 0 }}");
+    const unitsSold = Number("{{ product.metafields.custom.preorder_units_sold.value | default: 0 }}");
+    console.log(maxUnits,'************', unitsSold);
+
+   //disable button
+    if (unitsSold >= maxUnits) {
+      btn.disabled = true;
+      cartbtn.disabled = true;
+      btn.textContent = "Sold Out";
+      btn.classList.add("disabled");
+    } else {
+      btn.disabled = false;
+      btn.textContent = "Buy Now";
+      btn.classList.remove("disabled");
+    }
+    
+  });
+</script>
+{% schema %}
+{
+  "name": "initial payments block",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

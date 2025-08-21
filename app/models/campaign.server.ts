@@ -1,6 +1,8 @@
 import prisma from "app/db.server";
 
-// Create a campaign
+export async function getAllCampaign(){
+  return prisma.preorderCampaign.findMany();
+}
 
 export async function createPreorderCampaign(data: {
   name: string;
