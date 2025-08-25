@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://evaluating-used-skating-commons.trycloudflare.com"
+application_url = "https://shipment-leonard-gem-injuries.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://evaluating-used-skating-commons.trycloudflare.com/auth/callback", "https://evaluating-used-skating-commons.trycloudflare.com/auth/shopify/callback", "https://evaluating-used-skating-commons.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://shipment-leonard-gem-injuries.trycloudflare.com/auth/callback", "https://shipment-leonard-gem-injuries.trycloudflare.com/auth/shopify/callback", "https://shipment-leonard-gem-injuries.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

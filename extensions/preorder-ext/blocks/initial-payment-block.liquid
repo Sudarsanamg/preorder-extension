@@ -1,7 +1,7 @@
 {% assign deposit_percent = product.metafields.custom.deposit_percent.value | default: 0 %}
 {% assign product_price = product.price | money_without_currency %}
-{% assign unitsSold = product.metafields.custom.preorder_units_sold %}
-{% assign maxUnits  = product.metafields.custom.preorder_max_units %}
+{% assign units_sold = product.metafields.custom.preorder_units_sold %}
+{% assign max_units  = product.metafields.custom.preorder_units %}
 
 {% if deposit_percent > 0 %}
   {% assign initial_payment = product_price | times: deposit_percent | divided_by: 100 %}
@@ -18,37 +18,41 @@
 {% endif %}
 
 
-{% if unitsSold >= maxUnits %}
+{% if units_sold >= max_units %}
   <div id="sold-out">
-    <p>Sold Out</p>
+    <p>Out of stock</p>
+   
 </div>
 {% endif %}
 
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    // safer button selector inside product form
-    const btn = document.querySelector('#product-form-template--22700276023319__main > div > div > shopify-accelerated-checkout > shopify-buy-it-now-button > button');
-    const cartbtn = document.querySelector('#ProductSubmitButton-template--22700276023319__main');
+  setTimeout(() => {
+    const buyNowBtn = document.querySelector("shopify-buy-it-now-button button");
+    const addToCartBtn = document.querySelector("form[action*='/cart/add'] [type='submit']");
 
-    // Liquid prints safe numbers
-    const maxUnits = Number("{{ product.metafields.custom.preorder_max_units.value | default: 0 }}");
-    const unitsSold = Number("{{ product.metafields.custom.preorder_units_sold.value | default: 0 }}");
-    console.log(maxUnits,'************', unitsSold);
+    const max_units = {{ product.metafields.custom.preorder_units.value | default: 0 | json }};
+    const units_sold = {{ product.metafields.custom.preorder_units_sold.value | default: 0 | json }};
 
-   //disable button
-    if (unitsSold >= maxUnits) {
-      btn.disabled = true;
-      cartbtn.disabled = true;
-      btn.textContent = "Sold Out";
-      btn.classList.add("disabled");
-    } else {
-      btn.disabled = false;
-      btn.textContent = "Buy Now";
-      btn.classList.remove("disabled");
+    if (units_sold >= max_units && max_units > 0) {
+      if (buyNowBtn) {
+        buyNowBtn.disabled = true;
+        buyNowBtn.textContent = "Sold Out";
+        buyNowBtn.classList.add("disabled");
+      }
+      if (addToCartBtn) {
+        addToCartBtn.disabled = true;
+        addToCartBtn.textContent = "Sold Out";
+        addToCartBtn.classList.add("disabled");
+      }
+
+      const soldOutMsg = document.getElementById("sold-out");
+      if (soldOutMsg) soldOutMsg.style.display = "block";
     }
-    
-  });
+  }, 500); 
+});
+
 </script>
 {% schema %}
 {

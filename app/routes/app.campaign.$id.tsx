@@ -1,10 +1,7 @@
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { getCampaignById } from "app/models/campaign.server";
 import { useState, useCallback, useEffect } from "react";
-import {
-  LoaderFunctionArgs,
-  ActionFunctionArgs,
-  json,
-  redirect,
-} from "@remix-run/node";
+import { LoaderFunctionArgs, ActionFunctionArgs, json,redirect } from "@remix-run/node";
 import {
   AppProvider,
   Button,
@@ -20,215 +17,38 @@ import {
   Popover,
   Icon,
   Tabs,
-  Banner,
+  Banner
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
-import {
-  useSubmit,
-  useNavigate,
-  useFetcher,
-  useActionData,
-} from "@remix-run/react";
+import { useSubmit, useNavigate ,useFetcher, useActionData,useLoaderData} from "@remix-run/react";
 import {
   DiscountIcon,
   CalendarCheckIcon,
   DeleteIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
-import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
+import { ResourcePicker  ,Redirect} from "@shopify/app-bridge/actions";
 import { Modal, TitleBar } from "@shopify/app-bridge-react";
-import {
-  createPreorderCampaign,
-  addProductsToCampaign,
-  getAllProducts,
-} from "../models/campaign.server";
+// import {
+//   createPreorderCampaign,
+//   addProductsToCampaign,
+// } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-
-  // const query = `
-  //   query {
-  //     products(first: 20) {
-  //       edges {
-  //         node {
-  //           id
-  //           title
-  //           totalInventory
-  //           priceRangeV2 {
-  //             minVariantPrice {
-  //               amount
-  //               currencyCode
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // `;
-
-  // const response = await admin.graphql(query);
-  // const data = await response.json();
-
-  // const products = data.data.products.edges.map(({ node }) => ({
-  //   id: node.id.replace("gid://shopify/Product/", ""), // numeric id for metafield updates
-  //   gid: node.id,
-  //   title: node.title,
-  //   stock: node.totalInventory,
-  //   price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
-  // }));
-
-  return json({ success: true });
+export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+  await authenticate.admin(request);
+  const campaign = await getCampaignById(params.id!);
+  return json({ campaign });
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log("Action hitted**************************");
-
-  try {
-    const formData = await request.formData();
-    const intent = formData.get("intent");
-    console.log("Intent:", intent);
-
-    // -------------------------------
-    // ADMIN AUTHENTICATION
-    // -------------------------------
-    let admin;
-    try {
-      const auth = await authenticate.admin(request);
-      admin = auth.admin;
-      console.log("Admin authenticated successfully");
-    } catch (err) {
-      console.error("Admin authentication failed:", err);
-      return json({ error: "Admin authentication failed" }, { status: 500 });
-    }
-
-    // -------------------------------
-    // HANDLE INTENT
-    // -------------------------------
-    switch (intent) {
-      case "create-campaign": {
-        const campaign = await createPreorderCampaign({
-          name: formData.get("name") as string,
-          depositPercent: Number(formData.get("depositPercent")),
-          balanceDueDate: new Date(formData.get("balanceDueDate") as string),
-          refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-          releaseDate: formData.get("campaignEndDate")
-            ? new Date(formData.get("campaignEndDate") as string)
-            : undefined,
-        });
-
-        console.log("Campaign created:", campaign.id);
-
-        const products = JSON.parse(
-          (formData.get("products") as string) || "[]",
-        );
-        console.log("Products to add:", products.length);
-
-        if (products.length > 0) {
-          await addProductsToCampaign(campaign.id, products);
-          console.log("Products added to campaign");
-
-          // -------------------------------
-          // PREORDER METAFIELDS UPDATE
-          // -------------------------------
-          const mutation = `
-            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-              metafieldsSet(metafields: $metafields) {
-                metafields {
-                  id
-                  namespace
-                  key
-                  type
-                  value
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `;
-
-          const metafields = products.flatMap((product) => [
-            {
-              ownerId: product.id,
-              namespace: "custom",
-              key: "preorder",
-              type: "boolean",
-              value: "true",
-            },
-            {
-              ownerId: product.id,
-              namespace: "custom",
-              key: "release_date",
-              type: "date",
-              value: "2025-08-30",
-            },
-            {
-              ownerId: product.id,
-              namespace: "custom",
-              key: "preorder_end_date",
-              type: "date_time",
-              value: new Date(
-                formData.get("campaignEndDate") as string,
-              ).toISOString(),
-            },
-            {
-              ownerId: product.id,
-              namespace: "custom",
-              key: "deposit_percent",
-              type: "number_integer",
-              value: String(formData.get("depositPercent") || "0"),
-            },
-            {
-              ownerId: product.id,
-              namespace: "custom",
-              key: "balance_due_date",
-              type: "date",
-              value: new Date(
-                formData.get("balanceDueDate") as string,
-              ).toISOString(),
-            },
-            {
-              ownerId: product.id,
-              namespace: "custom",
-              key: "preorder_units",
-              type: "number_integer",
-              value: String(product?.maxUnit || "0"),
-            },
-          ]);
-
-          console.log("Metafields prepared:", metafields);
-
-          try {
-            const response = await admin.graphql(mutation, {
-              variables: { metafields },
-            });
-            console.log("GraphQL response:", response);
-          } catch (err) {
-            console.error("GraphQL mutation failed:", err);
-            throw err;
-          }
-        }
-
-        return redirect("/app");
-        // return json({ success: true }, { status: 200 });
-      }
-
-      default:
-        console.warn("Unknown intent:", intent);
-        return json({ error: "Unknown intent" }, { status: 400 });
-    }
-  } catch (err) {
-    console.error("Action failed:", err);
-    return json({ error: "Unexpected error occurred" }, { status: 500 });
-  }
-};
-
-export default function Newcampaign() {
+export default function CampaignDetail() {
   const submit = useSubmit();
   const navigate = useNavigate();
+  const fetcher = useFetcher();
+  const actionData = useActionData<typeof action>();
+  
+
   const [campaignName, setCampaignName] = useState("");
   const [selected, setSelected] = useState(0);
   const [productTagInput, setProductTagInput] = useState("");
@@ -268,7 +88,6 @@ export default function Newcampaign() {
     inputValue: new Date().toLocaleDateString(),
   });
   const [campaignEndTime, setCampaignEndTime] = useState("");
-  const [productAddType, setProductAddType] = useState("specific");
 
   // useEffect(() => {
   //   console.log(fetcher.state," "+actionData?.success);
@@ -276,6 +95,7 @@ export default function Newcampaign() {
   //     navigate("/app"); // ✅ client-side redirect
   //   }
   // }, [fetcher.state, actionData?.status, navigate]);
+
 
   // Handler for campaign end date picker
   const handleCampaignEndDateChange = useCallback((range) => {
@@ -314,35 +134,60 @@ export default function Newcampaign() {
     setCampaignEndTime(value);
   }, []);
 
+
   const openResourcePicker = () => {
-    shopify.modal.hide("my-modal");
+  shopify.modal.hide("my-modal");
 
-    const picker = ResourcePicker.create(appBridge, {
-      resourceType:
-        productRadio === "option1"
-          ? ResourcePicker.ResourceType.Product
-          : ResourcePicker.ResourceType.Collection,
-      options: {
-        selectMultiple: true,
-      },
-    });
+  async function fetchProductsInCollection(collectionId: string) {
+  const res = await fetch("/api/products-in-collection", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collectionId }),
+  });
 
-    picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
-      if (productRadio === "option1") {
-        // ✅ products directly selected
-        setSelectedProducts(payload.selection);
+  if (!res.ok) throw new Error("Failed to fetch products");
+
+  const data = await res.json();
+  return data.products;
+}
+
+
+  const picker = ResourcePicker.create(appBridge, {
+    resourceType: productRadio === "option1"
+      ? ResourcePicker.ResourceType.Product
+      : ResourcePicker.ResourceType.Collection,
+    options: {
+      selectMultiple: true,
+    },
+  });
+
+  picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
+    if (productRadio === "option1") {
+      // ✅ products directly selected
+      setSelectedProducts(payload.selection);
+    } else {
+      // ✅ collections selected → fetch products inside
+      let allProducts: any[] = [];
+
+      for (const collection of payload.selection) {
+        const productsInCollection = await fetchProductsInCollection(collection.id);
+        allProducts = [...allProducts, ...productsInCollection];
       }
-    });
 
-    picker.dispatch(ResourcePicker.Action.OPEN);
-  };
+      // remove duplicates by product id
+      const uniqueProducts = Array.from(
+        new Map(allProducts.map((p) => [p.id, p])).values()
+      );
 
-  const selectAllProducts = async () => {
-    const res = await fetch("/api/products");
-    const allProducts = await res.json();
-    console.log(allProducts, "**********************All products fetched");
-    setSelectedProducts(allProducts);
-  };
+      setSelectedProducts(uniqueProducts);
+    }
+  });
+
+  picker.dispatch(ResourcePicker.Action.OPEN);
+};
+
+     
+
 
   const togglePopover = useCallback(
     () => setPopoverActive((active) => !active),
@@ -392,10 +237,10 @@ export default function Newcampaign() {
   };
 
   const handleSubmit = () => {
-     if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
-      alert("Please fill all required fields and add at least one product.");
-      return;
-    }
+    //  if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
+    //   alert("Please fill all required fields and add at least one product.");
+    //   return;
+    // }
 
     console.log("function hit");
     const formData = new FormData();
@@ -438,19 +283,21 @@ export default function Newcampaign() {
   //   }
   // };
 
+
+  
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title="Create Preorder campaign"
-        backAction={{
-          content: "Back",
-          onAction: () => navigate("/app"), // <-- Remix navigate
-        }} // primaryAction={{
+        title="Update Preorder campaign"
+ backAction={{
+        content: "Back",
+        onAction: () => navigate("/app"), // <-- Remix navigate
+      }}        // primaryAction={{
         //   content: "Publish",
         //   onAction: handleSubmit,
         // }}
       >
-        {/* <Link to="/your-route">Go to route</Link> */}
+              {/* <Link to="/your-route">Go to route</Link> */}
 
         {/* <Button onClick={handleNavigation}>Create Campaign</Button> */}
 
@@ -539,13 +386,13 @@ export default function Newcampaign() {
                     />
                     {selectedOption === "out-of-stock" && (
                       <ol>
-                        <li>
+                        {/* <li>
                         The Preorder button appears when stock reaches 0 and
                         switches to "Add to cart" once inventory is replenished.
                       </li>
                       <li>
                         When the campaign is active, the app enables "Continue selling when out of stock" and "Track quantity".
-                      </li>
+                      </li> */}
                       </ol>
                     )}
                     <RadioButton
@@ -991,60 +838,50 @@ export default function Newcampaign() {
           <div>
             {selectedProducts.length === 0 && (
               <div>
-                <Card padding={"3200"}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      flexDirection: "column",
-                      gap: "12px",
-                    }}
-                  >
-                    <div>
-                      <Text as="p" variant="headingSm">
-                        Add products to Preorder
-                      </Text>
-                    </div>
-                    <div>
-                      <Text as="p" variant="bodySm">
-                        Products and variants that are added will be prepared
-                        for preorder after the campaign is published
-                      </Text>
-                    </div>
-                    <div>
-                      <ButtonGroup>
-                        <Button onClick={() => shopify.modal.show("my-modal")}>
-                          Add Specific Product
-                        </Button>
-                        <Button
-                          variant="primary"
-                          onClick={() => {
-                            // setProductAddType("all")
-                            selectAllProducts();
-                          }}
-                        >
-                          Add all products
-                        </Button>
-                      </ButtonGroup>
-                    </div>
+              <Card padding={"3200"}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <Text as="p" variant="headingSm">
+                      Add products to Preorder
+                    </Text>
                   </div>
-                </Card>
-                <div style={{ marginTop: 20 }}>
-                  <Banner
-                    title="Product inventory settings updates"
-                    tone="info"
-                  >
-                    <p>
-                      <strong>
-                        “Continue selling when out of stock”, “Track quantity”
-                      </strong>{" "}
-                      are enabled for products above. After campaign is
-                      published, we continuously monitor products to ensure they
-                      always comply with campaign conditions.
-                    </p>
-                  </Banner>
+                  <div>
+                    <Text as="p" variant="bodySm">
+                      Products and variants that are added will be prepared for
+                      preorder after the campaign is published
+                    </Text>
+                  </div>
+                  <div>
+                    <ButtonGroup>
+                      <Button onClick={() => shopify.modal.show("my-modal")}>
+                        Add Specific Product
+                      </Button>
+                      <Button variant="primary">Add all products</Button>
+                    </ButtonGroup>
+                  </div>
                 </div>
+              </Card>
+              <div style={{ marginTop: 20 }}>
+              <Banner
+  title="Product inventory settings updates"
+  tone="info" 
+>
+  <p>
+    <strong>“Continue selling when out of stock”, “Track quantity”</strong> are enabled for
+    products above. After campaign is published, we continuously monitor products to ensure
+    they always comply with campaign conditions.
+  </p>
+</Banner>
+</div>
+
               </div>
             )}
             {selectedProducts.length > 0 && (
@@ -1139,10 +976,7 @@ export default function Newcampaign() {
                             }}
                           >
                             <img
-                              src={
-                                product.images?.[0]?.originalSrc ||
-                                product.image
-                              }
+                              src={product.images?.[0]?.originalSrc || ""}
                               alt={product.title}
                               style={{
                                 width: 50,
@@ -1165,9 +999,7 @@ export default function Newcampaign() {
                               borderBottom: "1px solid #eee",
                             }}
                           >
-                            {product.totalInventory
-                              ? product.totalInventory
-                              : product.inventory}
+                            {product.totalInventory}
                           </td>
                           <td
                             style={{
@@ -1191,7 +1023,7 @@ export default function Newcampaign() {
                               borderBottom: "1px solid #eee",
                             }}
                           >
-                            {product.variants?.[0]?.price || product.price}
+                            {product.variants?.[0]?.price || "N/A"}
                           </td>
                           <td
                             style={{

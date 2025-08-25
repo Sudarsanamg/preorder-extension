@@ -1,6 +1,15 @@
 // import { useEffect } from "react";
-import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useLocation, Link } from "@remix-run/react";
+import {
+  json,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+} from "@remix-run/node";
+import {
+  useLoaderData,
+  useLocation,
+  Link,
+  useNavigate,
+} from "@remix-run/react";
 import {
   Page,
   // Layout,
@@ -10,8 +19,14 @@ import {
   Card,
   TextField,
   DataTable,
+  ProgressBar,
+  InlineStack,
+  Icon,
+  BlockStack
 } from "@shopify/polaris";
-import { TitleBar} from "@shopify/app-bridge-react";
+// import { CircleTickMajor, CircleCancelMajor, CircleDisableMinor } from "@shopify/polaris-icons";
+
+import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useState } from "react";
 import { getAllCampaign } from "app/models/campaign.server";
@@ -29,21 +44,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function Index() {
   const { campaigns } = useLoaderData<typeof loader>();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
 
-
-  const rows = campaigns.map((campaign) => [
-    campaign.name,
-    campaign.status,
-    campaign.totalOrders,
-  ]);
-
+  const rows = campaigns.map((campaign) => ({
+    id: campaign.id,
+    data: [campaign.name, campaign.status, campaign.totalOrders],
+    onClick: () => {
+      // Handle row click
+      navigate(`/app/campaign/${campaign.id}`);
+    },
+  }));
   // Filter rows based on search text
   const filteredRows = rows.filter((row) =>
-    row.some((col) => String(col).toLowerCase().includes(search.toLowerCase())),
+    row.data.some((col) =>
+      String(col).toLowerCase().includes(search.toLowerCase()),
+    ),
   );
 
+  const uniqueRows = Array.from(
+    new Map(
+      filteredRows.map((row) => [JSON.stringify(row.data), row]),
+    ).values(),
+  );
 
   return (
     <Page>
@@ -58,10 +82,12 @@ export default function Index() {
         <div>
           <p style={{ fontSize: "26px" }}>Preorder Settings</p>
         </div>
-        <Link to={{ pathname: "campaign/new", search: location.search }} prefetch="intent">
+        <Link
+          to={{ pathname: "campaign/new", search: location.search }}
+          prefetch="intent"
+        >
           <Button variant="primary">Create Campaign</Button>
         </Link>
-
       </div>
 
       <div style={{ marginTop: 20 }}>
@@ -74,21 +100,36 @@ export default function Index() {
             payment, fulfilment, and inventory rules. Set discounts and
             personalise preorder widget appearance for each campaign.
           </Text>
-          {filteredRows.length > 0 ? (
+          <div style={{ padding: "1rem" }}>
+            <TextField
+              label="Search"
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by Campaign Name"
+              autoComplete="off"
+            />
+          </div>
+          {uniqueRows.length > 0 ? (
             <div>
-              <div style={{ padding: "1rem" }}>
-                <TextField
-                  label="Search"
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Search by Campaign Name"
-                  autoComplete="off"
-                />
-              </div>
               <DataTable
                 columnContentTypes={["text", "text", "numeric"]}
                 headings={["Name", "Status", "Orders"]}
-                rows={filteredRows}
+                rows={uniqueRows.map((row ,index) => [
+                  <Text as="span" variant="bodyMd" fontWeight="medium" key={index}>
+                    <Link
+                      to={`/app/campaign/${row.id}`}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                      }}
+                    >
+                      {row.data[0]}
+                    </Link>
+                  </Text>,
+                  row.data[1],
+                  row.data[2],
+                ])}
               />
             </div>
           ) : (
@@ -99,6 +140,5 @@ export default function Index() {
         </Card>
       </div>
     </Page>
-
   );
 }
