@@ -44,6 +44,8 @@ import {
   getAllProducts,
 } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
+import PreviewDesign from "app/components/PreviewDesign";
+import type { DesignFields } from "../types/type";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -319,15 +321,19 @@ export default function Newcampaign() {
   });
   const [campaignEndTime, setCampaignEndTime] = useState("");
   const [productAddType, setProductAddType] = useState("specific");
+  const [designFields, setDesignFields] = useState<DesignFields>({
+    messageFontSize: "16px",
+    messageColor: "#000000",
+    fontFamily:'',
+    buttonBackgroundColor:'',
+    borderSize:'',
+    borderColor:'',
+    spacingIT:'',
+    spacingIB:'',
+    spacingOT:'',
+    spacingOB:'',
+  });
 
-  // useEffect(() => {
-  //   console.log(fetcher.state," "+actionData?.success);
-  //   if (fetcher.state === "idle" && actionData?.success) {
-  //     navigate("/app"); // ✅ client-side redirect
-  //   }
-  // }, [fetcher.state, actionData?.status, navigate]);
-
-  // Handler for campaign end date picker
   const handleCampaignEndDateChange = useCallback((range) => {
     setCampaignEndPicker((prev) => ({
       ...prev,
@@ -417,7 +423,11 @@ export default function Newcampaign() {
       content: "Content",
       panelID: "content-content",
     },
-
+    {
+      id: "design",
+      content: "Design",
+      panelID: "design-content",
+    },
     {
       id: "add-products",
       content: "Add Products",
@@ -537,7 +547,7 @@ export default function Newcampaign() {
           />
 
           <div
-            style={{ display: "flex", justifyContent: "flex-end", margin: 10 }}
+            style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
           >
             <button
               type="submit"
@@ -551,22 +561,22 @@ export default function Newcampaign() {
               Publish
             </button>
           </div>
-          {selected === 0 && (
             <div
               style={{
                 display: "flex",
                 position: "relative",
                 paddingBottom: 20,
+                paddingTop: 20,
               }}
             >
-              {/*  */}
               {/* left */}
-              <div style={{ flex: 1 }}>
-                <Card>
-                  <BlockStack>
-                    <Text as="h1" variant="headingLg">
-                      New Campaign
-                    </Text>
+              {selected === 0 && (
+                <div style={{ flex: 1 }}>
+                  <Card>
+                    <BlockStack>
+                      <Text as="h1" variant="headingLg">
+                        New Campaign
+                      </Text>
                   </BlockStack>
                   <TextField
                     id="campaignName"
@@ -913,7 +923,17 @@ export default function Newcampaign() {
                   </Card>
                 </div>
               </div>
+              )}
+              {
+                selected === 1 && (
+                  <div style={{flex:1}}>
+                    <PreviewDesign  designFields={designFields} setDesignFields={setDesignFields}/>
+                  </div>
+                )
+              }
+
               {/* right */}
+              {(selected === 0 || selected === 1) && (
               <div style={{ flex: 1, marginLeft: 20 }}>
                 {/* preview */}
                 <div style={{ position: "sticky", top: 20 }}>
@@ -1040,11 +1060,11 @@ export default function Newcampaign() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
-          )}
         </form>
 
-        {selected === 1 && (
+        {selected === 2 && (
           <div>
             {selectedProducts.length === 0 && (
               <div>
