@@ -1,9 +1,10 @@
 <div id="product-data" data-preorder="{{ product.metafields.custom.preorder.value }}"></div>
+<div id="selling-plan-data" data-selling-plan="{{ product.selling_plan_groups.first.selling_plans.first.id }}"></div>
 
 <script src="{{ 'preorder-btn.js' | asset_url }}" defer="defer"></script>
 <link rel="stylesheet" href="{{ 'preorder-btn.css' | asset_url }}">
 
-<button class="preorder-button"   data-variant-id="{{ product.selected_or_first_available_variant.id }}">
+<button class="preorder-button" data-variant-id="{{ product.selected_or_first_available_variant.id }}">
     Preorder
 </button>
 {% schema %}

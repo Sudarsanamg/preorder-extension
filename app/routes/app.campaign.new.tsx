@@ -118,16 +118,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             : undefined,
         });
 
-        console.log("Campaign created:", campaign.id);
-
         const products = JSON.parse(
           (formData.get("products") as string) || "[]",
         );
-        console.log("Products to add:", products.length);
 
         if (products.length > 0) {
           await addProductsToCampaign(campaign.id, products);
-          console.log("Products added to campaign");
 
           // -------------------------------
           // PREORDER METAFIELDS UPDATE
@@ -199,8 +195,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             },
           ]);
 
-          console.log("Metafields prepared:", metafields);
-
           try {
             const response = await admin.graphql(mutation, {
               variables: { metafields },
@@ -212,8 +206,64 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         }
 
+        const CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+        const productIds = products.map((p) => p.id);
+        try {
+          const res = await admin.graphql(CREATE_SELLING_PLAN, {
+            variables: {
+              productIds,
+              percentage: 30.0,
+              days: "P7D",
+            },
+          });
+
+          console.log("GraphQL response >>>", JSON.stringify(res, null, 2));
+        } catch (error) {
+          console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+        }
+
         return redirect("/app");
-        // return json({ success: true }, { status: 200 });
       }
 
       default:
@@ -392,7 +442,12 @@ export default function Newcampaign() {
   };
 
   const handleSubmit = () => {
-     if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
+    if (
+      !campaignName ||
+      !partialPaymentPercentage ||
+      !DueDateinputValue ||
+      selectedProducts.length === 0
+    ) {
       alert("Please fill all required fields and add at least one product.");
       return;
     }
@@ -540,12 +595,14 @@ export default function Newcampaign() {
                     {selectedOption === "out-of-stock" && (
                       <ol>
                         <li>
-                        The Preorder button appears when stock reaches 0 and
-                        switches to "Add to cart" once inventory is replenished.
-                      </li>
-                      <li>
-                        When the campaign is active, the app enables "Continue selling when out of stock" and "Track quantity".
-                      </li>
+                          The Preorder button appears when stock reaches 0 and
+                          switches to "Add to cart" once inventory is
+                          replenished.
+                        </li>
+                        <li>
+                          When the campaign is active, the app enables "Continue
+                          selling when out of stock" and "Track quantity".
+                        </li>
                       </ol>
                     )}
                     <RadioButton
