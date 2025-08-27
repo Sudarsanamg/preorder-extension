@@ -15,6 +15,7 @@ import {
   InlineStack,
   RangeSlider,
 } from "@shopify/polaris";
+import { hsbToHex, hexToHsb } from "../utils/color";
 
 interface PreviewDesignProps {
   designFields: DesignFields;
@@ -27,9 +28,10 @@ export default function PreviewDesign({
 }: PreviewDesignProps) {
   const [selected, setSelected] = useState<"default" | "custom">("default");
   const options = [
-    { label: "Today", value: "today" },
-    { label: "Yesterday", value: "yesterday" },
-    { label: "Last 7 days", value: "lastWeek" },
+    { label: "Use your theme fonts", value: "inherit" },
+    { label: "Helvetica Neue", value: "Helvetica Neue" },
+    { label: "Arial", value: "Arial" },
+    { label: "Courier New", value: "Courier New" },
   ];
   const [color, setColor] = useState({
     hue: 120,
@@ -37,15 +39,28 @@ export default function PreviewDesign({
     saturation: 1,
   });
 
-  const [active, setActive] = useState(false);
+  const [activePopover, setActivePopover] = useState<null | string>(null);
+  const handleRangeSliderChange = (input: number) => {
+    setDesignFields((prev) => ({
+      ...prev,
+      gradientDegree: input.toString(),
+    }));
+  };
 
-  const toggleActive = () => setActive((active) => !active);
-  const [rangeValue, setRangeValue] = useState(32);
+  const handleColorChange = (
+    field: keyof typeof designFields,
+    hsbColor: any,
+  ) => {
+    const hex = hsbToHex(hsbColor);
+    setDesignFields((prev) => ({
+      ...prev,
+      [field]: hex,
+    }));
+  };
 
-  const handleRangeSliderChange = useCallback(
-    (value: number) => setRangeValue(value),
-    [],
-  );
+  const togglePopover = (field: string) => {
+    setActivePopover((prev) => (prev === field ? null : field));
+  };
 
   return (
     <div>
@@ -82,133 +97,199 @@ export default function PreviewDesign({
             <Text as="h3">Button background</Text>
             <RadioButton
               label="Single Colour Background" // checked={value === 'disabled'}
-              id="disabled"
-              name="accounts"
-              // onChange={handleChange}
+              onChange={() => {
+                setDesignFields((prev) => ({
+                  ...prev,
+                  buttonStyle: "single",
+                }));
+              }}
+              checked={designFields.buttonStyle === "single"}
             />
-            <RadioButton
-              label="Gradient background" // checked={value === 'disabled'}
-              id="disabled"
-              name="accounts"
-              // onChange={handleChange}
-            />
-
-            <RangeSlider
-              label="Gradient angle degree"
-              value={rangeValue}
-              onChange={handleRangeSliderChange}
-              output
-            />
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <Popover
-              active={active}
-              activator={
-                <div
-                  style={{
-                    height: 40,
-                    width: 40,
-                    backgroundColor: "black",
-                    borderRadius: "8px",
-                  }}
-                  onClick={toggleActive}
-                ></div>
-              }
-              autofocusTarget="first-node"
-              onClose={toggleActive}
-            >
-              <ColorPicker onChange={setColor} color={color} />
-            </Popover>
-            <TextField />
-            </div>
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <Popover
-              active={active}
-              activator={
-                <div
-                  style={{
-                    height: 40,
-                    width: 40,
-                    backgroundColor: "black",
-                    borderRadius: "8px",
-                  }}
-                  onClick={toggleActive}
-                ></div>
-              }
-              autofocusTarget="first-node"
-              onClose={toggleActive}
-            >
-              <ColorPicker onChange={setColor} color={color} />
-            </Popover>
-            <TextField />
-            </div>
-
-            <Text>Border size and color</Text>
-            <div style={{ display: "flex", gap: 10 }}>
-              <TextField />
-              {/* <ColorPicker onChange={setColor} color={color} /> */}
-
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <Popover
-                active={active}
+                active={activePopover === "buttonBackgroundColor"}
                 activator={
                   <div
                     style={{
                       height: 40,
                       width: 40,
-                      backgroundColor: "black",
+                      backgroundColor: designFields.buttonBackgroundColor,
                       borderRadius: "8px",
                     }}
-                    onClick={toggleActive}
+                    onClick={() => togglePopover("buttonBackgroundColor")}
                   ></div>
                 }
                 autofocusTarget="first-node"
-                onClose={toggleActive}
+                onClose={() => togglePopover("buttonBackgroundColor")}
               >
-                <ColorPicker onChange={setColor} color={color} />
+                <ColorPicker
+                  onChange={(color) =>
+                    handleColorChange("buttonBackgroundColor", color)
+                  }
+                  color={hexToHsb(designFields.buttonBackgroundColor)}
+                />
               </Popover>
-              <TextField />
+              <TextField
+                value={designFields.buttonBackgroundColor}
+                onChange={() => {}}
+              />
+            </div>
+            <RadioButton
+              label="Gradient background"
+              onChange={() => {
+                setDesignFields((prev) => ({
+                  ...prev,
+                  buttonStyle: "gradient",
+                }));
+              }}
+              checked={designFields.buttonStyle === "gradient"}
+            />
+
+            <RangeSlider
+              label="Gradient angle degree"
+              value={Number(designFields.gradientDegree)}
+              onChange={handleRangeSliderChange}
+              output
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Popover
+                active={activePopover === "gradientColor1"}
+                activator={
+                  <div
+                    style={{
+                      height: 40,
+                      width: 40,
+                      backgroundColor: designFields.gradientColor1,
+                      borderRadius: "8px",
+                    }}
+                    onClick={() => togglePopover("gradientColor1")}
+                  ></div>
+                }
+                autofocusTarget="first-node"
+                onClose={() => togglePopover("gradientColor1")}
+              >
+                <ColorPicker
+                  onChange={(color) =>
+                    handleColorChange("gradientColor1", color)
+                  }
+                  color={hexToHsb(designFields.gradientColor1)}
+                />
+              </Popover>
+              <TextField value={designFields.gradientColor1} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Popover
+                active={activePopover === "gradientColor2"}
+                activator={
+                  <div
+                    style={{
+                      height: 40,
+                      width: 40,
+                      backgroundColor: designFields.gradientColor2,
+                      borderRadius: "8px",
+                    }}
+                    onClick={() => togglePopover("gradientColor2")}
+                  ></div>
+                }
+                autofocusTarget="first-node"
+                onClose={() => togglePopover("gradientColor2")}
+              >
+                <ColorPicker
+                  onChange={(color) =>
+                    handleColorChange("gradientColor2", color)
+                  }
+                  color={hexToHsb(designFields.gradientColor2)}
+                />
+              </Popover>
+              <TextField value={designFields.gradientColor2} />
+            </div>
+
+            <Text>Border size and color</Text>
+            <div style={{ display: "flex", gap: 10 }}>
+              <TextField 
+              suffix="px"
+              onChange={(value)=>{
+                setDesignFields((prev) => ({
+                  ...prev,
+                  borderSize :value
+                }))
+              }}
+              value={designFields.borderSize}
+               />
+              {/* <ColorPicker onChange={setColor} color={color} /> */}
+
+              <Popover
+                active={activePopover === "borderColor"}
+                activator={
+                  <div
+                    style={{
+                      height: 40,
+                      width: 40,
+                      backgroundColor: designFields.borderColor,
+                      borderRadius: "8px",
+                    }}
+                    onClick={() => togglePopover("borderColor")}
+                  ></div>
+                }
+                autofocusTarget="first-node"
+                onClose={() => togglePopover("borderColor")}
+              >
+                <ColorPicker 
+                onChange={(color) =>
+                handleColorChange("borderColor", color)
+              }
+                color={hexToHsb(designFields.borderColor)}
+                 />
+              </Popover>
+              <TextField  value={designFields.borderColor}/>
             </div>
 
             <Text variant="bodyMd" as="p">
               Corner radius
             </Text>
-            <TextField suffix="px" />
+            <TextField suffix="px" onChange={(value) => setDesignFields((prev) => ({ ...prev, borderRadius: value }))}  value={designFields.borderRadius}/>
             <Divider />
 
             <Text>Text</Text>
-            <div style={{ display: "flex", gap: 10 , alignItems:'center' }}>
-              <TextField suffix="px" />
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <TextField suffix="px" onChange={(value) => setDesignFields((prev) => ({ ...prev, buttonFontSize: value }))} value={designFields.buttonFontSize} />
 
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <Popover
-                active={active}
-                activator={
-                  <div
-                    style={{
-                      height: 40,
-                      width: 40,
-                      backgroundColor: "black",
-                      borderRadius: "8px",
-                    }}
-                    onClick={toggleActive}
-                  ></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Popover
+                  active={activePopover === "buttonTextColor"}
+                  activator={
+                    <div
+                      style={{
+                        height: 40,
+                        width: 40,
+                        backgroundColor: designFields.buttonTextColor,
+                        borderRadius: "8px",
+                      }}
+                      onClick={() => togglePopover("buttonTextColor")}
+                    ></div>
+                  }
+                  autofocusTarget="first-node"
+                  onClose={() => togglePopover("buttonTextColor")}
+                >
+                  <ColorPicker 
+                  onChange={(color) =>
+                  handleColorChange("buttonTextColor", color)
                 }
-                autofocusTarget="first-node"
-                onClose={toggleActive}
-              >
-                <ColorPicker onChange={setColor} color={color} />
-              </Popover>
-              <TextField />
+                  color={hexToHsb(designFields.buttonTextColor)}
+                   />
+                </Popover>
+                <TextField  value={designFields.buttonTextColor}/>
               </div>
             </div>
             <Divider />
             <Text as="h3">Spacing</Text>
             <div style={{ display: "flex", gap: 10 }}>
-              <TextField label="Inside top" suffix="px" />
-              <TextField label="Inside bottom" suffix="px" />
+              <TextField label="Inside top" suffix="px" value={designFields.spacingIT} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingIT: value }))} />
+              <TextField label="Inside bottom" suffix="px"  value={designFields.spacingIB} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingIB: value }))}/>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <TextField label="Outside top" suffix="px" />
-              <TextField label="Outside bottom" suffix="px" />
+              <TextField label="Outside top"  value={designFields.spacingOT} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingOT: value }))} suffix="px" />
+              <TextField label="Outside bottom" suffix="px"  value={designFields.spacingOB} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingOB: value }))} />
             </div>
           </BlockStack>
         </Card>
@@ -220,10 +301,12 @@ export default function PreviewDesign({
             Typography
           </Text>
           <Select
-            label="Date range"
+            label="Font"
             options={options}
-            //   onChange={handleSelectChange}
-            value={selected}
+            onChange={(value) =>
+              setDesignFields((pre) => ({ ...pre, fontFamily: value }))
+            }
+            value={designFields.fontFamily}
           />
           <Text variant="bodyMd" as="p">
             Theme fonts are not available in the preview mode. Publish item to
@@ -233,28 +316,41 @@ export default function PreviewDesign({
             Preorder message
           </Text>
           <div style={{ display: "flex", gap: 10 }}>
-            <TextField suffix="px" />
-            {/* <ColorPicker onChange={setColor} color={color} /> */}
+            <TextField
+              suffix="px"
+              value={designFields.messageFontSize}
+              onChange={(value) =>
+                setDesignFields((pre) => ({ ...pre, messageFontSize: value }))
+              }
+            />
 
             <Popover
-              active={active}
+              active={activePopover === "preorderMessageColor"}
               activator={
                 <div
                   style={{
                     height: 40,
                     width: 40,
-                    backgroundColor: "black",
+                    backgroundColor: designFields.preorderMessageColor,
                     borderRadius: "8px",
                   }}
-                  onClick={toggleActive}
+                  onClick={() => togglePopover("preorderMessageColor")}
                 ></div>
               }
               autofocusTarget="first-node"
-              onClose={toggleActive}
+              onClose={() => togglePopover("preorderMessageColor")}
             >
-              <ColorPicker onChange={setColor} color={color} />
+              <ColorPicker
+                onChange={(color) =>
+                  handleColorChange("preorderMessageColor", color)
+                }
+                color={hexToHsb(designFields.preorderMessageColor)}
+              />
             </Popover>
-            <TextField />
+            <TextField
+              value={designFields.preorderMessageColor}
+              onChange={() => {}}
+            />
           </div>
         </BlockStack>
       </Card>

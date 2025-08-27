@@ -322,16 +322,24 @@ export default function Newcampaign() {
   const [campaignEndTime, setCampaignEndTime] = useState("");
   const [productAddType, setProductAddType] = useState("specific");
   const [designFields, setDesignFields] = useState<DesignFields>({
-    messageFontSize: "16px",
+    messageFontSize: "16",
     messageColor: "#000000",
-    fontFamily:'',
-    buttonBackgroundColor:'',
-    borderSize:'',
-    borderColor:'',
-    spacingIT:'',
-    spacingIB:'',
-    spacingOT:'',
-    spacingOB:'',
+    fontFamily: "",
+    buttonStyle: "single",
+    buttonBackgroundColor: "#000000",
+    gradientDegree: "0",
+    gradientColor1: "#000000",
+    gradientColor2: "#000000",
+    borderSize: "3",
+    borderColor: "#000000",
+    spacingIT: "10",
+    spacingIB: "10",
+    spacingOT: "10",
+    spacingOB: "10",
+    borderRadius: "5",
+    preorderMessageColor: "#000000",
+    buttonFontSize: "16",
+    buttonTextColor: "white",
   });
 
   const handleCampaignEndDateChange = useCallback((range) => {
@@ -561,22 +569,22 @@ export default function Newcampaign() {
               Publish
             </button>
           </div>
-            <div
-              style={{
-                display: "flex",
-                position: "relative",
-                paddingBottom: 20,
-                paddingTop: 20,
-              }}
-            >
-              {/* left */}
-              {selected === 0 && (
-                <div style={{ flex: 1 }}>
-                  <Card>
-                    <BlockStack>
-                      <Text as="h1" variant="headingLg">
-                        New Campaign
-                      </Text>
+          <div
+            style={{
+              display: "flex",
+              position: "relative",
+              paddingBottom: 20,
+              paddingTop: 20,
+            }}
+          >
+            {/* left */}
+            {selected === 0 && (
+              <div style={{ flex: 1 }}>
+                <Card>
+                  <BlockStack>
+                    <Text as="h1" variant="headingLg">
+                      New Campaign
+                    </Text>
                   </BlockStack>
                   <TextField
                     id="campaignName"
@@ -923,17 +931,18 @@ export default function Newcampaign() {
                   </Card>
                 </div>
               </div>
-              )}
-              {
-                selected === 1 && (
-                  <div style={{flex:1}}>
-                    <PreviewDesign  designFields={designFields} setDesignFields={setDesignFields}/>
-                  </div>
-                )
-              }
+            )}
+            {selected === 1 && (
+              <div style={{ flex: 1 }}>
+                <PreviewDesign
+                  designFields={designFields}
+                  setDesignFields={setDesignFields}
+                />
+              </div>
+            )}
 
-              {/* right */}
-              {(selected === 0 || selected === 1) && (
+            {/* right */}
+            {(selected === 0 || selected === 1) && (
               <div style={{ flex: 1, marginLeft: 20 }}>
                 {/* preview */}
                 <div style={{ position: "sticky", top: 20 }}>
@@ -986,21 +995,28 @@ export default function Newcampaign() {
                     </div>
                     <div
                       style={{
-                        marginTop: 20,
+                        marginTop: designFields.spacingOT+'px',
+                          marginBottom: designFields.spacingOB+'px',
                       }}
                     >
                       <div
                         style={{
-                          height: 50,
+                          // height: 50,
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
-                          backgroundColor: "#000",
-                          borderRadius: 5,
-                          marginTop: "auto",
+                          backgroundColor: designFields.buttonStyle === "single" ? designFields.buttonBackgroundColor : "black",
+                          background: designFields.buttonStyle === 'gradient' ? `linear-gradient(${designFields.gradientDegree}deg, ${designFields.gradientColor1}, ${designFields.gradientColor2})`: "black",
+                          borderRadius: designFields.borderRadius+'px',
+                          // marginTop: "auto",
+                          borderColor: designFields.borderColor,
+                          borderWidth: designFields.borderSize+'px',
+                          borderStyle: "solid", 
+                          paddingTop: designFields.spacingIT+'px',
+                          paddingBottom: designFields.spacingIB+'px',
                         }}
                       >
-                        <span style={{ color: "white", fontWeight: "bold" }}>
+                        <span style={{ color: designFields.buttonTextColor, fontWeight: "bold" ,fontSize: designFields.buttonFontSize+'px'}}>
                           {buttonText}
                         </span>
                       </div>
@@ -1013,7 +1029,23 @@ export default function Newcampaign() {
                       }}
                     >
                       <Text as="h1" variant="headingMd">
-                        {shippingMessage}
+                        <h3
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            fontFamily:
+                              designFields.fontFamily !== ""
+                                ? designFields.fontFamily
+                                : "Helvetica Neue",
+                            fontSize:
+                              designFields.messageFontSize !== ""
+                                ? designFields.messageFontSize + "px"
+                                : "16px",
+                            color: designFields.preorderMessageColor,
+                          }}
+                        >
+                          {shippingMessage}
+                        </h3>
                       </Text>
                     </div>
                     {paymentMode === "partial" && (
@@ -1060,8 +1092,8 @@ export default function Newcampaign() {
                   </div>
                 </div>
               </div>
-              )}
-            </div>
+            )}
+          </div>
         </form>
 
         {selected === 2 && (

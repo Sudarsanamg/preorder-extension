@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://soldier-ci-barely-than.trycloudflare.com"
+application_url = "https://sealed-carlos-topics-apply.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products,write_purchase_options"
 
 [auth]
-redirect_urls = ["https://soldier-ci-barely-than.trycloudflare.com/auth/callback", "https://soldier-ci-barely-than.trycloudflare.com/auth/shopify/callback", "https://soldier-ci-barely-than.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://sealed-carlos-topics-apply.trycloudflare.com/auth/callback", "https://sealed-carlos-topics-apply.trycloudflare.com/auth/shopify/callback", "https://sealed-carlos-topics-apply.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
