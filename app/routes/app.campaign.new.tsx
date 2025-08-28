@@ -265,6 +265,43 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
         }
 
+        const designFields = JSON.parse(formData.get("designFields") as string);
+        const fields = Object.entries(designFields).map(([key, value]) => ({
+          key: key.toLowerCase(),
+          value: String(value),
+        }));
+
+        const mutation = `
+    mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
+      metaobjectCreate(metaobject: { type: "design_settings", fields: $fields }) {
+        metaobject {
+          id
+          status: ACTIVE,
+          handle
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+        try {
+          const response = await admin.graphql(mutation, {
+            variables: { fields },
+          });
+
+          const json = await response.json();
+          console.log(
+            "graphql result >>> metaobject !!!!!!!!",
+            JSON.stringify(json, null, 2),
+          );
+          console.log(response, "response>>>>>>>>>>>>>>>>>>>>>>>");
+        } catch (error) {
+          console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
+        }
+
         return redirect("/app");
       }
 
@@ -324,7 +361,7 @@ export default function Newcampaign() {
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: "16",
     messageColor: "#000000",
-    fontFamily: "",
+    fontFamily: "Helvetica",
     buttonStyle: "single",
     buttonBackgroundColor: "#000000",
     gradientDegree: "0",
@@ -339,7 +376,7 @@ export default function Newcampaign() {
     borderRadius: "5",
     preorderMessageColor: "#000000",
     buttonFontSize: "16",
-    buttonTextColor: "white",
+    buttonTextColor: "#ffffff",
   });
 
   const handleCampaignEndDateChange = useCallback((range) => {
@@ -552,6 +589,11 @@ export default function Newcampaign() {
             type="hidden"
             name="campaignEndDate"
             value={campaignEndDate.toISOString()}
+          />
+          <input
+            type="hidden"
+            name="designFields"
+            value={JSON.stringify(designFields)}
           />
 
           <div
@@ -995,8 +1037,8 @@ export default function Newcampaign() {
                     </div>
                     <div
                       style={{
-                        marginTop: designFields.spacingOT+'px',
-                          marginBottom: designFields.spacingOB+'px',
+                        marginTop: designFields.spacingOT + "px",
+                        marginBottom: designFields.spacingOB + "px",
                       }}
                     >
                       <div
@@ -1005,18 +1047,30 @@ export default function Newcampaign() {
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
-                          backgroundColor: designFields.buttonStyle === "single" ? designFields.buttonBackgroundColor : "black",
-                          background: designFields.buttonStyle === 'gradient' ? `linear-gradient(${designFields.gradientDegree}deg, ${designFields.gradientColor1}, ${designFields.gradientColor2})`: "black",
-                          borderRadius: designFields.borderRadius+'px',
+                          backgroundColor:
+                            designFields.buttonStyle === "single"
+                              ? designFields.buttonBackgroundColor
+                              : "black",
+                          background:
+                            designFields.buttonStyle === "gradient"
+                              ? `linear-gradient(${designFields.gradientDegree}deg, ${designFields.gradientColor1}, ${designFields.gradientColor2})`
+                              : "black",
+                          borderRadius: designFields.borderRadius + "px",
                           // marginTop: "auto",
                           borderColor: designFields.borderColor,
-                          borderWidth: designFields.borderSize+'px',
-                          borderStyle: "solid", 
-                          paddingTop: designFields.spacingIT+'px',
-                          paddingBottom: designFields.spacingIB+'px',
+                          borderWidth: designFields.borderSize + "px",
+                          borderStyle: "solid",
+                          paddingTop: designFields.spacingIT + "px",
+                          paddingBottom: designFields.spacingIB + "px",
                         }}
                       >
-                        <span style={{ color: designFields.buttonTextColor, fontWeight: "bold" ,fontSize: designFields.buttonFontSize+'px'}}>
+                        <span
+                          style={{
+                            color: designFields.buttonTextColor,
+                            fontWeight: "bold",
+                            fontSize: designFields.buttonFontSize + "px",
+                          }}
+                        >
                           {buttonText}
                         </span>
                       </div>

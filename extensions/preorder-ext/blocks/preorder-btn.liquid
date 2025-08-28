@@ -1,12 +1,51 @@
+{% comment %} {% assign settings = shop.metaobjects.design_settings["5-1"] %} {% endcomment %}
+{% assign settings = shop.metaobjects.design_settings.values | reverse | first %}
+
 <div id="product-data" data-preorder="{{ product.metafields.custom.preorder.value }}"></div>
 <div id="selling-plan-data" data-selling-plan="{{ product.selling_plan_groups.first.selling_plans.first.id }}"></div>
 
 <script src="{{ 'preorder-btn.js' | asset_url }}" defer="defer"></script>
 <link rel="stylesheet" href="{{ 'preorder-btn.css' | asset_url }}">
 
-<button class="preorder-button" data-variant-id="{{ product.selected_or_first_available_variant.id }}">
+{% comment %} <button style="background-color: ;" class="preorder-button" data-variant-id="{{ product.selected_or_first_available_variant.id }}">
     Preorder
-</button>
+</button> {% endcomment %}
+
+<div 
+  style="
+    font-size: {{ settings.messagefontsize }}px;
+    color: {{ settings.messagecolor }};
+    font-family: {{ settings.fontfamily }};
+    border: {{ settings.bordersize }}px solid {{ settings.bordercolor }};
+    border-radius: {{ settings.borderradius }}px;
+    padding-top : {{ settings.spacingit}}px;
+    padding-bottom: {{ settings.spacingib }}px;
+    margin-top: {{ settings.spacingot }}px;
+    margin-bottom : {{ settings.spacinob }}px;
+    display:flex;
+    justify-content:center;
+    background: {% if settings.buttonstyle == 'single' %}
+                  {{ settings.buttonbackgroundcolor }}
+                {% else %}
+                  linear-gradient({{ settings.gradientdegree }}deg,
+                                  {{ settings.gradientcolor1 }},
+                                  {{ settings.gradientcolor2 }})
+                {% endif %}
+                ;
+                
+               
+  "
+>
+  Button Preview
+</div>
+
+
+{% comment %} <pre>{{ settings | json }}</pre> {% endcomment %}
+
+
+
+
+
 {% schema %}
 {
   "name": "preorder button",
