@@ -120,7 +120,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   }
 `;
 
- let designSettingsResponse = await admin.graphql(GET_DESIGN_SETTINGS, {
+  let designSettingsResponse = await admin.graphql(GET_DESIGN_SETTINGS, {
     variables: { handle: params.id! },
   });
 
@@ -129,7 +129,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   return json({
     campaign,
     products,
-    parsedDesignSettingsResponse
+    parsedDesignSettingsResponse,
   });
 };
 
@@ -165,17 +165,169 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       (formData.get("products") as string) || "[]",
     );
 
+    // try {
+    //   const replace = await replaceProductsInCampaign(
+    //     String(params.id!),
+    //     updatedProducts,
+    //   );
+    //   console.log(replace);
 
-    try {
-      const replace = await replaceProductsInCampaign(
-        String(params.id!),
-        updatedProducts,
-      );
-      console.log(replace);
-      return redirect(`/app/`);
-    } catch (error) {
-      console.error(error);
+    // } catch (error) {
+    //   console.error(error);
+    // }
+
+    const getIdQuery = `
+  query GetCampaignId($handle: MetaobjectHandleInput!) {
+    metaobjectByHandle(handle: $handle) {
+      id
     }
+  }
+`;
+
+    const handleRes = await admin.graphql(getIdQuery, {
+      variables: {
+        handle: {
+          type: "preordercampaign",
+          handle: params.id,
+        },
+      },
+    });
+
+    const handleData = await handleRes.json();
+    const metaobjectId = handleData.data.metaobjectByHandle.id;
+
+    // Step 2: update metaobject
+    const updateCampaignMutation = `
+  mutation UpdateCampaign($id: ID!, $fields: [MetaobjectFieldInput!]!) {
+    metaobjectUpdate(
+      id: $id
+      metaobject: { fields: $fields }
+    ) {
+      metaobject {
+        id
+        handle
+        fields {
+          key
+          value
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+    const updatedFields = [
+      {
+        key: "name",
+        value: (formData.get("name") as string) || "Untitled Campaign",
+      },
+      {
+        key: "button_text",
+        value: (formData.get("buttonText") as string) || "Preorder",
+      },
+      {
+        key: "shipping_message",
+        value: (formData.get("shippingMessage") as string) || "No message",
+      },
+      {
+        key: "payment_type",
+        value: (formData.get("paymentMode") as string) || "Full",
+      },
+      { key: "ppercent", value: String(formData.get("depositPercent") || "0") },
+      {
+        key: "paymentduedate",
+        value: new Date(
+          (formData.get("balanceDueDate") as string) || Date.now(),
+        ).toISOString(),
+      },
+      {
+        key: "campaign_end_date",
+        value: new Date(
+          (formData.get("campaignEndDate") as string) || Date.now(),
+        ).toISOString(),
+      },
+    ];
+
+    const campaignUpdateResponse = await admin.graphql(updateCampaignMutation, {
+      variables: {
+        id: metaobjectId,
+        fields: updatedFields,
+      },
+    });
+
+    const parsedResponse = await campaignUpdateResponse.json();
+    console.log(parsedResponse.data.metaobjectUpdate.userErrors);
+    console.log(parsedResponse.data.metaobjectUpdate.metaobject);
+
+    // Step 3: update metaobject design_fields
+
+    const designFields = JSON.parse(formData.get("designFields") as string);
+    console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
+    const fields = Object.entries(designFields).map(([key, value]) => ({
+      key: key.toLowerCase(),
+      value: String(value),
+    }));
+    fields.push({
+      key: "campaign_id",
+      value: String(params.id),
+    });
+    const query = `
+  query GetDesignSettings($handle: String!) {
+    metaobjectByHandle(handle: {handle: $handle, type: "design_settings"}) {
+      id
+      handle
+      type
+      fields {
+        key
+        value
+      }
+    }
+  }
+`;
+
+    const res = await admin.graphql(query, {
+      variables: { handle: params.id },
+    });
+
+    const data = await res.json();
+    const designmetaobjectId = data.data.metaobjectByHandle.id;
+
+    const mutation = `
+  mutation UpdateDesignSettings($id: ID!, $fields: [MetaobjectFieldInput!]!) {
+    metaobjectUpdate(
+      id: $id
+      metaobject: { fields: $fields }
+    ) {
+      metaobject {
+        id
+        handle
+        fields {
+          key
+          value
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+    const response = await admin.graphql(mutation, {
+      variables: {
+        id: designmetaobjectId,
+        fields,
+      },
+    });
+
+    const updated = await response.json();
+    console.log("Updated metaobject:", updated);
+
+    return redirect(`/app/`);
   }
 
   if (intent === "unpublish-campaign") {
@@ -290,7 +442,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
   }
 `;
 
-const DELETE_SELLING_PLAN_GROUP = `
+      const DELETE_SELLING_PLAN_GROUP = `
   mutation DeleteSellingPlanGroup($id: ID!) {
     sellingPlanGroupDelete(id: $id) {
       deletedSellingPlanGroupId
@@ -302,38 +454,39 @@ const DELETE_SELLING_PLAN_GROUP = `
   }
 `;
 
-
-const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
-      variables: { id: products[0].id},
-    });
-    const productData = await productResp.json();
-
-    const groups =
-      productData.data.product.sellingPlanGroups.edges.map(
-        (edge) => edge.node
-      ) || [];
-
-        const deletedGroups = [];
-    const errors = [];
-
-    for (const group of groups) {
-      const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
-        variables: { id: group.id },
+      const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
+        variables: { id: products[0].id },
       });
-      const deleteData = await deleteResp.json();
+      const productData = await productResp.json();
 
-      if (
-        deleteData.data.sellingPlanGroupDelete.userErrors &&
-        deleteData.data.sellingPlanGroupDelete.userErrors.length > 0
-      ) {
-        errors.push({
-          groupId: group.id,
-          errors: deleteData.data.sellingPlanGroupDelete.userErrors,
+      const groups =
+        productData.data.product.sellingPlanGroups.edges.map(
+          (edge) => edge.node,
+        ) || [];
+
+      const deletedGroups = [];
+      const errors = [];
+
+      for (const group of groups) {
+        const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
+          variables: { id: group.id },
         });
-      } else {
-        deletedGroups.push(deleteData.data.sellingPlanGroupDelete.deletedSellingPlanGroupId);
+        const deleteData = await deleteResp.json();
+
+        if (
+          deleteData.data.sellingPlanGroupDelete.userErrors &&
+          deleteData.data.sellingPlanGroupDelete.userErrors.length > 0
+        ) {
+          errors.push({
+            groupId: group.id,
+            errors: deleteData.data.sellingPlanGroupDelete.userErrors,
+          });
+        } else {
+          deletedGroups.push(
+            deleteData.data.sellingPlanGroupDelete.deletedSellingPlanGroupId,
+          );
+        }
       }
-    }
 
       return redirect(`/app`);
     } catch (error) {
@@ -345,11 +498,13 @@ const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
 };
 
 export default function CampaignDetail() {
-  const { campaign, products ,parsedDesignSettingsResponse} = useLoaderData<typeof loader>();
+  const { campaign, products, parsedDesignSettingsResponse } =
+    useLoaderData<typeof loader>();
   // console.log(res.campaign?.products)
   // console.log(products, "products");
   console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
-  const designFieldsObj = parsedDesignSettingsResponse.data.metaobjectByHandle.fields;
+  const designFieldsObj =
+    parsedDesignSettingsResponse.data.metaobjectByHandle.fields;
   const submit = useSubmit();
   const navigate = useNavigate();
   const fetcher = useFetcher();
@@ -410,12 +565,15 @@ export default function CampaignDetail() {
     "not_published",
   );
 
-  console.log(designFieldsObj)
+  console.log(designFieldsObj);
 
-  const designFieldsMap = designFieldsObj.reduce((acc, field) => {
-  acc[field.key] = field.value;
-  return acc;
-}, {} as Record<string, string>);
+  const designFieldsMap = designFieldsObj.reduce(
+    (acc, field) => {
+      acc[field.key] = field.value;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: designFieldsMap.messagefontsize,
@@ -597,8 +755,12 @@ export default function CampaignDetail() {
     formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
     formData.append("campaignEndDate", campaignEndDate?.toISOString() ?? "");
-    formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
-
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignType", String(selectedOption));
+    formData.append("buttonText", String(buttonText));
+    formData.append("shippingMessage", String(shippingMessage));
+    formData.append("paymentMode", String(paymentMode));
+    formData.append("designFields", JSON.stringify(designFields));
     submit(formData, { method: "post" });
   };
 
@@ -666,7 +828,8 @@ export default function CampaignDetail() {
         backAction={{
           content: "Back",
           onAction: () => navigate("/app"), // <-- Remix navigate
-        }} // primaryAction={{
+        }}
+        // primaryAction={{
         //   content: "Publish",
         //   onAction: handleSubmit,
         // }}
@@ -680,6 +843,10 @@ export default function CampaignDetail() {
             content: "Delete",
             destructive: true,
             onAction: () => shopify.modal.show("delete-modal"),
+          },
+          {
+            content: "Save",
+            onAction: handleSubmit,
           },
         ]}
       >
@@ -784,11 +951,12 @@ export default function CampaignDetail() {
                   <LegacyStack vertical>
                     <RadioButton
                       label="Show Preorder when product is out of stock"
-                      checked={selectedOption ===  1}
+                      checked={selectedOption === 1}
                       id="preorder"
                       name="preorder"
                       onChange={() => {
-                        setSelectedOption(1)}}
+                        setSelectedOption(1);
+                      }}
                     />
                     {selectedOption === 1 && (
                       <ol>
