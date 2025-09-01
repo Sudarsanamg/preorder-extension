@@ -362,7 +362,7 @@ export default function CampaignDetail() {
   const [productTags, setProductTags] = useState([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
-  const [selectedOption, setSelectedOption] = useState("preorder");
+  const [selectedOption, setSelectedOption] = useState(2);
   const [buttonText, setButtonText] = useState("Preorder");
   const [shippingMessage, setShippingMessage] = useState(
     "Ship as soon as possible",
@@ -736,7 +736,7 @@ export default function CampaignDetail() {
           <div
             style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
           >
-            <button
+            {/* <button
               type="submit"
               style={{
                 backgroundColor: "black",
@@ -746,7 +746,7 @@ export default function CampaignDetail() {
               }}
             >
               Publish
-            </button>
+            </button> */}
           </div>
           <div
             style={{
@@ -784,12 +784,13 @@ export default function CampaignDetail() {
                   <LegacyStack vertical>
                     <RadioButton
                       label="Show Preorder when product is out of stock"
-                      checked={selectedOption === "out-of-stock"}
+                      checked={selectedOption ===  1}
                       id="preorder"
                       name="preorder"
-                      onChange={() => setSelectedOption("out-of-stock")}
+                      onChange={() => {
+                        setSelectedOption(1)}}
                     />
-                    {selectedOption === "out-of-stock" && (
+                    {selectedOption === 1 && (
                       <ol>
                         <li>
                           The Preorder button appears when stock reaches 0 and
@@ -804,28 +805,28 @@ export default function CampaignDetail() {
                     )}
                     <RadioButton
                       label="Always show Preorder button"
-                      checked={selectedOption === "always-preorder"}
+                      checked={selectedOption === 2}
                       id="always-preorder"
                       name="always-preorder"
                       onChange={() => {
-                        setSelectedOption("always-preorder");
+                        setSelectedOption(2);
                       }}
                     />
-                    {selectedOption === "always-preorder" && (
+                    {selectedOption === 2 && (
                       <Text as="p">
                         Preorder lets customers buy before stock is available.
                       </Text>
                     )}
                     <RadioButton
                       label="Show Preorder only when product in stock"
-                      checked={selectedOption === "in-stock"}
+                      checked={selectedOption === 3}
                       id="back-in-stock"
                       name="back-in-stock"
                       onChange={() => {
-                        setSelectedOption("in-stock");
+                        setSelectedOption(3);
                       }}
                     />
-                    {selectedOption === "in-stock" && (
+                    {selectedOption === 3 && (
                       <Text>
                         Preorder lets customers buy before stock is available.
                       </Text>

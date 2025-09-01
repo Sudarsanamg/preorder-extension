@@ -37,7 +37,7 @@ import {
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
-import { Modal, TitleBar ,SaveBar} from "@shopify/app-bridge-react";
+import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import {
   createPreorderCampaign,
   addProductsToCampaign,
@@ -215,7 +215,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         }
 
-        const CREATE_SELLING_PLAN = `
+        // if the payment option is partial
+
+        if (formData.get("paymentMode") === "partial") {
+          const CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
     sellingPlanGroupCreate(
       input: {
@@ -256,26 +259,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 `;
+          const productIds = products.map((p) => p.id);
 
-        const productIds = products.map((p) => p.id);
-        try {
-          let res = await admin.graphql(CREATE_SELLING_PLAN, {
-            variables: {
-              productIds,
-              percentage: 30.0,
-              days: "P7D",
-            },
-          });
+          console.log(
+            productIds,
+            Number(formData.get("depositPercent")),
+            "formData >>>>>>>>>>>>>>>>>>>>>>",
+          );
 
-          res = await res.json();
-          console.log(res,'res >>>>>>>>>>>>>>>>>>>>>> line :272');
+          try {
+            let res = await admin.graphql(CREATE_SELLING_PLAN, {
+              variables: {
+                productIds,
+                percentage: Number(formData.get("depositPercent")),
+                days: "P7D",
+              },
+            });
 
-          console.log("GraphQL response >>>", JSON.stringify(res, null, 2));
-        } catch (error) {
-          console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+            res = await res.json();
+          } catch (error) {
+            console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+          }
         }
 
         const designFields = JSON.parse(formData.get("designFields") as string);
+        console.log(designFields,'designFields >>>>>>>>>>>>>>>>>>>>>>');
         const fields = Object.entries(designFields).map(([key, value]) => ({
           key: key.toLowerCase(),
           value: String(value),
@@ -287,7 +295,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
 
-  const mutation = `
+        const mutation = `
   mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
   metaobjectCreate(
     metaobject: {
@@ -317,7 +325,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 }
   `;
 
-  const campaign_mutation = `
+        const campaign_mutation = `
   mutation CreateCampaign($fields: [MetaobjectFieldInput!]!) {
     metaobjectCreate(
       metaobject: {
@@ -346,29 +354,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
   }
-  `
-
+  `;
 
         try {
           const response = await admin.graphql(mutation, {
             variables: { fields },
           });
-          console.log(response, "response>>>>>>>>>>>>>>>>>>>>>>>");
 
-     const campaign_response = await admin.graphql(campaign_mutation, {
-  variables: { 
-    fields: [
-      { key: "campaign_id", value: String(campaign.id) },
-      { key: "name", value: formData.get("name") as string },
-      { key: "status", value: "publish" },
-    ]
-  },
+          // const campaignType = JSON.parse(
+          //   formData.get("campaignType") as string,
+          // );
+
+         const campaign_response = await admin.graphql(campaign_mutation, {
+  variables: {
+  fields: [
+  { key: "campaign_id", value: String(campaign.id) },
+  { key: "name", value: (formData.get("name") as string) || "Untitled Campaign" },
+  { key: "status", value: "publish" },
+  { key: "campaign_type", value: String(2) }, // must be string
+  { key: "button_text", value: (formData.get("buttonText") as string) || "Preorder" },
+  { key: "shipping_message", value: (formData.get("shippingMessage") as string) || "No message" },
+  { key: "payment_type", value: (formData.get("paymentMode") as string) || "Full" },
+  { key: "ppercent", value: String(formData.get("depositPercent") || "0") }, // must be string
+  { key: "paymentduedate", value: new Date(formData.get("balanceDueDate") as string || Date.now()).toISOString() },
+  { key: "campaign_end_date", value: new Date(formData.get("campaignEndDate") as string || Date.now()).toISOString() },
+]
+
+},
 });
 
-          const parsedResponse = JSON.parse(JSON.stringify(response));
-          const parsedCampaignResponse = JSON.parse(JSON.stringify(campaign_response));
-          console.log(parsedResponse, "parsedResponse >>>>>>>>>>>>>>>>>>>>>>");
-          console.log(parsedCampaignResponse, "parsedCampaignResponse >>>>>>>>>>>>>>>>>>>>>>");
+          const parsedCampaignResponse = await campaign_response.json();
+          console.log(parsedCampaignResponse, "parsedResponse >>>>>>>>>>>>>>>>>>>>>>");
+          
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
         }
@@ -395,7 +412,7 @@ export default function Newcampaign() {
   const [productTags, setProductTags] = useState([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
-  const [selectedOption, setSelectedOption] = useState("preorder");
+  const [selectedOption, setSelectedOption] = useState(2);
   const [buttonText, setButtonText] = useState("Preorder");
   const [shippingMessage, setShippingMessage] = useState(
     "Ship as soon as possible",
@@ -586,7 +603,12 @@ export default function Newcampaign() {
     formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
     formData.append("campaignEndDate", campaignEndDate.toISOString());
-    formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignType", String(selectedOption));
+    formData.append("buttonText", String(buttonText));
+    formData.append("shippingMessage", String(shippingMessage));
+    formData.append("paymentMode",  String(paymentMode));
+    formData.append("designFields", JSON.stringify(designFields));
 
     submit(formData, { method: "post" });
   };
@@ -611,14 +633,14 @@ export default function Newcampaign() {
 
   const appBridge = useAppBridge();
 
-    const handleSave = () => {
-    console.log('Saving');
-    shopify.saveBar.hide('my-save-bar');
+  const handleSave = () => {
+    console.log("Saving");
+    shopify.saveBar.hide("my-save-bar");
   };
 
   const handleDiscard = () => {
-    console.log('Discarding');
-    shopify.saveBar.hide('my-save-bar');
+    console.log("Discarding");
+    shopify.saveBar.hide("my-save-bar");
   };
 
   // const handleNavigation = () => {
@@ -676,6 +698,11 @@ export default function Newcampaign() {
             name="designFields"
             value={JSON.stringify(designFields)}
           />
+          <input
+            type="hidden"
+            name="campaignType"
+            value={JSON.stringify(selectedOption)}
+          />
 
           <div
             style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
@@ -693,9 +720,9 @@ export default function Newcampaign() {
             </button>
           </div>
           <SaveBar id="my-save-bar">
-        <button variant="primary" onClick={handleSave}></button>
-        <button onClick={handleDiscard}></button>
-      </SaveBar>
+            <button variant="primary" onClick={handleSave}></button>
+            <button onClick={handleDiscard}></button>
+          </SaveBar>
           <div
             style={{
               display: "flex",
@@ -732,12 +759,14 @@ export default function Newcampaign() {
                   <LegacyStack vertical>
                     <RadioButton
                       label="Show Preorder when product is out of stock"
-                      checked={selectedOption === "out-of-stock"}
+                      checked={selectedOption === 1}
                       id="preorder"
                       name="preorder"
-                      onChange={() => setSelectedOption("out-of-stock")}
+                      onChange={() => {
+                        setSelectedOption(1);
+                      }}
                     />
-                    {selectedOption === "out-of-stock" && (
+                    {selectedOption === 1 && (
                       <ol>
                         <li>
                           The Preorder button appears when stock reaches 0 and
@@ -752,28 +781,28 @@ export default function Newcampaign() {
                     )}
                     <RadioButton
                       label="Always show Preorder button"
-                      checked={selectedOption === "always-preorder"}
+                      checked={selectedOption === 2}
                       id="always-preorder"
                       name="always-preorder"
                       onChange={() => {
-                        setSelectedOption("always-preorder");
+                        setSelectedOption(2);
                       }}
                     />
-                    {selectedOption === "always-preorder" && (
+                    {selectedOption === 2 && (
                       <Text as="p">
                         Preorder lets customers buy before stock is available.
                       </Text>
                     )}
                     <RadioButton
                       label="Show Preorder only when product in stock"
-                      checked={selectedOption === "in-stock"}
+                      checked={selectedOption === 3}
                       id="back-in-stock"
                       name="back-in-stock"
                       onChange={() => {
-                        setSelectedOption("in-stock");
+                        setSelectedOption(3);
                       }}
                     />
-                    {selectedOption === "in-stock" && (
+                    {selectedOption === 3 && (
                       <Text>
                         Preorder lets customers buy before stock is available.
                       </Text>

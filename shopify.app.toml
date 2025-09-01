@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://ashley-eng-alert-bell.trycloudflare.com"
+application_url = "https://those-declined-disclaimer-visits.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "read_metaobjects,write_metaobjects,write_products,write_purchase_options"
 
 [auth]
-redirect_urls = ["https://ashley-eng-alert-bell.trycloudflare.com/auth/callback", "https://ashley-eng-alert-bell.trycloudflare.com/auth/shopify/callback", "https://ashley-eng-alert-bell.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://those-declined-disclaimer-visits.trycloudflare.com/auth/callback", "https://those-declined-disclaimer-visits.trycloudflare.com/auth/shopify/callback", "https://those-declined-disclaimer-visits.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
