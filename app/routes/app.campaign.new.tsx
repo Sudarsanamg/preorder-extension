@@ -37,7 +37,7 @@ import {
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
-import { Modal, TitleBar } from "@shopify/app-bridge-react";
+import { Modal, TitleBar ,SaveBar} from "@shopify/app-bridge-react";
 import {
   createPreorderCampaign,
   addProductsToCampaign,
@@ -152,6 +152,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             {
               ownerId: product.id,
               namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: String(campaign.id),
+            },
+            {
+              ownerId: product.id,
+              namespace: "custom",
               key: "preorder",
               type: "boolean",
               value: "true",
@@ -252,13 +259,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         const productIds = products.map((p) => p.id);
         try {
-          const res = await admin.graphql(CREATE_SELLING_PLAN, {
+          let res = await admin.graphql(CREATE_SELLING_PLAN, {
             variables: {
               productIds,
               percentage: 30.0,
               days: "P7D",
             },
           });
+
+          res = await res.json();
+          console.log(res,'res >>>>>>>>>>>>>>>>>>>>>> line :272');
 
           console.log("GraphQL response >>>", JSON.stringify(res, null, 2));
         } catch (error) {
@@ -270,34 +280,95 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           key: key.toLowerCase(),
           value: String(value),
         }));
+        fields.push({
+          key: "campaign_id",
+          value: String(campaign.id),
+        });
 
-        const mutation = `
-    mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
-      metaobjectCreate(metaobject: { type: "design_settings", fields: $fields }) {
-        metaobject {
-          id
-          status: ACTIVE,
-          handle
-        }
-        userErrors {
-          field
-          message
+        console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
+
+  const mutation = `
+  mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
+  metaobjectCreate(
+    metaobject: {
+      type: "design_settings",
+      fields: $fields,
+      capabilities: {
+        publishable: {
+          status: ACTIVE
         }
       }
     }
+  ) {
+    metaobject {
+      id
+      handle
+      capabilities {
+        publishable {
+          status
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
   `;
+
+  const campaign_mutation = `
+  mutation CreateCampaign($fields: [MetaobjectFieldInput!]!) {
+    metaobjectCreate(
+      metaobject: {
+        type: "preordercampaign",
+        fields: $fields,
+        capabilities: {
+          publishable: {
+            status: ACTIVE
+          }
+        }
+      }
+    )
+    {
+      metaobject {
+        id
+        handle
+        capabilities {
+          publishable {
+            status
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+  `
+
 
         try {
           const response = await admin.graphql(mutation, {
             variables: { fields },
           });
-
-          const json = await response.json();
-          console.log(
-            "graphql result >>> metaobject !!!!!!!!",
-            JSON.stringify(json, null, 2),
-          );
           console.log(response, "response>>>>>>>>>>>>>>>>>>>>>>>");
+
+     const campaign_response = await admin.graphql(campaign_mutation, {
+  variables: { 
+    fields: [
+      { key: "campaign_id", value: String(campaign.id) },
+      { key: "name", value: formData.get("name") as string },
+      { key: "status", value: "publish" },
+    ]
+  },
+});
+
+          const parsedResponse = JSON.parse(JSON.stringify(response));
+          const parsedCampaignResponse = JSON.parse(JSON.stringify(campaign_response));
+          console.log(parsedResponse, "parsedResponse >>>>>>>>>>>>>>>>>>>>>>");
+          console.log(parsedCampaignResponse, "parsedCampaignResponse >>>>>>>>>>>>>>>>>>>>>>");
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
         }
@@ -540,6 +611,16 @@ export default function Newcampaign() {
 
   const appBridge = useAppBridge();
 
+    const handleSave = () => {
+    console.log('Saving');
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  const handleDiscard = () => {
+    console.log('Discarding');
+    shopify.saveBar.hide('my-save-bar');
+  };
+
   // const handleNavigation = () => {
   //   // Use Remix Link for normal navigation
   //   // Or use appBridge.navigate for programmatic navigation
@@ -611,6 +692,10 @@ export default function Newcampaign() {
               Publish
             </button>
           </div>
+          <SaveBar id="my-save-bar">
+        <button variant="primary" onClick={handleSave}></button>
+        <button onClick={handleDiscard}></button>
+      </SaveBar>
           <div
             style={{
               display: "flex",

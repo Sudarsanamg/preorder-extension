@@ -39,7 +39,7 @@ model PreorderCampaign {
   balanceDueDate     DateTime
   refundDeadlineDays Int?       // e.g. 14
   releaseDate        DateTime?
-  status             String    @default("active")// active, ended, cancelled
+  status             String    @default("draft")// publish, unpublish, draft
   products           PreorderCampaignProduct[]
   preorders          Preorder[]
   campaignEndDate    DateTime

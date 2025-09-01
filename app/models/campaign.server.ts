@@ -29,6 +29,33 @@ export async function createPreorderCampaign(data: {
   });
 }
 
+
+export async function updateCampaign(data:{
+  id: string;
+  name: string;
+  depositPercent: number;
+  balanceDueDate: Date;
+  refundDeadlineDays: number;
+  releaseDate?: Date;
+  status?: string;
+  campaignEndDate?: Date;
+}) {
+  return prisma.preorderCampaign.update({
+    where: {
+      id: data.id
+    },
+    data: {
+      name: data.name,
+      depositPercent: data.depositPercent,
+      balanceDueDate: data.balanceDueDate,
+      refundDeadlineDays: data.refundDeadlineDays,
+      releaseDate: data.releaseDate,
+      status: data.status ?? "active",
+      campaignEndDate: data.campaignEndDate ? data.campaignEndDate : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  })
+}
+
 // Add product(s) to a campaign
 export async function addProductsToCampaign(
   campaignId: string,
@@ -43,6 +70,30 @@ export async function addProductsToCampaign(
     })),
   });
 }
+
+export async function replaceProductsInCampaign(
+  campaignId: string,
+  products: { id: string; variantId?: string; totalInventory: number }[]
+) {
+  return prisma.$transaction([
+    // 1. Delete all existing products for this campaign
+
+    prisma.preorderCampaignProduct.deleteMany({
+      where: { campaignId : campaignId },
+    }),
+
+    // 2. Insert the new products
+    prisma.preorderCampaignProduct.createMany({
+      data: products.map((p) => ({
+        campaignId,
+        productId: p.id,
+        variantId: p.variantId,
+        maxQuantity: p.totalInventory,
+      })),
+    }),
+  ]);
+}
+
 
 // utils/products.server.ts
 export async function getAllProducts(request: Request) {
@@ -101,6 +152,16 @@ export async function getCampaigns() {
 
 export async function getCampaignById(id: string) {
   return prisma.preorderCampaign.findUnique({
+    where: { id },
+    include: {
+    products: true,
+    preorders: true,
+  },
+  });
+}
+
+export async function deleteCampaign(id: string) {
+  return prisma.preorderCampaign.delete({
     where: { id },
   });
 }
