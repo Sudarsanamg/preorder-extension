@@ -105,9 +105,31 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     inventory: product.variants.edges[0]?.node.inventoryQuantity ?? null,
   }));
 
+  const GET_DESIGN_SETTINGS = `
+  query GetDesignSettings($handle: String!) {
+    metaobjectByHandle(handle: { handle: $handle, type: "design_settings" }) {
+      id
+      handle
+      type
+      fields {
+        key
+        value
+        type
+      }
+    }
+  }
+`;
+
+ let designSettingsResponse = await admin.graphql(GET_DESIGN_SETTINGS, {
+    variables: { handle: params.id! },
+  });
+
+  let parsedDesignSettingsResponse = await designSettingsResponse.json();
+
   return json({
     campaign,
     products,
+    parsedDesignSettingsResponse
   });
 };
 
@@ -143,7 +165,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       (formData.get("products") as string) || "[]",
     );
 
-    console.log(updatedProducts, "updated products");
 
     try {
       const replace = await replaceProductsInCampaign(
@@ -195,7 +216,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       });
 
       const result = await res.json();
-      console.log(result, ")))))))))))))))))))))))))))))");
 
       //need to get campaign products and need to remove campaign_id metafield in them
 
@@ -247,11 +267,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
             response.data.metafieldsSet.userErrors,
           );
         }
-
-        console.log("GraphQL response:", JSON.stringify(response, null, 2));
-        console.log(
-          "✅ GraphQL product metafields updated/removed successfully",
-        );
       } catch (err) {
         console.error("❌ GraphQL mutation failed:", err);
         throw err;
@@ -287,7 +302,6 @@ const DELETE_SELLING_PLAN_GROUP = `
   }
 `;
 
-console.log('Product id', products[0].id);
 
 const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
       variables: { id: products[0].id},
@@ -321,10 +335,6 @@ const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
       }
     }
 
-    console.log("Deleted:", deletedGroups);
-console.log("Errors:", errors);
-
-
       return redirect(`/app`);
     } catch (error) {
       console.log(error);
@@ -335,11 +345,11 @@ console.log("Errors:", errors);
 };
 
 export default function CampaignDetail() {
-  const { campaign, products } = useLoaderData<typeof loader>();
+  const { campaign, products ,parsedDesignSettingsResponse} = useLoaderData<typeof loader>();
   // console.log(res.campaign?.products)
   // console.log(products, "products");
-  console.log(campaign, "campaign");
-
+  console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
+  const designFieldsObj = parsedDesignSettingsResponse.data.metaobjectByHandle.fields;
   const submit = useSubmit();
   const navigate = useNavigate();
   const fetcher = useFetcher();
@@ -399,25 +409,33 @@ export default function CampaignDetail() {
   const [status, setStatus] = useState<"published" | "not_published">(
     "not_published",
   );
+
+  console.log(designFieldsObj)
+
+  const designFieldsMap = designFieldsObj.reduce((acc, field) => {
+  acc[field.key] = field.value;
+  return acc;
+}, {} as Record<string, string>);
+
   const [designFields, setDesignFields] = useState<DesignFields>({
-    messageFontSize: "16",
-    messageColor: "#000000",
-    fontFamily: "Helvetica",
-    buttonStyle: "single",
-    buttonBackgroundColor: "#000000",
-    gradientDegree: "0",
-    gradientColor1: "#000000",
-    gradientColor2: "#000000",
-    borderSize: "3",
-    borderColor: "#000000",
-    spacingIT: "10",
-    spacingIB: "10",
-    spacingOT: "10",
-    spacingOB: "10",
-    borderRadius: "5",
-    preorderMessageColor: "#000000",
-    buttonFontSize: "16",
-    buttonTextColor: "#ffffff",
+    messageFontSize: designFieldsMap.messagefontsize,
+    messageColor: designFieldsMap.messagecolor,
+    fontFamily: designFieldsMap.fontfamily,
+    buttonStyle: designFieldsMap.buttonstyle,
+    buttonBackgroundColor: designFieldsMap.buttonbackgroundcolor,
+    gradientDegree: designFieldsMap.gradientdegree,
+    gradientColor1: designFieldsMap.gradientcolor1,
+    gradientColor2: designFieldsMap.gradientcolor2,
+    borderSize: designFieldsMap.bordersize,
+    borderColor: designFieldsMap.bordercolor,
+    spacingIT: designFieldsMap.spacingit,
+    spacingIB: designFieldsMap.spacingib,
+    spacingOT: designFieldsMap.spacingot,
+    spacingOB: designFieldsMap.spacingob,
+    borderRadius: designFieldsMap.borderradius,
+    preorderMessageColor: designFieldsMap.preordermessagecolor,
+    buttonFontSize: designFieldsMap.buttonfontsize,
+    buttonTextColor: designFieldsMap.buttontextcolor,
   });
   const handleCampaignEndDateChange = useCallback((range) => {
     setCampaignEndPicker((prev) => ({
