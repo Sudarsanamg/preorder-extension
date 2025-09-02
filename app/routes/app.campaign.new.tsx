@@ -283,7 +283,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         const designFields = JSON.parse(formData.get("designFields") as string);
-        console.log(designFields,'designFields >>>>>>>>>>>>>>>>>>>>>>');
+        console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
         const fields = Object.entries(designFields).map(([key, value]) => ({
           key: key.toLowerCase(),
           value: String(value),
@@ -365,32 +365,92 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           //   formData.get("campaignType") as string,
           // );
 
-         const campaign_response = await admin.graphql(campaign_mutation, {
-  variables: {
-  fields: [
-  { key: "campaign_id", value: String(campaign.id) },
-  { key: "name", value: (formData.get("name") as string) || "Untitled Campaign" },
-  { key: "status", value: "publish" },
-  { key: "campaign_type", value: String(2) }, // must be string
-  { key: "button_text", value: (formData.get("buttonText") as string) || "Preorder" },
-  { key: "shipping_message", value: (formData.get("shippingMessage") as string) || "No message" },
-  { key: "payment_type", value: (formData.get("paymentMode") as string) || "Full" },
-  { key: "ppercent", value: String(formData.get("depositPercent") || "0") }, // must be string
-  { key: "paymentduedate", value: new Date(formData.get("balanceDueDate") as string || Date.now()).toISOString() },
-  { key: "campaign_end_date", value: new Date(formData.get("campaignEndDate") as string || Date.now()).toISOString() },
-]
-
-},
-});
+          const campaign_response = await admin.graphql(campaign_mutation, {
+            variables: {
+              fields: [
+                { key: "campaign_id", value: String(campaign.id) },
+                {
+                  key: "name",
+                  value:
+                    (formData.get("name") as string) || "Untitled Campaign",
+                },
+                { key: "status", value: "publish" },
+                { key: "campaign_type", value: String(2) }, // must be string
+                {
+                  key: "button_text",
+                  value: (formData.get("buttonText") as string) || "Preorder",
+                },
+                {
+                  key: "shipping_message",
+                  value:
+                    (formData.get("shippingMessage") as string) || "No message",
+                },
+                {
+                  key: "payment_type",
+                  value: (formData.get("paymentMode") as string) || "Full",
+                },
+                {
+                  key: "ppercent",
+                  value: String(formData.get("depositPercent") || "0"),
+                },
+                {
+                  key: "paymentduedate",
+                  value: new Date(
+                    (formData.get("balanceDueDate") as string) || Date.now(),
+                  ).toISOString(),
+                },
+                {
+                  key: "campaign_end_date",
+                  value: new Date(
+                    (formData.get("campaignEndDate") as string) || Date.now(),
+                  ).toISOString(),
+                },
+              ],
+            },
+          });
 
           const parsedCampaignResponse = await campaign_response.json();
-          console.log(parsedCampaignResponse, "parsedResponse >>>>>>>>>>>>>>>>>>>>>>");
-          
+          console.log(
+            parsedCampaignResponse,
+            "parsedResponse >>>>>>>>>>>>>>>>>>>>>>",
+          );
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
         }
 
         return redirect("/app");
+      }
+
+      case "productsWithPreorder": {
+        let productIds = JSON.parse(formData.get("products") as string);
+        const query = `
+    query getProductsMetafields($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Product {
+          id
+          title
+          metafield(namespace: "custom", key: "preorder") {
+            value
+          }
+        }
+      }
+    }
+  `;
+
+  productIds = productIds.map((product)=> product.id)
+
+        const response = await admin.graphql(query, {
+          variables: { ids: productIds },
+        });
+        const data = await response.json();
+
+        const productsWithPreorder = data.data.nodes.map((product: any) => ({
+          id: product.id,
+          title: product.title,
+          preorder: product?.metafield?.value === "true", // Shopify stores metafield values as strings
+        }));
+
+        return json({ productsWithPreorder });
       }
 
       default:
@@ -404,6 +464,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
+const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWithPreorder: [] };
   const submit = useSubmit();
   const navigate = useNavigate();
   const [campaignName, setCampaignName] = useState("");
@@ -430,6 +491,7 @@ export default function Newcampaign() {
     end: new Date(),
   });
   const [popoverActive, setPopoverActive] = useState(false);
+  const [warningPopoverActive, setWarningPopoverActive] = useState(false);
   const [DueDateinputValue, setDueDateInputValue] = useState(
     new Date().toLocaleDateString(),
   );
@@ -466,6 +528,19 @@ export default function Newcampaign() {
     buttonFontSize: "16",
     buttonTextColor: "#ffffff",
   });
+  const [fullPaymentText, setFullPaymentText] = useState("Pay in Full");
+  const [partialPaymentText, setPartialPaymentText] =
+    useState("Partial payment");
+  const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
+    "Pay {payment} now and {remaining} will be charged on {date}",
+  );
+  const payment = 3.92;
+  const remaining = 35.28;
+
+  const formattedText = partialPaymentInfoText
+    .replace("{payment}", `₹${payment}`)
+    .replace("{remaining}", `₹${remaining}`)
+    .replace("{date}", DueDateinputValue);
 
   const handleCampaignEndDateChange = useCallback((range) => {
     setCampaignEndPicker((prev) => ({
@@ -513,13 +588,15 @@ export default function Newcampaign() {
           : ResourcePicker.ResourceType.Collection,
       options: {
         selectMultiple: true,
+        initialSelectionIds: selectedProducts.map((p) => ({ id: p.id })),
+
       },
     });
 
     picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
       if (productRadio === "option1") {
-        // ✅ products directly selected
         setSelectedProducts(payload.selection);
+        
       }
     });
 
@@ -579,8 +656,8 @@ export default function Newcampaign() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && productTagInput.trim() !== "") {
       setProductTags((prev) => [...prev, productTagInput.trim()]);
-      setProductTagInput(""); // clear input
-      event.preventDefault(); // prevent form submit
+      setProductTagInput("");
+      event.preventDefault();
     }
   };
 
@@ -607,7 +684,7 @@ export default function Newcampaign() {
     formData.append("campaignType", String(selectedOption));
     formData.append("buttonText", String(buttonText));
     formData.append("shippingMessage", String(shippingMessage));
-    formData.append("paymentMode",  String(paymentMode));
+    formData.append("paymentMode", String(paymentMode));
     formData.append("designFields", JSON.stringify(designFields));
 
     submit(formData, { method: "post" });
@@ -627,10 +704,6 @@ export default function Newcampaign() {
     );
   };
 
-  useEffect(() => {
-    console.log(selectedProducts);
-  }, [selectedProducts]);
-
   const appBridge = useAppBridge();
 
   const handleSave = () => {
@@ -643,13 +716,42 @@ export default function Newcampaign() {
     shopify.saveBar.hide("my-save-bar");
   };
 
-  // const handleNavigation = () => {
-  //   // Use Remix Link for normal navigation
-  //   // Or use appBridge.navigate for programmatic navigation
-  //   if (appBridge && appBridge.navigate) {
-  //     appBridge.navigate('/your-route');
-  //   }
-  // };
+  useEffect(() => {
+    if (selectedProducts.length > 0) {
+      const formData = new FormData();
+      formData.append("intent", "productsWithPreorder");
+      formData.append("products", JSON.stringify(selectedProducts));
+
+      submit(formData, { method: "post" });
+    }
+  }, [selectedProducts]);
+
+  useEffect(() => {
+    let flag = false;
+    for (let i = 0; i < productsWithPreorder.length; i++) {
+      if (productsWithPreorder[i].preorder == true) {
+        flag = true;
+        break;
+      }
+    }
+
+    if (flag) {
+      setWarningPopoverActive(true);
+    }
+    else {
+      setWarningPopoverActive(false);
+    }
+  }, [productsWithPreorder]);
+
+  const handleDuplication =(id: any)=>  {
+
+   const prod = productsWithPreorder.find((product: any) => product.id === id);
+   if (prod && prod.preorder == true) {
+     return true;
+   }
+
+   return false;
+  }
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -756,58 +858,73 @@ export default function Newcampaign() {
                       Preorder
                     </Text>
                   </div>
-                  <LegacyStack vertical>
-                    <RadioButton
-                      label="Show Preorder when product is out of stock"
-                      checked={selectedOption === 1}
-                      id="preorder"
-                      name="preorder"
-                      onChange={() => {
-                        setSelectedOption(1);
-                      }}
-                    />
-                    {selectedOption === 1 && (
-                      <ol>
-                        <li>
-                          The Preorder button appears when stock reaches 0 and
-                          switches to "Add to cart" once inventory is
-                          replenished.
-                        </li>
-                        <li>
-                          When the campaign is active, the app enables "Continue
-                          selling when out of stock" and "Track quantity".
-                        </li>
-                      </ol>
-                    )}
-                    <RadioButton
-                      label="Always show Preorder button"
-                      checked={selectedOption === 2}
-                      id="always-preorder"
-                      name="always-preorder"
-                      onChange={() => {
-                        setSelectedOption(2);
-                      }}
-                    />
-                    {selectedOption === 2 && (
-                      <Text as="p">
-                        Preorder lets customers buy before stock is available.
-                      </Text>
-                    )}
-                    <RadioButton
-                      label="Show Preorder only when product in stock"
-                      checked={selectedOption === 3}
-                      id="back-in-stock"
-                      name="back-in-stock"
-                      onChange={() => {
-                        setSelectedOption(3);
-                      }}
-                    />
-                    {selectedOption === 3 && (
-                      <Text>
-                        Preorder lets customers buy before stock is available.
-                      </Text>
-                    )}
-                  </LegacyStack>
+                  {/* <LegacyStack vertical> */}
+                  <RadioButton
+                    label="Show Preorder when product is out of stock"
+                    checked={selectedOption === 1}
+                    id="preorder"
+                    name="preorder"
+                    onChange={() => {
+                      setSelectedOption(1);
+                    }}
+                  />
+                  {selectedOption === 1 && (
+                    <ol>
+                      <li>
+                        The Preorder button appears when stock reaches 0 and
+                        switches to "Add to cart" once inventory is replenished.
+                      </li>
+                      <li>
+                        When the campaign is active, the app enables "Continue
+                        selling when out of stock" and "Track quantity".
+                      </li>
+                    </ol>
+                  )}
+                  <RadioButton
+                    label="Always show Preorder button"
+                    checked={selectedOption === 2}
+                    id="always-preorder"
+                    name="always-preorder"
+                    onChange={() => {
+                      setSelectedOption(2);
+                    }}
+                  />
+                  {selectedOption === 2 && (
+                    <ol>
+                      <li>
+                        The Preorder button is displayed at all times,
+                        regardless of stock.
+                      </li>
+                      <li>
+                        When the campaign is active, the app enables "Continue
+                        selling when out of stock" and "Track quantity".
+                      </li>
+                    </ol>
+                  )}
+                  <RadioButton
+                    label="Show Preorder only when product in stock"
+                    checked={selectedOption === 3}
+                    id="back-in-stock"
+                    name="back-in-stock"
+                    onChange={() => {
+                      setSelectedOption(3);
+                    }}
+                  />
+                  {selectedOption === 3 && (
+                    <ol>
+                      <li>
+                        The Preorder button appears when stock is available and
+                        disappears when stock reaches 0 (switching to “Sold
+                        out”).
+                      </li>
+                      <li>
+                        The app enables "Track quantity" when the campaign is
+                        active but makes no changes when the campaign is turned
+                        off or deleted.
+                      </li>
+                    </ol>
+                  )}
+                  {/* </LegacyStack> */}
                   {/* </div> */}
                 </Card>
 
@@ -882,6 +999,8 @@ export default function Newcampaign() {
                               id="fullPaymentNote"
                               autoComplete="off"
                               label="Full payment text"
+                              onChange={setFullPaymentText}
+                              value={fullPaymentText}
                             />
                             <Text as="p" variant="bodyMd">
                               Visible in cart, checkout, transactional emails
@@ -985,12 +1104,19 @@ export default function Newcampaign() {
                             <TextField
                               autoComplete="off"
                               label="Partial payment text"
+                              onChange={setPartialPaymentText}
+                              value={partialPaymentText}
                             />
                             <Text as="p" variant="bodyMd">
                               Visible in cart, checkout, transactional emails
                             </Text>
                             <div>
-                              <TextField autoComplete="off" label="Text" />
+                              <TextField
+                                autoComplete="off"
+                                label="Text"
+                                value={partialPaymentInfoText}
+                                onChange={setPartialPaymentInfoText}
+                              />
                               <Text as="p" variant="bodyMd">
                                 Use {"{payment}"} and {"{remaining}"} to display
                                 partial payment amounts and {"{date}"} for full
@@ -1086,6 +1212,13 @@ export default function Newcampaign() {
                     </div>
                   </Card>
                 </div>
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <Button fullWidth onClick={() => setSelected(1)}>
+                      Continue to design
+                    </Button>
+                  </Card>
+                </div>
               </div>
             )}
             {selected === 1 && (
@@ -1093,6 +1226,7 @@ export default function Newcampaign() {
                 <PreviewDesign
                   designFields={designFields}
                   setDesignFields={setDesignFields}
+                  setTabSelected={setSelected}
                 />
               </div>
             )}
@@ -1221,8 +1355,7 @@ export default function Newcampaign() {
                         style={{ display: "flex", justifyContent: "center" }}
                       >
                         <Text as="h1" variant="headingMd">
-                          Pay ₹3.92 now and ₹35.28 will be charged on{" "}
-                          {DueDateinputValue}
+                          {formattedText}
                         </Text>
                       </div>
                     )}
@@ -1247,9 +1380,9 @@ export default function Newcampaign() {
                             Baby Pink T-shirt
                           </p>
                           {paymentMode === "partial" ? (
-                            <p>Partial payment</p>
+                            <p>{partialPaymentText}</p>
                           ) : (
-                            <p>Pay in full</p>
+                            <p>{fullPaymentText}</p>
                           )}
                           <p>
                             {preOrderNoteKey} : {preOrderNoteValue}
@@ -1325,6 +1458,20 @@ export default function Newcampaign() {
               </div>
             )}
             {selectedProducts.length > 0 && (
+              <div>
+              
+        {warningPopoverActive && <div style={{ padding: "8px" }}>
+          <Banner
+            title="Some of the products are assigned to multiple campaigns"
+            tone="warning"
+          >
+            <p>
+              Highlighted products are assigned to multiple Preorder campaigns.
+              When publishing this campaign products will be removed from other
+              campaigns.
+            </p>
+          </Banner>
+        </div> }
               <Card title="Selected Products">
                 <div
                   style={{
@@ -1408,7 +1555,8 @@ export default function Newcampaign() {
                     </thead>
                     <tbody>
                       {filteredProducts.map((product) => (
-                        <tr key={product.id}>
+                        <tr key={product.id} style={{    backgroundColor : handleDuplication(product.id) ? "#ea9898ff" : "",
+}}>
                           <td
                             style={{
                               padding: "8px",
@@ -1490,6 +1638,7 @@ export default function Newcampaign() {
                   </table>
                 </div>
               </Card>
+              </div>
             )}
             <Modal id="my-modal">
               <div

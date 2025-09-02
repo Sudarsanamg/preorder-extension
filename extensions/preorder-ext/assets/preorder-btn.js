@@ -1,8 +1,10 @@
 document.addEventListener("DOMContentLoaded", function () {
   const buyNowBtn = document.querySelector("shopify-buy-it-now-button button");
   const addToCartBtn = document.querySelector("form[action*='/cart/add'] [type='submit']");
+   const productData = document.getElementById("product-data");
+  const isPreorder = productData?.dataset.preorder === "true";
   
-  if (buyNowBtn && addToCartBtn) {
+  if (buyNowBtn && addToCartBtn && isPreorder) {
     buyNowBtn.style.display = "none";
     addToCartBtn.style.display = "none";
   }

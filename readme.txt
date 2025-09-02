@@ -13,11 +13,11 @@ Here’s your list with numbering added:
 1. Enable preorder for selected products or variants via tag or manual switch (Create def via API and delete via API) we need to turn off
 
 # 2. Preorder badge or label display
-3. Set release/shipping date per item
-5. Messaging options for preorder status (on product page and cart)
+# 3. Set release/shipping date per item
+# 5. Messaging options for preorder status (on product page and cart)
 # 6. Countdown timer for preorder window or expected availability
-7. Capture customer consent before placing preorder
-10. Limit number of preorder units available
+# 7. Capture customer consent before placing preorder
+# 10. Limit number of preorder units available
     - set quantities for preorder if exceed need to stop preorder
 
 # 4. Allow full or partial payment (e.g., 30% upfront)

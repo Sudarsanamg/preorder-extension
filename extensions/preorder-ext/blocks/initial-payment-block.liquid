@@ -4,21 +4,6 @@
 {% assign max_units  = product.metafields.custom.preorder_units %}
 
 
-{%- if product.selling_plan_groups.size > 0 -%}
-  <div class="product-purchase-options">
-    <label for="purchase-option">Purchase options</label>
-    <select name="selling_plan" id="purchase-option">
-      <option value="">One-time purchase</option>
-      {% for group in product.selling_plan_groups %}
-        {% for option in group.selling_plans %}
-          <option value="{{ option.id }}">{{ option.name }}</option>
-        {% endfor %}
-      {% endfor %}
-    </select>
-  </div>
-  
-{%- endif -%}
-
 {% if deposit_percent > 0 %}
   {% assign initial_payment = product_price | times: deposit_percent | divided_by: 100 %}
   {% assign balance_payment = product_price | minus: initial_payment %}

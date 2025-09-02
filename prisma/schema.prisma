@@ -53,10 +53,10 @@ model PreorderCampaignProduct {
   id           String   @id @default(cuid())
   campaignId   String
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  productId    String   // Shopify Product ID
-  variantId    String?  // Shopify Variant ID
-  maxQuantity  Int      // Limit per product
-  soldQuantity Int      @default(0) // Track how many preordered
+  productId    String   
+  variantId    String?  
+  maxQuantity  Int      
+  soldQuantity Int      @default(0) 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -65,7 +65,7 @@ model Preorder {
   id                   String   @id @default(cuid())
   campaignId           String
   campaign             PreorderCampaign @relation(fields: [campaignId], references: [id])
-  productId            String   // Which product they ordered
+  productId            String   
   variantId            String?
   customerId           String
   orderId              String   // Shopify deposit order ID
@@ -74,7 +74,7 @@ model Preorder {
   dueInvoiceSentAt     DateTime?
   balanceDueDays       Int
   refundDeadlineDays   Int
-  status               String   // deposit_paid, invoice_sent, refunded, completed
+  status               String   
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }

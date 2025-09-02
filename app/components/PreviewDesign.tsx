@@ -20,11 +20,13 @@ import { hsbToHex, hexToHsb } from "../utils/color";
 interface PreviewDesignProps {
   designFields: DesignFields;
   setDesignFields: React.Dispatch<React.SetStateAction<DesignFields>>;
+  setTabSelected: React.Dispatch<React.SetStateAction<0 | 1 |2>>;
 }
 
 export default function PreviewDesign({
   designFields,
   setDesignFields,
+  setTabSelected
 }: PreviewDesignProps) {
   const [selected, setSelected] = useState<"default" | "custom">("default");
   const options = [
@@ -145,7 +147,7 @@ export default function PreviewDesign({
               checked={designFields.buttonStyle === "gradient"}
             />
 
-            <RangeSlider
+           {designFields.buttonStyle === "gradient" && (<div style={{ display: "flex",flexDirection: "column", gap: 10 }}> <RangeSlider
               label="Gradient angle degree"
               value={Number(designFields.gradientDegree)}
               onChange={handleRangeSliderChange}
@@ -203,6 +205,7 @@ export default function PreviewDesign({
               </Popover>
               <TextField value={designFields.gradientColor2} />
             </div>
+            </div>)}
 
             <Text>Border size and color</Text>
             <div style={{ display: "flex", gap: 10 }}>
@@ -357,7 +360,7 @@ export default function PreviewDesign({
       {/* )} */}
 
       <Card>
-        <Button fullWidth>Continue to products</Button>
+        <Button fullWidth onClick={()=>setTabSelected(2)}>Continue to products</Button>
       </Card>
     </div>
   );

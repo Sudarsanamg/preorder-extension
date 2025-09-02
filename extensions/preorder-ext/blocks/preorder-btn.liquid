@@ -1,21 +1,23 @@
 {% comment %} {% assign settings = shop.metaobjects.design_settings["5-1"] %} {% endcomment %}
-{% assign settings = shop.metaobjects.design_settings.values | reverse | first %}
+{% comment %} {% assign settings = shop.metaobjects.design_settings.values | reverse | first %} {% endcomment %}
+
+{%  assign campaignid  = product.metafields.custom.campaign_id %} 
+{% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
+{% assign settings = shop.metaobjects.design_settings[campaignid] %}
 
 <div id="product-data" data-preorder="{{ product.metafields.custom.preorder.value }}"></div>
 <div id="selling-plan-data" data-selling-plan="{{ product.selling_plan_groups.first.selling_plans.first.id }}"></div>
 
 <script src="{{ 'preorder-btn.js' | asset_url }}" defer="defer"></script>
+
 <link rel="stylesheet" href="{{ 'preorder-btn.css' | asset_url }}">
 
-<button style="background-color: ;" class="preorder-button" data-variant-id="{{ product.selected_or_first_available_variant.id }}">
-    Preorder
-</button> 
 
+{% if product.metafields.custom.preorder == true %}
+  
 <div 
   style="
-    font-size: {{ settings.messagefontsize }}px;
-    color: {{ settings.messagecolor }};
-    font-family: {{ settings.fontfamily }};
+    
     border: {{ settings.bordersize }}px solid {{ settings.bordercolor }};
     border-radius: {{ settings.borderradius }}px;
     padding-top : {{ settings.spacingit}}px;
@@ -23,6 +25,7 @@
     margin-top: {{ settings.spacingot }}px;
     margin-bottom : {{ settings.spacinob }}px;
     display:flex;
+    cursor: pointer;
     justify-content:center;
     background: {% if settings.buttonstyle == 'single' %}
                   {{ settings.buttonbackgroundcolor }}
@@ -35,9 +38,17 @@
                 
                
   "
+  class="preorder-button" data-variant-id="{{ product.selected_or_first_available_variant.id }}"
 >
-  Button Preview
+ <p style="color: {{settings.buttontextcolor}}; 
+ font-size: {{ settings.messagefontsize }}px;
+  font-family: {{ settings.fontfamily }};
+
+ "> {{campaignprops.button_text}}</p>
 </div>
+
+{% endif %}
+
 
 
 {% comment %} <pre>{{ settings | json }}</pre> {% endcomment %}
