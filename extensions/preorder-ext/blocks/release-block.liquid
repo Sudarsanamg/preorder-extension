@@ -3,7 +3,6 @@
 {% assign designprops = shop.metaobjects.design_settings[campaignid] %}
 
 {% if product.metafields.custom.preorder == true 
-      and product.metafields.custom.release_date.value != blank 
 
     %}
   {% comment %} <p>Preorder available. Ships on 
@@ -11,9 +10,11 @@
   </p> {% endcomment %}
   <p 
   style="
-  color: {{ designprops.messagecolor}};
+  color: {{ designprops.preordermessagecolor}};
+  text-align:center;
   "
   >{{campaignprops.shipping_message}}</p>
+  {% comment %} <p>{{ designprops.preordermessagecolor}}</p> {% endcomment %}
 {% endif %}
 {% schema %}
 {

@@ -165,3 +165,10 @@ export async function deleteCampaign(id: string) {
     where: { id },
   });
 }
+
+export async function updateCampaignStatus(id: string, status: string) {
+  return prisma.preorderCampaign.update({
+    where: { id },
+    data: { status },
+  });
+}

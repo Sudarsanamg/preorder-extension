@@ -42,6 +42,7 @@ import {
   createPreorderCampaign,
   addProductsToCampaign,
   getAllProducts,
+  updateCampaignStatus,
 } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
 import PreviewDesign from "app/components/PreviewDesign";
@@ -361,9 +362,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             variables: { fields },
           });
 
-          // const campaignType = JSON.parse(
-          //   formData.get("campaignType") as string,
-          // );
+        
 
           const campaign_response = await admin.graphql(campaign_mutation, {
             variables: {
@@ -417,6 +416,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
         }
+
+          await updateCampaignStatus(campaign.id, "PUBLISHED");
+        
 
         return redirect("/app");
       }

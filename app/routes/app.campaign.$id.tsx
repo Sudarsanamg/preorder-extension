@@ -4,6 +4,7 @@ import {
   getCampaignById,
   replaceProductsInCampaign,
   updateCampaign,
+  updateCampaignStatus,
 } from "../models/campaign.server";
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -165,16 +166,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       (formData.get("products") as string) || "[]",
     );
 
-    // try {
-    //   const replace = await replaceProductsInCampaign(
-    //     String(params.id!),
-    //     updatedProducts,
-    //   );
-    //   console.log(replace);
+    try {
+      const replace = await replaceProductsInCampaign(
+        String(params.id!),
+        updatedProducts,
+      );
+      console.log(replace);
 
-    // } catch (error) {
-    //   console.error(error);
-    // }
+    } catch (error) {
+      console.error(error);
+    }
 
     const getIdQuery = `
   query GetCampaignId($handle: MetaobjectHandleInput!) {
@@ -327,7 +328,179 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const updated = await response.json();
     console.log("Updated metaobject:", updated);
 
+
+
     return redirect(`/app/`);
+  }
+
+  if (intent === "publish-campaign") {
+    const id = formData.get("id");
+
+
+    const publishMutation = `
+mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
+  metaobjectUpsert(
+    handle: $handle,
+    metaobject: {
+      fields: [
+        { key: "status", value: $status }
+      ]
+    }
+  ) {
+    metaobject {
+      id
+      handle
+      fields {
+        key
+        value
+      }
+    }
+    userErrors {
+      field
+      message
+      code
+    }
+  }
+}
+`;
+    try {
+      const res = await admin.graphql(publishMutation, {
+        variables: {
+          handle: { type: "preordercampaign", handle: id }, // 👈 your campaign UUID
+          status: "ACTIVE",
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
+
+      const mutation = `
+            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
+              metafieldsSet(metafields: $metafields) {
+                metafields {
+                  id
+                  namespace
+                  key
+                  type
+                  value
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
+
+      const products = JSON.parse((formData.get("products") as string) || "[]");
+
+      const metafields = products.flatMap((product) => [
+        {
+          ownerId: product.id,
+          namespace: "custom",
+          key: "campaign_id",
+          value: id,
+        },
+        {
+          ownerId: product.id,
+          namespace: "custom",
+          key: "preorder",
+          value: "true",
+        },
+      ]);
+
+      try {
+        const graphqlResponse = await admin.graphql(mutation, {
+          variables: { metafields },
+        });
+
+        const response = await graphqlResponse.json(); // 👈 parse it
+
+        if (response.data?.metafieldsSet?.userErrors?.length) {
+          console.error(
+            "///////////////////////",
+            response.data.metafieldsSet.userErrors,
+          );
+        }
+      } catch (err) {
+        console.error("❌ GraphQL mutation failed:", err);
+        throw err;
+      }
+
+    // if (formData.get("paymentMode") === "partial") {
+       const CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+          const productIds = products.map((p) => p.id);
+
+          console.log(
+            productIds,
+            Number(formData.get("depositPercent")),
+            "formData >>>>>>>>>>>>>>>>>>>>>>",
+          );
+
+          try {
+            let res = await admin.graphql(CREATE_SELLING_PLAN, {
+              variables: {
+                productIds,
+                percentage: 30.0,
+                days: "P7D",
+              },
+            });
+
+            res = await res.json();
+          } catch (error) {
+            console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+          }
+        // }
+
+        await updateCampaignStatus(params.id!, "PUBLISHED");
+
+
+
+
+
+
+      return redirect(`/app/`);
   }
 
   if (intent === "unpublish-campaign") {
@@ -452,7 +625,9 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       }
     }
   }
-`;
+`; 
+
+   
 
       const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
         variables: { id: products[0].id },
@@ -488,6 +663,10 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         }
       }
 
+          await updateCampaignStatus(params.id!, "UNPUBLISHED");
+
+
+
       return redirect(`/app`);
     } catch (error) {
       console.log(error);
@@ -495,6 +674,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
   }
 
   return null;
+  
 };
 
 export default function CampaignDetail() {
@@ -742,10 +922,10 @@ export default function CampaignDetail() {
   };
 
   const handleSubmit = () => {
-    //  if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
-    //   alert("Please fill all required fields and add at least one product.");
-    //   return;
-    // }
+     if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
+      alert("Please fill all required fields and add at least one product.");
+      return;
+    }
 
     console.log("function hit");
     const formData = new FormData();
@@ -792,14 +972,6 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
-  // const handleNavigation = () => {
-  //   // Use Remix Link for normal navigation
-  //   // Or use appBridge.navigate for programmatic navigation
-  //   if (appBridge && appBridge.navigate) {
-  //     appBridge.navigate('/your-route');
-  //   }
-  // };
-
   const [active, setActive] = useState(false);
 
   const handleOpen = () => setActive(true);
@@ -814,12 +986,21 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
+  function handlePublish(id: string): void {
+    const formData = new FormData();
+    formData.append("intent", "publish-campaign");
+    formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
+    formData.append("id", id);
+
+    submit(formData, { method: "post" });
+  }
+
   return (
     <AppProvider i18n={enTranslations}>
       <Page
         title="Update Preorder campaign"
         titleMetadata={
-          status === "published" ? (
+          campaign?.status === "PUBLISHED" ? (
             <Badge tone="success">Published</Badge>
           ) : (
             <Badge tone="info">Not published</Badge>
@@ -834,9 +1015,9 @@ export default function CampaignDetail() {
         //   onAction: handleSubmit,
         // }}
         primaryAction={{
-          content: "Unpublish",
+          content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
           varient: "primary",
-          onAction: () => handleUnpublish(String(campaign?.id)),
+          onAction: () => campaign?.status === "PUBLISHED" ? handleUnpublish(String(campaign?.id)) : handlePublish(String(campaign?.id)),
         }}
         secondaryActions={[
           {
@@ -1723,5 +1904,7 @@ export default function CampaignDetail() {
         )}
       </Page>
     </AppProvider>
+
   );
+
 }

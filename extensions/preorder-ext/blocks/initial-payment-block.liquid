@@ -4,12 +4,12 @@
 {% assign max_units  = product.metafields.custom.preorder_units %}
 
 
-{% if deposit_percent > 0 %}
+{% if deposit_percent > 0  and product.metafields.custom.preorder == true %}
   {% assign initial_payment = product_price | times: deposit_percent | divided_by: 100 %}
   {% assign balance_payment = product_price | minus: initial_payment %}
   {% assign balance_due_date = product.metafields.custom.balance_due_date.value %}
 
-  <div class="preorder-payment-info">
+  <div class="preorder-payment-info" style="text-align: center;">
     <p>
       Pay ₹{{ initial_payment | round }} now and ₹{{ balance_payment | round }} on {{ balance_due_date | date: "%d %b %Y" }}
     </p>

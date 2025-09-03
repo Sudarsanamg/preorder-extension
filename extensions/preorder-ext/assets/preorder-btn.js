@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function () {
     buyNowBtn.style.display = "none";
     addToCartBtn.style.display = "none";
   }
-
+    
   const preorderBtn = document.querySelector(".preorder-button");
   const sellingPlanData = document.getElementById("selling-plan-data");
 

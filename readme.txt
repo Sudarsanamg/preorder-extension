@@ -9,7 +9,7 @@ Participants must choose one of the following app ideas. Each app should be buil
 Here’s the numbered list so you can copy the numbers too:
 
 Here’s your list with numbering added:
-
+#
 1. Enable preorder for selected products or variants via tag or manual switch (Create def via API and delete via API) we need to turn off
 
 # 2. Preorder badge or label display

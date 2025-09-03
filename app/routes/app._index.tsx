@@ -22,7 +22,8 @@ import {
   ProgressBar,
   InlineStack,
   Icon,
-  BlockStack
+  BlockStack,
+  Badge
 } from "@shopify/polaris";
 // import { CircleTickMajor, CircleCancelMajor, CircleDisableMinor } from "@shopify/polaris-icons";
 
@@ -127,7 +128,12 @@ export default function Index() {
                       {row.data[0]}
                     </Link>
                   </Text>,
-                  row.data[1],
+                  <Badge
+      key={`status-${index}`}
+      tone={row.data[1] === "PUBLISHED" ? "success" : "subdued"}
+    >
+      {row.data[1] === "PUBLISHED" ? "Published" : "Unpublished"}
+    </Badge>,
                   row.data[2],
                 ])}
               />
