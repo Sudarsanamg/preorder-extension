@@ -21,7 +21,7 @@ export function AppBridgeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      const apiKey = "14993d74caaf7c040a712c77607dd865"
+      const apiKey = "409fb8e80f3145241daeff0fccc04a8c"
       const host = urlParams.get("host")!;
 
       if (apiKey && host) {

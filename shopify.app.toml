@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://thereof-sellers-they-accurately.trycloudflare.com"
+application_url = "https://served-assignment-convergence-losses.trycloudflare.com"
 embedded = true
 
 [build]
@@ -23,10 +23,10 @@ api_version = "2025-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "read_metaobjects,write_metaobjects,write_products,write_purchase_options"
 
 [auth]
-redirect_urls = ["https://thereof-sellers-they-accurately.trycloudflare.com/auth/callback", "https://thereof-sellers-they-accurately.trycloudflare.com/auth/shopify/callback", "https://thereof-sellers-they-accurately.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://served-assignment-convergence-losses.trycloudflare.com/auth/callback", "https://served-assignment-convergence-losses.trycloudflare.com/auth/shopify/callback", "https://served-assignment-convergence-losses.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

@@ -30,3 +30,52 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+
+model PreorderCampaign {
+  id                 String   @id @default(cuid())
+  name               String
+  depositPercent     Int       // e.g. 30
+  balanceDueDate     DateTime
+  refundDeadlineDays Int?       // e.g. 14
+  releaseDate        DateTime?
+  status             String    @default("draft")// publish, unpublish, draft
+  products           PreorderCampaignProduct[]
+  preorders          Preorder[]
+  campaignEndDate    DateTime
+  totalOrders        Int       @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+
+model PreorderCampaignProduct {
+  id           String   @id @default(cuid())
+  campaignId   String
+  campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  productId    String   
+  variantId    String?  
+  maxQuantity  Int      
+  soldQuantity Int      @default(0) 
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Preorder {
+  id                   String   @id @default(cuid())
+  campaignId           String
+  campaign             PreorderCampaign @relation(fields: [campaignId], references: [id])
+  productId            String   
+  variantId            String?
+  customerId           String
+  orderId              String   // Shopify deposit order ID
+  depositTransactionId String
+  depositPaidAt        DateTime
+  dueInvoiceSentAt     DateTime?
+  balanceDueDays       Int
+  refundDeadlineDays   Int
+  status               String   
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
