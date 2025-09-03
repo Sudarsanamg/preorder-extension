@@ -382,7 +382,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 {
                   key: "shipping_message",
                   value:
-                    (formData.get("shippingMessage") as string) || "No message",
+                    (formData.get("shippingMessage") as string) || "Ship as soon as possible",
                 },
                 {
                   key: "payment_type",
@@ -664,15 +664,15 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
   };
 
   const handleSubmit = () => {
-    if (
-      !campaignName ||
-      !partialPaymentPercentage ||
-      !DueDateinputValue ||
-      selectedProducts.length === 0
-    ) {
-      alert("Please fill all required fields and add at least one product.");
-      return;
-    }
+    // if (
+    //   !campaignName ||
+    //   !partialPaymentPercentage ||
+    //   !DueDateinputValue ||
+    //   selectedProducts.length === 0
+    // ) {
+    //   alert("Please fill all required fields and add at least one product.");
+    //   return;
+    // }
 
     console.log("function hit");
     const formData = new FormData();

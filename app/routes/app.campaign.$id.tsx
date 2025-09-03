@@ -52,7 +52,7 @@ import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
 //   addProductsToCampaign,
 // } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
-import { Modal, TitleBar } from "@shopify/app-bridge-react";
+import { Modal, TitleBar ,SaveBar} from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
 
@@ -127,10 +127,30 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
   let parsedDesignSettingsResponse = await designSettingsResponse.json();
 
+  const GET_CAMPAIGN_SETTINGS = `
+  query GetCampaignSettings($handle: String!) {
+    metaobjectByHandle(handle: { handle: $handle, type: "preordercampaign" }) {
+      id
+      handle
+      type
+      fields {
+        key
+        value
+        type
+      }
+    }
+  }
+`;
+  let campaignSettingsResponse = await admin.graphql(GET_CAMPAIGN_SETTINGS, {
+    variables: { handle: params.id! },
+  });
+
+    let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
   return json({
     campaign,
     products,
     parsedDesignSettingsResponse,
+    parsedCampaignSettingsResponse
   });
 };
 
@@ -139,6 +159,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   const formData = await request.formData();
   const intent = formData.get("intent");
+  const secondaryIntent = formData.get("secondaryIntent");
   if (intent === "delete-campaign") {
     const id = formData.get("id");
     await deleteCampaign(id);
@@ -231,7 +252,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
       {
         key: "shipping_message",
-        value: (formData.get("shippingMessage") as string) || "No message",
+        value: (formData.get("shippingMessage") as string) || "Ship as soon as possible",
       },
       {
         key: "payment_type",
@@ -665,7 +686,9 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
           await updateCampaignStatus(params.id!, "UNPUBLISHED");
 
-
+         if(secondaryIntent === "delete-campaign"){
+            await deleteCampaign(params.id!);
+         } 
 
       return redirect(`/app`);
     } catch (error) {
@@ -678,13 +701,18 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 };
 
 export default function CampaignDetail() {
-  const { campaign, products, parsedDesignSettingsResponse } =
+  const { campaign, products, parsedDesignSettingsResponse ,parsedCampaignSettingsResponse} =
     useLoaderData<typeof loader>();
-  // console.log(res.campaign?.products)
-  // console.log(products, "products");
-  console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
   const designFieldsObj =
     parsedDesignSettingsResponse.data.metaobjectByHandle.fields;
+  const campaignSettingsObj = parsedCampaignSettingsResponse.data.metaobjectByHandle.fields;
+  const campaignSettingsMap = campaignSettingsObj.reduce(
+    (acc, field) => {
+      acc[field.key] = field.value;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
   const submit = useSubmit();
   const navigate = useNavigate();
   const fetcher = useFetcher();
@@ -697,15 +725,15 @@ export default function CampaignDetail() {
   const [productTags, setProductTags] = useState([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
-  const [selectedOption, setSelectedOption] = useState(2);
-  const [buttonText, setButtonText] = useState("Preorder");
+  const [selectedOption, setSelectedOption] = useState(Number(campaignSettingsMap.campaign_type));
+  const [buttonText, setButtonText] = useState(campaignSettingsMap.button_text);
   const [shippingMessage, setShippingMessage] = useState(
-    "Ship as soon as possible",
+    campaignSettingsMap.shipping_message,
   );
   const [partialPaymentPercentage, setPartialPaymentPercentage] = useState(
     campaign?.depositPercent,
   );
-  const [paymentMode, setPaymentMode] = useState("partial");
+  const [paymentMode, setPaymentMode] = useState(campaignSettingsMap.payment_type==="full" ?"full" : "partial");
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
   const [{ month, year }, setMonthYear] = useState({
@@ -726,7 +754,7 @@ export default function CampaignDetail() {
   const [selectedProducts, setSelectedProducts] = useState(products || []);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndDate, setCampaignEndDate] = useState<Date | null>(
-    campaign?.campaignEndDate ? new Date(campaign.campaignEndDate) : null,
+    campaignSettingsMap.campaign_end_date ? new Date(campaignSettingsMap.campaign_end_date) : null,
   );
   const [campaignEndPicker, setCampaignEndPicker] = useState({
     month: new Date().getMonth(),
@@ -916,16 +944,16 @@ export default function CampaignDetail() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && productTagInput.trim() !== "") {
       setProductTags((prev) => [...prev, productTagInput.trim()]);
-      setProductTagInput(""); // clear input
-      event.preventDefault(); // prevent form submit
+      setProductTagInput("");
+      event.preventDefault(); 
     }
   };
 
   const handleSubmit = () => {
-     if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
-      alert("Please fill all required fields and add at least one product.");
-      return;
-    }
+    //  if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
+    //   alert("Please fill all required fields and add at least one product.");
+    //   return;
+    // }
 
     console.log("function hit");
     const formData = new FormData();
@@ -966,7 +994,9 @@ export default function CampaignDetail() {
 
   async function handleDelete(id: string) {
     const formData = new FormData();
-    formData.append("intent", "delete-campaign");
+    formData.append("intent", "unpublish-campaign");
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("secondaryIntent", "delete-campaign");
     formData.append("id", id);
 
     submit(formData, { method: "post" });
@@ -980,25 +1010,41 @@ export default function CampaignDetail() {
   function handleUnpublish(id: string): void {
     const formData = new FormData();
     formData.append("intent", "unpublish-campaign");
-    formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
+    formData.append("products", JSON.stringify(selectedProducts));
     formData.append("id", id);
 
     submit(formData, { method: "post" });
   }
+
+   const handleSave = () => {
+    console.log('Saving');
+    handleSubmit()
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  const handleDiscard = () => {
+    console.log('Discarding');
+    shopify.saveBar.hide('my-save-bar');
+  };
 
   function handlePublish(id: string): void {
     const formData = new FormData();
     formData.append("intent", "publish-campaign");
-    formData.append("products", JSON.stringify(selectedProducts)); // arrays/objects must be stringified
+    formData.append("products", JSON.stringify(selectedProducts)); 
+    formData.append("paymentMode", String(paymentMode));
     formData.append("id", id);
 
     submit(formData, { method: "post" });
   }
 
+  useEffect(() => {
+    shopify.saveBar.show('my-save-bar');
+  }, [designFields,campaignName,selectedProducts,paymentMode,partialPaymentPercentage,DueDateinputValue,selectedOption,buttonText,shippingMessage]);
+
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title="Update Preorder campaign"
+        title={`Update ${campaign?.name}`}
         titleMetadata={
           campaign?.status === "PUBLISHED" ? (
             <Badge tone="success">Published</Badge>
@@ -1025,12 +1071,12 @@ export default function CampaignDetail() {
             destructive: true,
             onAction: () => shopify.modal.show("delete-modal"),
           },
-          {
-            content: "Save",
-            onAction: handleSubmit,
-          },
         ]}
       >
+        <SaveBar id="my-save-bar">
+        <button variant="primary" onClick={handleSave}></button>
+        <button onClick={handleDiscard}></button>
+      </SaveBar>
         <Modal id="delete-modal">
           <p style={{ padding: "10px" }}>
             Delete "{campaign?.name}" This will also remove the campaign from
@@ -1255,6 +1301,7 @@ export default function CampaignDetail() {
                               id="fullPaymentNote"
                               autoComplete="off"
                               label="Full payment text"
+                              value="Pay in Full"
                             />
                             <Text as="p" variant="bodyMd">
                               Visible in cart, checkout, transactional emails
