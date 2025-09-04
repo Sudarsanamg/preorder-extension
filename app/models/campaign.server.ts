@@ -172,3 +172,41 @@ export async function updateCampaignStatus(id: string, status: string) {
     data: { status },
   });
 }
+
+export async function getOrders() {
+  return prisma.campaignOrders.findMany();
+}
+
+export async function createOrder({
+  order_number,
+  order_id,
+  draft_order_id,
+  dueDate,
+  balanceAmount,
+  paymentStatus,
+}: {
+  order_number: number;
+  order_id: string;
+  draft_order_id: string;
+  dueDate: Date;
+  balanceAmount: number;
+  paymentStatus: string;
+}) {
+  try {
+    const newOrder = await prisma.campaignOrders.create({
+      data: {
+        order_number,
+        order_id,
+        draft_order_id,
+        dueDate,
+        balanceAmount,
+        paymentStatus,
+      },
+    });
+
+    return newOrder;
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+}

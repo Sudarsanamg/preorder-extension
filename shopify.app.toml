@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://vegetarian-bool-hobby-living.trycloudflare.com"
+application_url = "https://remark-barrel-pointing-bulgaria.trycloudflare.com"
 embedded = true
 
 [build]
@@ -30,7 +30,7 @@ api_version = "2025-07"
 scopes = "read_metaobjects,read_orders,read_payment_mandate,write_draft_orders,write_metaobjects,write_orders,write_products,write_purchase_options"
 
 [auth]
-redirect_urls = ["https://vegetarian-bool-hobby-living.trycloudflare.com/auth/callback", "https://vegetarian-bool-hobby-living.trycloudflare.com/auth/shopify/callback", "https://vegetarian-bool-hobby-living.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://remark-barrel-pointing-bulgaria.trycloudflare.com/auth/callback", "https://remark-barrel-pointing-bulgaria.trycloudflare.com/auth/shopify/callback", "https://remark-barrel-pointing-bulgaria.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
