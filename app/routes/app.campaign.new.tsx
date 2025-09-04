@@ -761,15 +761,13 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
         title="Create Preorder campaign"
         backAction={{
           content: "Back",
-          onAction: () => navigate("/app"), // <-- Remix navigate
-        }} // primaryAction={{
-        //   content: "Publish",
-        //   onAction: handleSubmit,
-        // }}
+          onAction: () => navigate("/app"), 
+        }} 
+        primaryAction={{
+          content: "Publish",
+          onAction: handleSubmit,
+        }}
       >
-        {/* <Link to="/your-route">Go to route</Link> */}
-
-        {/* <Button onClick={handleNavigation}>Create Campaign</Button> */}
 
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
 
@@ -811,7 +809,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
           <div
             style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
           >
-            <button
+            {/* <button
               type="submit"
               style={{
                 backgroundColor: "black",
@@ -821,7 +819,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
               }}
             >
               Publish
-            </button>
+            </button> */}
           </div>
           <SaveBar id="my-save-bar">
             <button variant="primary" onClick={handleSave}></button>

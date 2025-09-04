@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://served-assignment-convergence-losses.trycloudflare.com"
+application_url = "https://voices-gaming-finding-calling.trycloudflare.com"
 embedded = true
 
 [build]
@@ -21,12 +21,16 @@ api_version = "2025-07"
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
 
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create" ]
+  uri = "/webhooks/custom"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_metaobjects,write_metaobjects,write_products,write_purchase_options"
+scopes = "read_metaobjects,read_orders,read_payment_mandate,write_metaobjects,write_orders,write_products,write_purchase_options"
 
 [auth]
-redirect_urls = ["https://served-assignment-convergence-losses.trycloudflare.com/auth/callback", "https://served-assignment-convergence-losses.trycloudflare.com/auth/shopify/callback", "https://served-assignment-convergence-losses.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://voices-gaming-finding-calling.trycloudflare.com/auth/callback", "https://voices-gaming-finding-calling.trycloudflare.com/auth/shopify/callback", "https://voices-gaming-finding-calling.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
