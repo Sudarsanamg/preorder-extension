@@ -3,7 +3,7 @@
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
 handle = "preorder-extension"
-application_url = "https://voices-gaming-finding-calling.trycloudflare.com"
+application_url = "https://vegetarian-bool-hobby-living.trycloudflare.com"
 embedded = true
 
 [build]
@@ -27,10 +27,10 @@ api_version = "2025-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_metaobjects,read_orders,read_payment_mandate,write_metaobjects,write_orders,write_products,write_purchase_options"
+scopes = "read_metaobjects,read_orders,read_payment_mandate,write_draft_orders,write_metaobjects,write_orders,write_products,write_purchase_options"
 
 [auth]
-redirect_urls = ["https://voices-gaming-finding-calling.trycloudflare.com/auth/callback", "https://voices-gaming-finding-calling.trycloudflare.com/auth/shopify/callback", "https://voices-gaming-finding-calling.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://vegetarian-bool-hobby-living.trycloudflare.com/auth/callback", "https://vegetarian-bool-hobby-living.trycloudflare.com/auth/shopify/callback", "https://vegetarian-bool-hobby-living.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

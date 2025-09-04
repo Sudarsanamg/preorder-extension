@@ -99,7 +99,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://voices-gaming-finding-calling.trycloudflare.com/webhooks/custom",
+            "https://vegetarian-bool-hobby-living.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },

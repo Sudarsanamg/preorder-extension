@@ -7,88 +7,108 @@ export const action = async ({ request }: { request: Request }) => {
 
   const { topic, shop, payload, admin } = await authenticate.webhook(request);
   console.log('Webhook hitted');
+  // console.log(payload);
 
   if (topic === "ORDERS_CREATE") {
-    const orderGid = payload.admin_graphql_api_id;
-    console.log("🛒 New order created:", orderGid);
+    const orderId = payload.admin_graphql_api_id;
+    const customerId = payload.customer?.admin_graphql_api_id;
 
-    const query = `
-      query getOrder($id: ID!) {
-        order(id: $id) {
-          id
-          totalPriceSet {
-            shopMoney {
-              amount
-              currencyCode
-            }
-          }
-          paymentTerms {
-            paymentSchedules(first: 5) {
-              edges {
-                node {
-                  id
-                  dueAt
-                  amount {
-                    amount
-                    currencyCode
-                  }
+      console.log("🛒 New order created:", orderId);
+      const schedules = payload?.payment_terms?.payment_schedules || [];
+      const secondSchedule = schedules[1];
+      const customerEmail = payload.email || payload.customer?.email;
+      console.log(secondSchedule);
+
+
+      // // Calculate remaining amount from your pre-order logic
+      const remaining = Number(secondSchedule?.amount);
+
+      // console.log("💰 Remaining balance to invoice:", remaining);
+
+      // // Draft order mutation
+      const mutation = `
+        mutation draftOrderCreate($input: DraftOrderInput!) {
+          draftOrderCreate(input: $input) {
+            draftOrder {
+              id
+              invoiceUrl
+              totalPriceSet {
+                presentmentMoney {
+                  amount
+                  currencyCode
                 }
               }
             }
-          }
-          paymentMandates(first: 1) {
-            edges {
-              node {
-                id
-                status
-              }
+            userErrors {
+              field
+              message
             }
           }
         }
+      `;
+
+      const variables = {
+        input: {
+          customerId, // link draft order to same customer
+          lineItems: [
+            {
+              title: "Remaining Balance Payment",
+              quantity: 1,
+              originalUnitPrice: remaining,
+            },
+          ],
+          useCustomerDefaultAddress: true,
+        },
+      };
+
+      const response = await admin.graphql(mutation, { variables });
+      const data = await response.json();
+
+      console.log(data);
+
+      if (data.data.draftOrderCreate.userErrors.length) {
+        console.error("❌ Draft order errors:", data.data.draftOrderCreate.userErrors);
+      } else {
+        console.log("✅ Draft order created:", data.data.draftOrderCreate.draftOrder);
+        console.log("📧 Invoice URL:", data.data.draftOrderCreate.draftOrder.invoiceUrl);
+
       }
-    `;
 
-    const response = await admin.graphql(query, { variables: { id: orderGid } });
-    const data = await response.json();
+      const draftOrderId =data.data.draftOrderCreate.draftOrder.id;
 
-    console.log("📦 Order full data:", JSON.stringify(data, null, 2));
+       const emailMutation = `
+        mutation sendInvoice($id: ID!, $email: EmailInput!) {
+          draftOrderInvoiceSend(id: $id, email: $email) {
+            draftOrder {
+              id
+              invoiceUrl
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
 
-    const order = data?.data?.order;
+      // Call Shopify Admin API
+     const emailResponse = await admin.graphql(emailMutation, {
+        variables: {
+          id: draftOrderId,
+          email: {
+            to: customerEmail,
+          },
+        },
+      });
 
-    // --- Extract mandateId ---
-    const mandateId = order?.paymentMandates?.edges?.[0]?.node?.id || null;
+      const emailData = await emailResponse.json();
+      console.log("📧 Invoice send response:", JSON.stringify(emailData, null, 2));
 
-    // --- Extract total price ---
-    const total = parseFloat(order?.totalPriceSet?.shopMoney?.amount || "0");
 
-    // --- Extract payment schedules ---
-    const schedules = order?.paymentTerms?.paymentSchedules?.edges || [];
 
-    // Deposit = first schedule, Remaining = later schedules
-    const deposit = schedules[0]?.node?.amount?.amount
-      ? parseFloat(schedules[0].node.amount.amount)
-      : 0;
 
-    // Find the next due schedule (if any)
-    const remainingSchedule = schedules.find((s: any, i: number) => i > 0);
-
-    const remainingAmount = remainingSchedule
-      ? parseFloat(remainingSchedule.node.amount.amount)
-      : total - deposit;
-
-    const dueDate = remainingSchedule?.node?.dueAt || null;
-
-    // --- Log them cleanly ---
-    console.log("💳 Mandate ID:", mandateId);
-    console.log("💰 Total:", total);
-    console.log("💵 Deposit:", deposit);
-    console.log("⏳ Remaining Amount:", remainingAmount);
-    console.log("📅 Due Date:", dueDate);
-
-    // 👉 Store these in your DB for cron job later
-    // await prisma.preorder.create({
-    //   data: { orderId: orderGid, mandateId, remainingAmount, dueDate, shop }
-    // });
+   
+    
   }
     } catch (error) {
     console.log(error);
