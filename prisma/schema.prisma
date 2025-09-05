@@ -81,7 +81,7 @@ model CampaignOrders {
   id             String   @id @default(cuid())
   order_number   Int
   order_id       String
-  draft_order_id String
+  draft_order_id String   @unique
   dueDate        DateTime
   balanceAmount  Int
   paymentStatus  String

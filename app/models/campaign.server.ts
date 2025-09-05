@@ -210,3 +210,16 @@ export async function createOrder({
     throw error;
   }
 }
+
+export async function orderStatusUpdate(orderdraft_order_id: string, paymentStatus: string) {
+  return prisma.campaignOrders.update({
+    where: { draft_order_id: orderdraft_order_id },
+    data: { paymentStatus },
+  })
+}
+
+// export async function findOrderByDraftId(draftOrderId: string) {
+//   return prisma.campaignOrders.findFirst({
+//     where: { draft_order_id: draftOrderId },
+//   });
+// }

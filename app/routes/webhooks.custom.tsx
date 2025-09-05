@@ -1,18 +1,24 @@
-import { createOrder } from "app/models/campaign.server";
+import { createOrder, findOrder, updateOrderPaymentStatus } from "app/models/campaign.server";
 import { authenticate } from "../shopify.server";
+import prisma from "app/db.server";
+import { v4 as uuidv4 } from "uuid";
+
 
 export const action = async ({ request }: { request: Request }) => {
   console.log("Webhook hitted");
   try {
     const { topic, shop, payload, admin } = await authenticate.webhook(request);
     console.log("Webhook hitted");
+    // console.log('Order Number',payload.order_number);
     // console.log(payload);
+    console.log(`Received ${topic} webhook for ${shop}`);
+    // console.log(payload);
+
 
     if (topic === "ORDERS_CREATE") {
       const orderId = payload.admin_graphql_api_id;
       const customerId = payload.customer?.admin_graphql_api_id;
       const order_number = payload.order_number;
-
       console.log("🛒 New order created:", orderId);
       const schedules = payload?.payment_terms?.payment_schedules || [];
       const secondSchedule = schedules[1];
@@ -47,6 +53,8 @@ export const action = async ({ request }: { request: Request }) => {
         }
       `;
 
+      const uuid = uuidv4();
+
         const variables = {
           input: {
             customerId, // link draft order to same customer
@@ -57,8 +65,10 @@ export const action = async ({ request }: { request: Request }) => {
                 originalUnitPrice: remaining,
               },
             ],
+             note: uuid,
             useCustomerDefaultAddress: true,
           },
+          
         };
 
         const response = await admin.graphql(mutation, { variables });
@@ -118,7 +128,7 @@ export const action = async ({ request }: { request: Request }) => {
         const newOrder = await createOrder({
           order_number,
           order_id: orderId,
-          draft_order_id: draftOrderId,
+          draft_order_id: uuid,
           dueDate: new Date(),
           balanceAmount: remaining,
           paymentStatus: "pending",
@@ -126,7 +136,22 @@ export const action = async ({ request }: { request: Request }) => {
 
         console.log("✅ Order created:", newOrder);
       }
+    // }
     }
+
+
+    // if(topic === "ORDERS_UPDATE"){
+    //   const orderId = payload.admin_graphql_api_id;
+    //   console.log("🛒 Order updated:", orderId);
+    // }
+
+
+    if(topic === "DRAFT_ORDERS_UPDATE"){
+      console.log("🛒 Draft payment update hitted")
+      console.log(payload)
+    }
+
+
   } catch (error) {
     console.error("❌ Webhook error:", error);
   }

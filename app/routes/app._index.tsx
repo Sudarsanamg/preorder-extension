@@ -99,7 +99,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://remark-barrel-pointing-bulgaria.trycloudflare.com/webhooks/custom",
+            "https://john-liability-territories-breakdown.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },
@@ -109,16 +109,60 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const data = await response.json();
   console.log("Webhook response", JSON.stringify(data, null, 2));
 
-  if (data.data?.webhookSubscriptionCreate?.userErrors?.length) {
+
+    const OrdersPaidMutation = await admin.graphql(
+    `#graphql
+    mutation webhookSubscriptionCreate(
+      $topic: WebhookSubscriptionTopic!
+      $webhookSubscription: WebhookSubscriptionInput!
+    ) {
+      webhookSubscriptionCreate(
+        topic: $topic
+        webhookSubscription: $webhookSubscription
+      ) {
+        webhookSubscription {
+          id
+          topic
+          endpoint {
+            __typename
+            ... on WebhookHttpEndpoint {
+              callbackUrl
+            }
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }`,
+    {
+      variables: {
+        topic: "ORDERS_PAID",
+        webhookSubscription: {
+          callbackUrl:
+            "https://john-liability-territories-breakdown.trycloudflare.com/webhooks/order_paid",
+          format: "JSON",
+        },
+      },
+    }
+  );
+
+  const draftOrderUpdateRes = await OrdersPaidMutation.json();
+  console.log("Webhook response", JSON.stringify(draftOrderUpdateRes, null, 2));
+
+
+
+  if (draftOrderUpdateRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
     return json(
-      { success: false, errors: data.data.webhookSubscriptionCreate.userErrors },
+      { success: false, errors: draftOrderUpdateRes.data.webhookSubscriptionCreate.userErrors },
       { status: 400 }
     );
   }
 
   return json({
     success: true,
-    webhook: data.data?.webhookSubscriptionCreate?.webhookSubscription,
+    webhook: draftOrderUpdateRes.data?.webhookSubscriptionCreate?.webhookSubscription,
   });
 };
 

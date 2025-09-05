@@ -20,7 +20,7 @@ import { useLoaderData ,  useNavigate} from "@remix-run/react";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const adminSession = await authenticate.admin(request);
 
-    console.log(adminSession.session.shop)
+    // console.log(adminSession.session.shop)
 
   const orders = await getOrders();
 
@@ -44,7 +44,7 @@ export default function AdditionalPage() {
 
 
 
-  console.log(orders);
+  // console.log(orders);
 
   return (
     <Page>
