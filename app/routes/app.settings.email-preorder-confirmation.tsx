@@ -78,7 +78,22 @@ export default function EmailPreorderConfirmationSettings() {
 
   const [activePopover, setActivePopover] = useState<null | string>(null);
 
-  const handleRangeSliderChange = (input: number) => {};
+  const handleRangeSliderChange = (input: number) => {
+    setEmailSettings((prev) => ({
+      ...prev,
+      cancelButtonGradientDegree: input.toString(),
+    }));
+  };
+
+  const handleEmailSettingsChange = (
+    field: keyof EmailSettings,
+    value: string | boolean,
+  ) => {
+    setEmailSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const handleColorChange = (hsbColor: any, field: keyof EmailSettings) => {
     const hex = hsbToHex(hsbColor);
@@ -147,24 +162,40 @@ export default function EmailPreorderConfirmationSettings() {
               <Select
                 label="Font"
                 options={options}
-                onChange={(value) => setFont(value)}
-                value={font}
+                onChange={(value) =>
+                  setEmailSettings({ ...emailSettings, font: value })
+                }
+                value={emailSettings.font}
               />
             </Card>
             <Card>
               <BlockStack gap="300">
                 <TextField
                   label="Store name"
-                  value={storeName}
-                  onChange={() => {}}
+                  value={emailSettings.storeName}
+                  onChange={(value) =>
+                    handleEmailSettingsChange("storeName", value)
+                  }
                   autoComplete="off"
                 />
                 <InlineStack gap="200" wrap={false} align="center">
-                  <Button>B</Button>
+                  <Button
+                    pressed={emailSettings.storeNameBold}
+                    onClick={() => {
+                      handleEmailSettingsChange(
+                        "storeNameBold",
+                        !emailSettings.storeNameBold,
+                      );
+                    }}
+                  >
+                    B
+                  </Button>
                   <TextField
                     // label="Store name"
-                    value={storeName}
-                    onChange={() => {}}
+                    value={emailSettings.storeNameFontSize}
+                    onChange={(value) =>
+                      handleEmailSettingsChange("storeNameFontSize", value)
+                    }
                     autoComplete="off"
                     suffix={"px"}
                   />
@@ -204,18 +235,32 @@ export default function EmailPreorderConfirmationSettings() {
                 <TextField
                   label="Subheading"
                   value={emailSettings.subheading}
-                  onChange={() => {}}
+                  onChange={(value) => {
+                    handleEmailSettingsChange("subheading", value);
+                  }}
                   autoComplete="off"
                 />
                 <p>Use for order number</p>
                 <InlineStack gap="200" wrap={false} align="center">
-                  <Button>B</Button>
+                  <Button
+                    pressed={emailSettings.subheadingBold}
+                    onClick={() => {
+                      handleEmailSettingsChange(
+                        "subheadingBold",
+                        !emailSettings.subheadingBold,
+                      );
+                    }}
+                  >
+                    B
+                  </Button>
                   <TextField
                     // label="Store name"
                     value={emailSettings.subheadingFontSize}
-                    onChange={() => {}}
                     autoComplete="off"
                     suffix={"px"}
+                    onChange={(value) =>
+                      handleEmailSettingsChange("subheadingFontSize", value)
+                    }
                   />
                   {/* colour picker to change the text colour */}
                   <div
@@ -254,17 +299,31 @@ export default function EmailPreorderConfirmationSettings() {
                 <TextField
                   label="Description"
                   value={emailSettings.description}
-                  onChange={() => {}}
+                  onChange={(value) => {
+                    handleEmailSettingsChange("description", value);
+                  }}
                   autoComplete="off"
                   multiline={4}
                 />
                 <p>Use {"{order}"} for order number</p>
                 <InlineStack gap="200" wrap={false} align="center">
-                  <Button>B</Button>
+                  <Button
+                    pressed={emailSettings.descriptionBold}
+                    onClick={() => {
+                      handleEmailSettingsChange(
+                        "descriptionBold",
+                        !emailSettings.descriptionBold,
+                      );
+                    }}
+                  >
+                    B
+                  </Button>
                   <TextField
                     // label="Store name"
                     value={emailSettings.descriptionFontSize}
-                    onChange={() => {}}
+                    onChange={(value) => {
+                      handleEmailSettingsChange("descriptionFontSize", value);
+                    }}
                     autoComplete="off"
                     suffix={"px"}
                   />
@@ -309,13 +368,25 @@ export default function EmailPreorderConfirmationSettings() {
                   Product title style
                 </Text>
                 <InlineStack gap="200" wrap={false} align="center">
-                  <Button>B</Button>
+                  <Button
+                    pressed={emailSettings.productTitleBold}
+                    onClick={() => {
+                      handleEmailSettingsChange(
+                        "productTitleBold",
+                        !emailSettings.productTitleBold,
+                      );
+                    }}
+                  >
+                    B
+                  </Button>
                   <TextField
                     // label="Store name"
                     value={emailSettings.productTitleFontSize}
-                    onChange={() => {}}
                     autoComplete="off"
                     suffix={"px"}
+                    onChange={(value) => {
+                      handleEmailSettingsChange("productTitleFontSize", value);
+                    }}
                   />
                   {/* colour picker to change the text colour */}
                   <div
@@ -359,13 +430,17 @@ export default function EmailPreorderConfirmationSettings() {
                 <TextField
                   label="Full payment Text"
                   value={emailSettings.fullPaymentText}
-                  onChange={() => {}}
+                  onChange={(value) => {
+                    handleEmailSettingsChange("fullPaymentText", value);
+                  }}
                   autoComplete="off"
                 />
                 <TextField
                   label="Partial payment Text"
                   value={emailSettings.partialPaymentText}
-                  onChange={() => {}}
+                  onChange={(value) => {
+                    handleEmailSettingsChange("partialPaymentText", value);
+                  }}
                   autoComplete="off"
                 />
               </BlockStack>
@@ -377,13 +452,24 @@ export default function EmailPreorderConfirmationSettings() {
                 </Text>
                 <Checkbox
                   label="Show cancel button"
-                  checked={checked}
-                  onChange={handleChange}
+                  checked={emailSettings.showCancelButton}
+                  onChange={() => {
+                    handleEmailSettingsChange(
+                      "showCancelButton",
+                      !emailSettings.showCancelButton,
+                    );
+                  }}
                 />
+                {emailSettings.showCancelButton && (
+                  <div>
+
+                
                 <TextField
                   label="Button text"
                   value={emailSettings.cancelButtonText}
-                  onChange={() => {}}
+                  onChange={(value) => {
+                    handleEmailSettingsChange("cancelButtonText", value);
+                  }}
                   autoComplete="off"
                 />
                 <Text as="p" variant="bodyMd">
@@ -395,8 +481,10 @@ export default function EmailPreorderConfirmationSettings() {
                 </Text>
                 <RadioButton
                   label="Single Colour Background" // checked={value === 'disabled'}
-                  onChange={() => {}}
-                  checked={true}
+                  onChange={() => {
+                    handleEmailSettingsChange("cancelButtonStyle", "single");
+                  }}
+                  checked={emailSettings.cancelButtonStyle === "single"}
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Popover
@@ -434,8 +522,10 @@ export default function EmailPreorderConfirmationSettings() {
                 </div>
                 <RadioButton
                   label="Gradient background" // checked={value === 'disabled'}
-                  onChange={() => {}}
-                  checked={true}
+                  onChange={() => {
+                    handleEmailSettingsChange("cancelButtonStyle", "gradient");
+                  }}
+                  checked={emailSettings.cancelButtonStyle === "gradient"}
                 />
                 {emailSettings.cancelButtonStyle === "gradient" && (
                   <div
@@ -537,11 +627,18 @@ export default function EmailPreorderConfirmationSettings() {
                   label="Corner radius"
                   value={emailSettings.cancelButtonBorderRadius}
                   suffix={"px"}
-                  onChange={() => {}}
+                  onChange={(value) => {
+                    handleEmailSettingsChange(
+                      "cancelButtonBorderRadius",
+                      value,
+                    );
+                  }}
                   autoComplete="off"
                 />
-                <Text as="h3" variant="headingMd">Border size and color</Text>
-                <InlineStack gap="200" wrap={false} >
+                <Text as="h3" variant="headingMd">
+                  Border size and color
+                </Text>
+                <InlineStack gap="200" wrap={false}>
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 10 }}
                   >
@@ -549,7 +646,12 @@ export default function EmailPreorderConfirmationSettings() {
                       // label="Border size and color"
                       suffix={"px"}
                       value={emailSettings.cancelButtonBorderSize}
-                      onChange={() => {}}
+                      onChange={(value) => {
+                        handleEmailSettingsChange(
+                          "cancelButtonBorderSize",
+                          value,
+                        );
+                      }}
                       autoComplete="off"
                     />
                     <Popover
@@ -573,22 +675,35 @@ export default function EmailPreorderConfirmationSettings() {
                     >
                       <ColorPicker
                         onChange={(color) =>
-                          handleColorChange(color,"cancelButtonBorderColor")
+                          handleColorChange(color, "cancelButtonBorderColor")
                         }
                         color={hexToHsb(emailSettings.cancelButtonBorderColor)}
                       />
                     </Popover>
-                    <TextField value={emailSettings.cancelButtonBorderColor}
-                     />
+                    <TextField value={emailSettings.cancelButtonBorderColor} />
                   </div>
                 </InlineStack>
-                <Text as="h3" variant="headingMd">Text style</Text>
-                <InlineStack gap="200" wrap={false} >
-                  <Button>B</Button>
+                <Text as="h3" variant="headingMd">
+                  Text style
+                </Text>
+                <InlineStack gap="200" wrap={false}>
+                  <Button
+                    pressed={emailSettings.cancelButtonBold}
+                    onClick={() => {
+                      handleEmailSettingsChange(
+                        "cancelButtonBold",
+                        !emailSettings.cancelButtonBold,
+                      );
+                    }}
+                  >
+                    B
+                  </Button>
                   <TextField
                     // label="Store name"
                     value={emailSettings.cancelButtonFontSize}
-                    onChange={() => {}}
+                    onChange={(value) => {
+                      handleEmailSettingsChange("cancelButtonFontSize", value);
+                    }}
                     autoComplete="off"
                     suffix={"px"}
                   />
@@ -607,9 +722,7 @@ export default function EmailPreorderConfirmationSettings() {
                               emailSettings.cancelButtonTextColor,
                             borderRadius: "8px",
                           }}
-                          onClick={() =>
-                            togglePopover("cancelButtonTextColor")
-                          }
+                          onClick={() => togglePopover("cancelButtonTextColor")}
                         ></div>
                       }
                       autofocusTarget="first-node"
@@ -628,25 +741,67 @@ export default function EmailPreorderConfirmationSettings() {
                     />
                   </div>
                 </InlineStack>
+                  </div>
+                )}
               </BlockStack>
             </Card>
           </BlockStack>
         </div>
         {/* right */}
-        <div style={{ position: "sticky", top: 20, flex: 1 }}>
+        <div
+          style={{
+            position: "sticky",
+            top: 20,
+            flex: 1,
+            fontFamily: emailSettings.font,
+          }}
+        >
           <Card padding="800">
             <BlockStack gap="500">
-              <Text alignment="center" variant="headingLg" as="h2">
-                preorderstore
-              </Text>
-              <Text alignment="center" variant="headingMd" as="h4">
-                WE’VE GOT YOUR PREORDER
-              </Text>
-              <Text alignment="start" variant="bodyMd" as="h4">
-                Your order 6272079777777 contains preorder items. We will
-                deliver them as soon as they become available and will notify
-                you once your order has been shipped.
-              </Text>
+              <div
+                style={{
+                  color: emailSettings.storeNameColor,
+                  fontSize: `${emailSettings.storeNameFontSize}px`,
+                }}
+              >
+                <Text
+                  alignment="center"
+                  as="h2"
+                  fontWeight={emailSettings.storeNameBold ? "bold" : "regular"}
+                >
+                  {emailSettings.storeName}
+                </Text>
+              </div>
+              <div
+                style={{
+                  color: emailSettings.subheadingColor,
+                  fontSize: `${emailSettings.subheadingColor}px`,
+                }}
+              >
+                <Text
+                  alignment="center"
+                  as="h4"
+                  fontWeight={emailSettings.subheadingBold ? "bold" : "regular"}
+                >
+                  {emailSettings.subheading}
+                </Text>
+              </div>
+              <div
+                style={{
+                  color: emailSettings.descriptionColor,
+                  fontSize: `${emailSettings.descriptionFontSize}px`,
+                }}
+              >
+                <Text
+                  alignment="start"
+                  as="h4"
+                  fontWeight={
+                    emailSettings.descriptionBold ? "bold" : "regular"
+                  }
+                >
+                  {emailSettings.description}
+                </Text>
+              </div>
             </BlockStack>
             <div
               style={{
@@ -665,11 +820,17 @@ export default function EmailPreorderConfirmationSettings() {
                 />
               </div>
               <div>
-                <Text as="h2" variant="headingLg">
+                <div style={{color: emailSettings.productTitleColor,
+                  fontSize: `${emailSettings.productTitleFontSize}px`,}}>
+                <Text as="h2" 
+                  fontWeight={emailSettings.productTitleBold ? "bold" : "regular"}
+                 
+                >
                   Baby Pink T-shirt
                 </Text>
-                <Text as="p">Preorder</Text>
-                <Text as="p">Full Payment</Text>
+                </div>
+                <Text as="p">{emailSettings.preorderText}</Text>
+                <Text as="p">{emailSettings.fullPaymentText}</Text>
               </div>
             </div>
             <div
@@ -682,15 +843,23 @@ export default function EmailPreorderConfirmationSettings() {
             >
               <div
                 style={{
-                  border: "1px solid #3d3d3dff",
+                  border: `${emailSettings.cancelButtonBorderSize}px solid ${emailSettings.cancelButtonBorderColor}`,
                   padding: 3,
-                  borderRadius: 8,
-                  backgroundColor: "#757575ff",
+                  borderRadius: `${emailSettings.cancelButtonBorderRadius}px`,
+                  backgroundColor: emailSettings.cancelButtonStyle === "single"
+                    ? emailSettings.cancelButtonBackgroundColor
+                    : ``,
+                  background : emailSettings.cancelButtonStyle === "gradient" ? `linear-gradient(${emailSettings.cancelButtonGradientDegree}deg, ${emailSettings.cancelButtonGradientColor1}, ${emailSettings.cancelButtonGradientColor2})` : ``,
+                  cursor: "pointer",
                 }}
               >
-                <Text as="p" alignment="center" variant="bodyMd">
-                  Cancel order 6272079777777
+                <div style={{fontSize: `${emailSettings.cancelButtonFontSize}px`,color: emailSettings.cancelButtonTextColor, textAlign: "center", padding: "8px 16px", borderRadius: `${emailSettings.cancelButtonBorderRadius}px`,}}>
+                <Text as="p" alignment="center"
+                fontWeight={emailSettings.cancelButtonBold ? "bold" : "regular"}
+                 >
+                  Cancel order 6272079777777 {emailSettings.cancelButtonGradientColor1}
                 </Text>
+                </div>
               </div>
             </div>
           </Card>
