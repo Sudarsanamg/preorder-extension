@@ -223,3 +223,29 @@ export async function orderStatusUpdate(orderdraft_order_id: string, paymentStat
 //     where: { draft_order_id: draftOrderId },
 //   });
 // }
+
+export async function createOrUpdateEmailSettings(shopId: string, settings: any) {
+  const existing = await prisma.emailSettings.findUnique({
+    where: { shopId },
+  });
+
+  if (existing) {
+    return prisma.emailSettings.update({
+      where: { shopId },
+      data: settings,
+    });
+  } else {
+    return prisma.emailSettings.create({
+      data: {
+        shopId,
+        ...settings,
+      },
+    });
+  }
+}
+
+export async function getEmailSettings(shopId: string) {
+  return prisma.emailSettings.findUnique({
+    where: { shopId },
+  });
+}

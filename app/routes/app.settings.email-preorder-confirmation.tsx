@@ -1,3 +1,4 @@
+import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import {
   BlockStack,
   Button,
@@ -17,9 +18,73 @@ import {
 } from "@shopify/polaris";
 import { EmailSettings } from "app/types/type";
 import { hexToHsb } from "app/utils/color";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  useLoaderData,
+  useSubmit,
+  // useNavigate,
+  // useFetcher,
+  // useActionData,
+} from "@remix-run/react";
+import { createOrUpdateEmailSettings } from "app/models/campaign.server";
+import { authenticate } from "app/shopify.server";
+
+
+export async function loader({ request }: { request: Request }) {
+  const { admin } = await authenticate.admin(request);
+
+  const query = `{
+    shop {
+      id
+      name
+      myshopifyDomain
+    }
+  }`;
+
+  const response = await admin.graphql(query);
+  const data = await response.json();
+
+  const shopId = data.data.shop.id; 
+  return shopId;
+}
+
+export const action = async ({ request }: { request: Request }) => {
+  const { session } = await authenticate.admin(request);
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "save-email-preorder-confirmation") {
+    const subject = formData.get("subject");
+    const shopId = formData.get("shopId");
+    // console.log("Shop ID in action:", shopId);
+    const designFields = formData.get("designFields");
+    // console.log("Design Fields:", designFields);
+
+    try {
+      await createOrUpdateEmailSettings(String(shopId), JSON.parse(designFields as string));
+    } catch (error) {
+      console.error("Error saving email settings:", error);
+      return { success: false, error: "Failed to save email settings." };
+    }
+   
+  }
+  return { success: false };
+};
+
+
+
 
 export default function EmailPreorderConfirmationSettings() {
+
+  const shopify = useAppBridge();
+  // const navigate = useNavigate();
+  // const fetcher = useFetcher();
+  // const actionData = useActionData();
+  const shopId = useLoaderData<typeof loader>();
+  console.log("Shop ID in component:", shopId);
+
+  const submit = useSubmit();
   const options = [
     { label: "Use your theme fonts", value: "inherit" },
     { label: "Helvetica Neue", value: "Helvetica Neue" },
@@ -27,8 +92,6 @@ export default function EmailPreorderConfirmationSettings() {
     { label: "Courier New", value: "Courier New" },
   ];
   const [subject, setSubject] = useState("Delivery update for order {order}");
-  const [font, setFont] = useState<string>("inherit");
-  const [storeName, setStoreName] = useState("preorderstore");
   const [emailSettings, setEmailSettings] = useState<EmailSettings>({
     subject: "Delivery update for order {order}",
     font: "inherit",
@@ -74,9 +137,26 @@ export default function EmailPreorderConfirmationSettings() {
     cancelButtonGradientColor2: "#757575",
     cancelButtonBorderRadius: "8",
   });
-  const [checked, setChecked] = useState(false);
 
   const [activePopover, setActivePopover] = useState<null | string>(null);
+
+
+  
+  const handleSave = () => {
+    console.log('Saving');
+    const formdata = new FormData();
+    formdata.append("intent", "save-email-preorder-confirmation");
+    formdata.append("subject", subject);
+    formdata.append("designFields", JSON.stringify(emailSettings));
+    formdata.append("shopId",shopId); 
+    submit(formdata, { method: "post" });
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  const handleDiscard = () => {
+    console.log('Discarding');
+    shopify.saveBar.hide('my-save-bar');
+  };
 
   const handleRangeSliderChange = (input: number) => {
     setEmailSettings((prev) => ({
@@ -103,14 +183,17 @@ export default function EmailPreorderConfirmationSettings() {
     }));
   };
 
-  const handleChange = useCallback(
-    (newChecked: boolean) => setChecked(newChecked),
-    [],
-  );
+ 
 
   const togglePopover = (field: string) => {
     setActivePopover((prev) => (prev === field ? null : field));
   };
+
+
+
+  useEffect(() => {
+    shopify.saveBar.show('my-save-bar');
+  }, [emailSettings, subject]);
 
   return (
     <Page
@@ -121,6 +204,10 @@ export default function EmailPreorderConfirmationSettings() {
         onAction: () => {},
       }}
     >
+       <SaveBar id="my-save-bar">
+        <button variant="primary" onClick={handleSave}></button>
+        <button onClick={handleDiscard}></button>
+      </SaveBar>
       <div
         style={{
           display: "flex",
@@ -833,7 +920,7 @@ export default function EmailPreorderConfirmationSettings() {
                 <Text as="p">{emailSettings.fullPaymentText}</Text>
               </div>
             </div>
-            <div
+            {emailSettings.showCancelButton  && (<div
               style={{
                 marginTop: 20,
                 display: "flex",
@@ -857,11 +944,12 @@ export default function EmailPreorderConfirmationSettings() {
                 <Text as="p" alignment="center"
                 fontWeight={emailSettings.cancelButtonBold ? "bold" : "regular"}
                  >
-                  Cancel order 6272079777777 {emailSettings.cancelButtonGradientColor1}
+                  Cancel order 6272079777777 
                 </Text>
                 </div>
               </div>
             </div>
+            )}
           </Card>
         </div>
       </div>
