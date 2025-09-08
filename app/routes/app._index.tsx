@@ -20,6 +20,8 @@ import {
   TextField,
   DataTable,
   Badge,
+  BlockStack,
+  Divider,
 } from "@shopify/polaris";
 
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -99,7 +101,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://john-liability-territories-breakdown.trycloudflare.com/webhooks/custom",
+            "https://biz-beautiful-permit-hour.trycloudflare.com//webhooks/custom",
           format: "JSON",
         },
       },
@@ -141,7 +143,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_PAID",
         webhookSubscription: {
           callbackUrl:
-            "https://john-liability-territories-breakdown.trycloudflare.com/webhooks/order_paid",
+            "https://biz-beautiful-permit-hour.trycloudflare.com/webhooks/order_paid",
           format: "JSON",
         },
       },
@@ -218,7 +220,7 @@ export default function Index() {
       </div>
 
       {/* Register Webhook Button */}
-      <Form method="post">
+       <Form method="post">
         <Button
           submit
           variant="primary"
@@ -226,7 +228,7 @@ export default function Index() {
         >
           Register Webhook
         </Button>
-      </Form>
+      </Form> 
 
       {actionData?.success && (
         <p style={{ color: "green", marginTop: "10px" }}>
@@ -298,6 +300,69 @@ export default function Index() {
             </div>
           )}
         </Card>
+      </div>
+
+      <div style={{marginTop:20, marginBottom:20}}>
+        <Card>
+            <BlockStack gap="500">
+              {/* Preorder Confirmation Email */}
+              <div>
+                <div style={{display:'flex',alignSelf:'center', justifyContent:'space-between'}}>
+                  <div>
+                    <Text as="h3" variant="bodyMd" fontWeight="medium">
+                      Preorder confirmation email <Badge tone="critical">Off</Badge>
+                    </Text>
+                    <Text as="p" tone="subdued" variant="bodySm">
+                      This notification is sent after an order is placed for preorder
+                      items. It has a link for customers to cancel the order.
+                    </Text>
+                  </div>
+                  <div>
+                    <Button size="slim"  onClick={() => {navigate('/app/settings/email-preorder-confirmation')}}>Customize</Button>
+                  </div>
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* Preorder Shipping Update Email */}
+              <div>
+                <div style={{display:'flex',alignSelf:'center', justifyContent:'space-between'}}>
+                  <div>
+                    <Text as="h3" variant="bodyMd" fontWeight="medium">
+                      Preorder shipping update email <Badge>Default</Badge>
+                    </Text>
+                    <Text as="p" tone="subdued" variant="bodySm">
+                      Customize template for shipping updates.
+                    </Text>
+                  </div>
+                  <div>
+                    <Button size="slim">Customize</Button>
+                  </div>
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* Customize sender email */}
+              <div>
+                <div style={{display:'flex',alignSelf:'center', justifyContent:'space-between'}}>
+                  <div>
+                    <Text as="h3" variant="bodyMd" fontWeight="medium">
+                      Customize sender email
+                    </Text>
+                    <Text as="p" tone="subdued" variant="bodySm">
+                      Emails are sent from info@essentialpreorder.com. You can add
+                      your own email to use.
+                    </Text>
+                  </div>
+                  <div>
+                    <Button size="slim">Manage</Button>
+                  </div>
+                </div>
+              </div>
+            </BlockStack>
+          </Card>
       </div>
     </Page>
   );

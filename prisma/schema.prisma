@@ -34,11 +34,11 @@ model Session {
 model PreorderCampaign {
   id                 String                    @id @default(cuid())
   name               String
-  depositPercent     Int // e.g. 30
+  depositPercent     Int 
   balanceDueDate     DateTime
-  refundDeadlineDays Int? // e.g. 14
+  refundDeadlineDays Int? 
   releaseDate        DateTime?
-  status             String                    @default("draft") // publish, unpublish, draft
+  status             String                    @default("draft") 
   products           PreorderCampaignProduct[]
   preorders          Preorder[]
   campaignEndDate    DateTime
@@ -66,7 +66,7 @@ model Preorder {
   productId            String
   variantId            String?
   customerId           String
-  orderId              String // Shopify deposit order ID
+  orderId              String 
   depositTransactionId String
   depositPaidAt        DateTime
   dueInvoiceSentAt     DateTime?
@@ -79,7 +79,7 @@ model Preorder {
 
 model CampaignOrders {
   id             String   @id @default(cuid())
-  order_number   Int
+  order_number   Int      @unique
   order_id       String
   draft_order_id String   @unique
   dueDate        DateTime
