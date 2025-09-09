@@ -1,8 +1,13 @@
-import { createOrder, findOrder, updateOrderPaymentStatus } from "app/models/campaign.server";
+import {
+  createOrder,
+  findOrder,
+  updateOrderPaymentStatus,
+} from "app/models/campaign.server";
 import { authenticate } from "../shopify.server";
 import prisma from "app/db.server";
 import { v4 as uuidv4 } from "uuid";
-
+import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
+import nodemailer from "nodemailer";
 
 export const action = async ({ request }: { request: Request }) => {
   console.log("Webhook hitted");
@@ -14,9 +19,9 @@ export const action = async ({ request }: { request: Request }) => {
     console.log(`Received ${topic} webhook for ${shop}`);
     // console.log(payload);
 
-
     if (topic === "ORDERS_CREATE") {
       const orderId = payload.admin_graphql_api_id;
+      const formattedOrderId = orderId.split("/").pop();
       const customerId = payload.customer?.admin_graphql_api_id;
       const order_number = payload.order_number;
       console.log("🛒 New order created:", orderId);
@@ -53,7 +58,7 @@ export const action = async ({ request }: { request: Request }) => {
         }
       `;
 
-      const uuid = uuidv4();
+        const uuid = uuidv4();
 
         const variables = {
           input: {
@@ -65,10 +70,9 @@ export const action = async ({ request }: { request: Request }) => {
                 originalUnitPrice: remaining,
               },
             ],
-             note: uuid,
+            note: uuid,
             useCustomerDefaultAddress: true,
           },
-          
         };
 
         const response = await admin.graphql(mutation, { variables });
@@ -135,23 +139,58 @@ export const action = async ({ request }: { request: Request }) => {
         });
 
         console.log("✅ Order created:", newOrder);
-      }
-    // }
-    }
 
+        const storeIdQuery = `{
+    shop {
+      id
+      name
+      myshopifyDomain
+    }
+  }`;
+
+        const storeIdQueryResponse = await admin.graphql(storeIdQuery);
+        const storeIdQueryResponseData = await storeIdQueryResponse.json();
+
+        const shopId = storeIdQueryResponseData.data.shop.id;
+
+        // get email template
+        const emailSettings = await prisma.emailSettings.findFirst({
+          where: { shopId },
+        });
+
+        const emailTemplate = generateEmailTemplate({...emailSettings, orderId: formattedOrderId});
+
+        const transporter = nodemailer.createTransport({
+          service: "Gmail", // or use SMTP/SendGrid/Postmark
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        try {
+          await transporter.sendMail({
+            from: '"Preorder Store" <no-reply@preorderstore.com>',
+            to: customerEmail,
+            subject: "Your Preorder is Confirmed!",
+            html: emailTemplate,
+          });
+        } catch (error) {
+          console.error("❌ Email send error:", error);
+        }
+      }
+      // }
+    }
 
     // if(topic === "ORDERS_UPDATE"){
     //   const orderId = payload.admin_graphql_api_id;
     //   console.log("🛒 Order updated:", orderId);
     // }
 
-
-    if(topic === "DRAFT_ORDERS_UPDATE"){
-      console.log("🛒 Draft payment update hitted")
-      console.log(payload)
+    if (topic === "DRAFT_ORDERS_UPDATE") {
+      console.log("🛒 Draft payment update hitted");
+      console.log(payload);
     }
-
-
   } catch (error) {
     console.error("❌ Webhook error:", error);
   }
