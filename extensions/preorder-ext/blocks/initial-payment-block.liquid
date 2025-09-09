@@ -2,16 +2,20 @@
 {% assign product_price = product.price | money_without_currency %}
 {% assign units_sold = product.metafields.custom.preorder_units_sold %}
 {% assign max_units  = product.metafields.custom.preorder_units %}
+{% assign variant = product.selected_or_first_available_variant %}
+{% assign selected_selling_plan_allocation = variant.selling_plan_allocations.first %}
+{% assign compare_at_price = selected_selling_plan_allocation.compare_at_price %}
+{% assign price = selected_selling_plan_allocation.price %}
 
 
 {% if deposit_percent > 0  and product.metafields.custom.preorder == true %}
-  {% assign initial_payment = product_price | times: deposit_percent | divided_by: 100 %}
-  {% assign balance_payment = product_price | minus: initial_payment %}
+  {% assign initial_payment = price | times: deposit_percent | divided_by: 100 %}
+  {% assign balance_payment = price | minus: initial_payment %}
   {% assign balance_due_date = product.metafields.custom.balance_due_date.value %}
 
   <div class="preorder-payment-info" style="text-align: center;">
     <p>
-      Pay ₹{{ initial_payment | round }} now and ₹{{ balance_payment | round }} on {{ balance_due_date | date: "%d %b %Y" }}
+      Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b %Y" }}
     </p>
   </div>
 

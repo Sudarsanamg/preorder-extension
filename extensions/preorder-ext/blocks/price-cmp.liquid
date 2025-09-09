@@ -1,0 +1,34 @@
+{% assign variant = product.selected_or_first_available_variant %}
+{% assign selected_selling_plan_allocation = variant.selling_plan_allocations.first %}
+
+{% if selected_selling_plan_allocation %}
+  {% assign compare_at_price = selected_selling_plan_allocation.compare_at_price %}
+  {% assign price = selected_selling_plan_allocation.price %}
+
+  {% if compare_at_price > price %}
+   
+    <span class="product-price--discounted" style="color: rgb(18, 17, 17); font-weight: bold; margin-left: 8px;">
+      {{ price | money }}
+    </span>
+     <span class="product-price--original" style="text-decoration: line-through; color: #888;">
+      {{ compare_at_price | money }}
+    </span>
+  {% else %}
+    <span class="product-price">
+      {{ price | money }}
+    </span>
+  {% endif %}
+{% else %}
+  <span class="product-price">
+    {{ variant.price | money }}
+  </span>
+{% endif %}
+
+
+{% schema %}
+{
+  "name": "Price (Preorder)",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

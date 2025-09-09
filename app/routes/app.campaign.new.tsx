@@ -247,7 +247,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             {
               fixed: {
                 adjustmentType: PERCENTAGE
-                adjustmentValue: { percentage: -30.0 }
+                adjustmentValue: { percentage: 30.0 }
               }
             }
           ]
@@ -288,7 +288,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               },
             });
 
+
             res = await res.json();
+            console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
           } catch (error) {
             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
           }
