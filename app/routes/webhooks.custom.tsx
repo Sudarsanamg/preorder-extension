@@ -18,17 +18,111 @@ export const action = async ({ request }: { request: Request }) => {
     // console.log(payload);
     console.log(`Received ${topic} webhook for ${shop}`);
     // console.log(payload);
+    const line_items = payload.line_items || [];
+    const productIds = line_items.map((item: any) => item.product_id);
+
+    const formattedProductIds = productIds.map((id: number) => {
+      return `gid://shopify/Product/${id}`;
+    });
+
+    const GetCampaignIdsQuery = `
+  query GetCampaignIds($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on Product {
+        id
+        metafield(namespace: "custom", key: "campaign_id") {
+          value
+        }
+      }
+    }
+  }
+`;
+
+const GetCampaignIdsQueryResponse = await admin.graphql(GetCampaignIdsQuery, {
+  variables: { ids: formattedProductIds },
+});
+
+const GetCampaignIdsQueryResponseBody = await GetCampaignIdsQueryResponse.json();
+
+let campaignIds: string[] = [];
+for (const node of GetCampaignIdsQueryResponseBody.data.nodes) {
+  if (node?.metafield?.value) {
+    campaignIds.push(node.metafield.value);
+  }
+}
+
+// find unique campaign ids
+campaignIds = [...new Set(campaignIds)];
+
+let orderContainsPreorderItem = false;
+if(campaignIds.length > 0) {
+  orderContainsPreorderItem = true;
+}
+// get Tags from campaign ids
+let orderTags: string[] = [];
+let customerTags: string[] = [];
+
+if (campaignIds.length > 0) {
+  const campaigns = await prisma.preorderCampaign.findMany({
+    where: {
+      id: {
+        in: campaignIds,
+      },
+    },
+  });
+
+  for (const campaign of campaigns) {
+    if (campaign.orderTags) {
+      orderTags.push(String(campaign.orderTags));
+    }
+    if (campaign.customerTags) {
+      customerTags.push(String(campaign.customerTags));
+    }
+  }
+}
+if(orderTags.length > 0 && orderContainsPreorderItem){
+  // add tags to order using mutation
+  const AddTagsToOrderMutation = `
+  mutation AddTagsToOrder($id: ID!, $tags: [String!]!) {
+    orderUpdate(input: {id: $id, tags: $tags}) {
+      order {
+        id
+        tags
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+  const orderId = payload.admin_graphql_api_id;
+  const AddTagsToOrderMutationResponse = await admin.graphql(
+    AddTagsToOrderMutation,
+    {
+      variables: { id: orderId, tags: [...orderTags,...customerTags] },
+    },
+  );
+
+  const AddTagsToOrderMutationResponseBody =
+    await AddTagsToOrderMutationResponse.json();  
+  console.log(
+    AddTagsToOrderMutationResponseBody,
+    "AddTagsToOrderMutationResponseBody >>>>>>>>>>>>>>>>>>>>>>",
+  );
+}
 
     if (topic === "ORDERS_CREATE") {
       const orderId = payload.admin_graphql_api_id;
       const formattedOrderId = orderId.split("/").pop();
       const customerId = payload.customer?.admin_graphql_api_id;
       const order_number = payload.order_number;
-      console.log("🛒 New order created:", orderId);
+      // console.log("🛒 New order created:", orderId);
       const schedules = payload?.payment_terms?.payment_schedules || [];
       const secondSchedule = schedules[1];
       const customerEmail = payload.email || payload.customer?.email;
-      console.log(secondSchedule);
+      // console.log(secondSchedule);
 
       // // Calculate remaining amount from your pre-order logic
       const remaining = Number(secondSchedule?.amount);

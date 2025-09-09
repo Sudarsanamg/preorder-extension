@@ -2,6 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { Prisma } from "@prisma/client";
 
 export async function getAllCampaign(){
   return prisma.preorderCampaign.findMany();
@@ -15,6 +16,8 @@ export async function createPreorderCampaign(data: {
   releaseDate?: Date;
   status?: string;
   campaignEndDate?: Date;
+  orderTags?: Prisma.JsonValue;
+  customerTags?: Prisma.JsonValue;
 }) {
   return prisma.preorderCampaign.create({
     data: {
@@ -25,6 +28,8 @@ export async function createPreorderCampaign(data: {
       releaseDate: data.releaseDate,
       status: data.status ?? "active",
       campaignEndDate: data.campaignEndDate ? data.campaignEndDate : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      orderTags: data.orderTags?? {} ,
+      customerTags: data.customerTags?? {},
     },
   });
 }

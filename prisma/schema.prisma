@@ -43,6 +43,8 @@ model PreorderCampaign {
   preorders          Preorder[]
   campaignEndDate    DateTime
   totalOrders        Int                       @default(0)
+  orderTags          Json?
+  customerTags       Json?
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
 }

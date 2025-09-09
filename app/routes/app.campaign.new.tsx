@@ -122,6 +122,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           releaseDate: formData.get("campaignEndDate")
             ? new Date(formData.get("campaignEndDate") as string)
             : undefined,
+          orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
+          customerTags: JSON.parse(
+            (formData.get("customerTags") as string) || "[]",
+          )
         });
 
         const products = JSON.parse(
@@ -222,7 +226,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // if the payment option is partial
 
         if (formData.get("paymentMode") === "partial") {
-          const CREATE_SELLING_PLAN = `
+
+          let CREATE_SELLING_PLAN =``;
+          //no discount
+          //percentage discount
+          //flat discount
+          CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
     sellingPlanGroupCreate(
       input: {
@@ -551,7 +560,8 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
   const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
     "Pay {payment} now and {remaining} will be charged on {date}",
   );
-  const [activeButtonIndex, setActiveButtonIndex] = useState(0);
+  const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
+  const [discountType, setDiscountType] = useState("none");
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [flatDiscount, setFlatDiscount] = useState(0);
   const payment = 3.92;
@@ -694,6 +704,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
+      setDiscountType(index === 0 ? "percentage" : "flat");
     },
     [activeButtonIndex],
   );
@@ -724,6 +735,11 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     formData.append("shippingMessage", String(shippingMessage));
     formData.append("paymentMode", String(paymentMode));
     formData.append("designFields", JSON.stringify(designFields));
+    formData.append("discountType", discountType);
+    formData.append("discountPercentage", String(discountPercentage));
+    formData.append("flatDiscount", String(flatDiscount));
+    formData.append("orderTags", JSON.stringify(productTags));
+    formData.append("customerTags", JSON.stringify(customerTags));
 
     submit(formData, { method: "post" });
   };
