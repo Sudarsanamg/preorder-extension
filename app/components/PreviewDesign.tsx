@@ -20,7 +20,7 @@ import { hsbToHex, hexToHsb } from "../utils/color";
 interface PreviewDesignProps {
   designFields: DesignFields;
   setDesignFields: React.Dispatch<React.SetStateAction<DesignFields>>;
-  setTabSelected: React.Dispatch<React.SetStateAction<0 | 1 |2>>;
+  setTabSelected: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export default function PreviewDesign({

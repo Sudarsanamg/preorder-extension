@@ -30,6 +30,7 @@ import {
   Tabs,
   Banner,
   Badge,
+  InlineStack,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -39,11 +40,13 @@ import {
   useFetcher,
   useActionData,
   useLoaderData,
+  Link,
 } from "@remix-run/react";
 import {
   DiscountIcon,
   CalendarCheckIcon,
   DeleteIcon,
+  CashDollarIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
@@ -52,7 +55,7 @@ import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
 //   addProductsToCampaign,
 // } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
-import { Modal, TitleBar ,SaveBar} from "@shopify/app-bridge-react";
+import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
 
@@ -145,12 +148,12 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     variables: { handle: params.id! },
   });
 
-    let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
+  let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
   return json({
     campaign,
     products,
     parsedDesignSettingsResponse,
-    parsedCampaignSettingsResponse
+    parsedCampaignSettingsResponse,
   });
 };
 
@@ -193,7 +196,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         updatedProducts,
       );
       console.log(replace);
-
     } catch (error) {
       console.error(error);
     }
@@ -252,7 +254,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
       {
         key: "shipping_message",
-        value: (formData.get("shippingMessage") as string) || "Ship as soon as possible",
+        value:
+          (formData.get("shippingMessage") as string) ||
+          "Ship as soon as possible",
       },
       {
         key: "payment_type",
@@ -349,14 +353,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const updated = await response.json();
     console.log("Updated metaobject:", updated);
 
-
-
     return redirect(`/app/`);
   }
 
   if (intent === "publish-campaign") {
     const id = formData.get("id");
-
 
     const publishMutation = `
 mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
@@ -395,8 +396,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       console.log(error);
     }
 
-
-      const mutation = `
+    const mutation = `
             mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
               metafieldsSet(metafields: $metafields) {
                 metafields {
@@ -414,43 +414,43 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
             }
           `;
 
-      const products = JSON.parse((formData.get("products") as string) || "[]");
+    const products = JSON.parse((formData.get("products") as string) || "[]");
 
-      const metafields = products.flatMap((product) => [
-        {
-          ownerId: product.id,
-          namespace: "custom",
-          key: "campaign_id",
-          value: id,
-        },
-        {
-          ownerId: product.id,
-          namespace: "custom",
-          key: "preorder",
-          value: "true",
-        },
-      ]);
+    const metafields = products.flatMap((product) => [
+      {
+        ownerId: product.id,
+        namespace: "custom",
+        key: "campaign_id",
+        value: id,
+      },
+      {
+        ownerId: product.id,
+        namespace: "custom",
+        key: "preorder",
+        value: "true",
+      },
+    ]);
 
-      try {
-        const graphqlResponse = await admin.graphql(mutation, {
-          variables: { metafields },
-        });
+    try {
+      const graphqlResponse = await admin.graphql(mutation, {
+        variables: { metafields },
+      });
 
-        const response = await graphqlResponse.json(); // 👈 parse it
+      const response = await graphqlResponse.json(); // 👈 parse it
 
-        if (response.data?.metafieldsSet?.userErrors?.length) {
-          console.error(
-            "///////////////////////",
-            response.data.metafieldsSet.userErrors,
-          );
-        }
-      } catch (err) {
-        console.error("❌ GraphQL mutation failed:", err);
-        throw err;
+      if (response.data?.metafieldsSet?.userErrors?.length) {
+        console.error(
+          "///////////////////////",
+          response.data.metafieldsSet.userErrors,
+        );
       }
+    } catch (err) {
+      console.error("❌ GraphQL mutation failed:", err);
+      throw err;
+    }
 
     // if (formData.get("paymentMode") === "partial") {
-       const CREATE_SELLING_PLAN = `
+    const CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
     sellingPlanGroupCreate(
       input: {
@@ -491,37 +491,32 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
     }
   }
 `;
-          const productIds = products.map((p) => p.id);
+    const productIds = products.map((p) => p.id);
 
-          console.log(
-            productIds,
-            Number(formData.get("depositPercent")),
-            "formData >>>>>>>>>>>>>>>>>>>>>>",
-          );
+    console.log(
+      productIds,
+      Number(formData.get("depositPercent")),
+      "formData >>>>>>>>>>>>>>>>>>>>>>",
+    );
 
-          try {
-            let res = await admin.graphql(CREATE_SELLING_PLAN, {
-              variables: {
-                productIds,
-                percentage: 30.0,
-                days: "P7D",
-              },
-            });
+    try {
+      let res = await admin.graphql(CREATE_SELLING_PLAN, {
+        variables: {
+          productIds,
+          percentage: 30.0,
+          days: "P7D",
+        },
+      });
 
-            res = await res.json();
-          } catch (error) {
-            console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-          }
-        // }
+      res = await res.json();
+    } catch (error) {
+      console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+    }
+    // }
 
-        await updateCampaignStatus(params.id!, "PUBLISHED");
+    await updateCampaignStatus(params.id!, "PUBLISHED");
 
-
-
-
-
-
-      return redirect(`/app/`);
+    return redirect(`/app/`);
   }
 
   if (intent === "unpublish-campaign") {
@@ -646,9 +641,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       }
     }
   }
-`; 
-
-   
+`;
 
       const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
         variables: { id: products[0].id },
@@ -684,11 +677,11 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         }
       }
 
-          await updateCampaignStatus(params.id!, "UNPUBLISHED");
+      await updateCampaignStatus(params.id!, "UNPUBLISHED");
 
-         if(secondaryIntent === "delete-campaign"){
-            await deleteCampaign(params.id!);
-         } 
+      if (secondaryIntent === "delete-campaign") {
+        await deleteCampaign(params.id!);
+      }
 
       return redirect(`/app`);
     } catch (error) {
@@ -697,15 +690,19 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
   }
 
   return null;
-  
 };
 
 export default function CampaignDetail() {
-  const { campaign, products, parsedDesignSettingsResponse ,parsedCampaignSettingsResponse} =
-    useLoaderData<typeof loader>();
+  const {
+    campaign,
+    products,
+    parsedDesignSettingsResponse,
+    parsedCampaignSettingsResponse,
+  } = useLoaderData<typeof loader>();
   const designFieldsObj =
     parsedDesignSettingsResponse.data.metaobjectByHandle.fields;
-  const campaignSettingsObj = parsedCampaignSettingsResponse.data.metaobjectByHandle.fields;
+  const campaignSettingsObj =
+    parsedCampaignSettingsResponse.data.metaobjectByHandle.fields;
   const campaignSettingsMap = campaignSettingsObj.reduce(
     (acc, field) => {
       acc[field.key] = field.value;
@@ -722,10 +719,14 @@ export default function CampaignDetail() {
   const [campaignName, setCampaignName] = useState(campaign?.name);
   const [selected, setSelected] = useState(0);
   const [productTagInput, setProductTagInput] = useState("");
-  const [productTags, setProductTags] = useState([]);
+    const [customerTagInput, setCustomerTagInput] = useState("");
+  const [productTags, setProductTags] = useState<string[]>([]);
+  const [customerTags, setCustomerTags] = useState<string[]>([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
-  const [selectedOption, setSelectedOption] = useState(Number(campaignSettingsMap.campaign_type));
+  const [selectedOption, setSelectedOption] = useState(
+    Number(campaignSettingsMap.campaign_type),
+  );
   const [buttonText, setButtonText] = useState(campaignSettingsMap.button_text);
   const [shippingMessage, setShippingMessage] = useState(
     campaignSettingsMap.shipping_message,
@@ -733,7 +734,9 @@ export default function CampaignDetail() {
   const [partialPaymentPercentage, setPartialPaymentPercentage] = useState(
     campaign?.depositPercent,
   );
-  const [paymentMode, setPaymentMode] = useState(campaignSettingsMap.payment_type==="full" ?"full" : "partial");
+  const [paymentMode, setPaymentMode] = useState(
+    campaignSettingsMap.payment_type === "full" ? "full" : "partial",
+  );
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
   const [{ month, year }, setMonthYear] = useState({
@@ -754,7 +757,9 @@ export default function CampaignDetail() {
   const [selectedProducts, setSelectedProducts] = useState(products || []);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndDate, setCampaignEndDate] = useState<Date | null>(
-    campaignSettingsMap.campaign_end_date ? new Date(campaignSettingsMap.campaign_end_date) : null,
+    campaignSettingsMap.campaign_end_date
+      ? new Date(campaignSettingsMap.campaign_end_date)
+      : null,
   );
   const [campaignEndPicker, setCampaignEndPicker] = useState({
     month: new Date().getMonth(),
@@ -803,6 +808,10 @@ export default function CampaignDetail() {
     buttonFontSize: designFieldsMap.buttonfontsize,
     buttonTextColor: designFieldsMap.buttontextcolor,
   });
+  const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
+  const [discountType, setDiscountType] = useState("none");
+  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [flatDiscount, setFlatDiscount] = useState(0);
   const handleCampaignEndDateChange = useCallback((range) => {
     setCampaignEndPicker((prev) => ({
       ...prev,
@@ -945,7 +954,7 @@ export default function CampaignDetail() {
     if (event.key === "Enter" && productTagInput.trim() !== "") {
       setProductTags((prev) => [...prev, productTagInput.trim()]);
       setProductTagInput("");
-      event.preventDefault(); 
+      event.preventDefault();
     }
   };
 
@@ -1016,21 +1025,21 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
-   const handleSave = () => {
-    console.log('Saving');
-    handleSubmit()
-    shopify.saveBar.hide('my-save-bar');
+  const handleSave = () => {
+    console.log("Saving");
+    handleSubmit();
+    shopify.saveBar.hide("my-save-bar");
   };
 
   const handleDiscard = () => {
-    console.log('Discarding');
-    shopify.saveBar.hide('my-save-bar');
+    console.log("Discarding");
+    shopify.saveBar.hide("my-save-bar");
   };
 
   function handlePublish(id: string): void {
     const formData = new FormData();
     formData.append("intent", "publish-campaign");
-    formData.append("products", JSON.stringify(selectedProducts)); 
+    formData.append("products", JSON.stringify(selectedProducts));
     formData.append("paymentMode", String(paymentMode));
     formData.append("id", id);
 
@@ -1038,8 +1047,49 @@ export default function CampaignDetail() {
   }
 
   useEffect(() => {
-    shopify.saveBar.show('my-save-bar');
-  }, [designFields,campaignName,selectedProducts,paymentMode,partialPaymentPercentage,DueDateinputValue,selectedOption,buttonText,shippingMessage]);
+    shopify.saveBar.show("my-save-bar");
+  }, [
+    designFields,
+    campaignName,
+    selectedProducts,
+    paymentMode,
+    partialPaymentPercentage,
+    DueDateinputValue,
+    selectedOption,
+    buttonText,
+    shippingMessage,
+  ]);
+
+    const handleButtonClick = useCallback(
+    (index: number) => {
+      if (activeButtonIndex === index) return;
+      setActiveButtonIndex(index);
+      setDiscountType(index === 0 ? "percentage" : "flat");
+    },
+    [activeButtonIndex],
+  );
+
+    const handleKeyDownCustomerTag = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && customerTagInput.trim() !== "") {
+      setCustomerTags((prev) => [...prev, customerTagInput.trim()]);
+      setCustomerTagInput("");
+      event.preventDefault();
+    }
+  
+  };
+
+    function handleRemoveTag(index: number): void {
+    const updatedTags = [...productTags];
+    updatedTags.splice(index, 1);
+    setProductTags(updatedTags);
+  }
+
+  function handleRemoveCustomerTag(index: number) {
+    const updatedTags =[...customerTags];
+    updatedTags.splice(index, 1);
+    setCustomerTags(updatedTags);
+
+  }
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -1063,7 +1113,10 @@ export default function CampaignDetail() {
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
           varient: "primary",
-          onAction: () => campaign?.status === "PUBLISHED" ? handleUnpublish(String(campaign?.id)) : handlePublish(String(campaign?.id)),
+          onAction: () =>
+            campaign?.status === "PUBLISHED"
+              ? handleUnpublish(String(campaign?.id))
+              : handlePublish(String(campaign?.id)),
         }}
         secondaryActions={[
           {
@@ -1074,9 +1127,9 @@ export default function CampaignDetail() {
         ]}
       >
         <SaveBar id="my-save-bar">
-        <button variant="primary" onClick={handleSave}></button>
-        <button onClick={handleDiscard}></button>
-      </SaveBar>
+          <button variant="primary" onClick={handleSave}></button>
+          <button onClick={handleDiscard}></button>
+        </SaveBar>
         <Modal id="delete-modal">
           <p style={{ padding: "10px" }}>
             Delete "{campaign?.name}" This will also remove the campaign from
@@ -1251,6 +1304,68 @@ export default function CampaignDetail() {
                       onChange={(e) => setShippingMessage(e)}
                       autoComplete="off"
                     />
+                  </Card>
+                </div>
+
+                {/* discount */}
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <BlockStack gap={"300"}>
+                      <Text as="h4" variant="headingSm">
+                        Discount
+                      </Text>
+                      <Text as="p" variant="bodyMd">
+                        Only works with{" "}
+                        <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
+                          Shopify Payments
+                        </Link>{" "}
+                      </Text>
+                      <InlineStack gap="400">
+                        <ButtonGroup variant="segmented">
+                          <Button
+                            pressed={activeButtonIndex === 0}
+                            onClick={() => handleButtonClick(0)}
+                            icon={DiscountIcon}
+                          ></Button>
+                          <Button
+                            pressed={activeButtonIndex === 1}
+                            onClick={() => handleButtonClick(1)}
+                            icon={CashDollarIcon}
+                          ></Button>
+                        </ButtonGroup>
+                        <TextField
+                          suffix={activeButtonIndex === 0 ? "%" : "₹"}
+                          id="discount"
+                          type="number"
+                          value={
+                            activeButtonIndex === 0
+                              ? discountPercentage
+                              : flatDiscount
+                          }
+                          onChange={(val) => {
+                            if (activeButtonIndex === 0) {
+                              setDiscountPercentage(Number(val));
+                            } else {
+                              setFlatDiscount(Number(val));
+                            }
+                          }}
+                        />
+                      </InlineStack>
+                      {(activeButtonIndex === 0 && discountPercentage < 0) ||
+                      discountPercentage >= 100 ? (
+                        <Text as="p" variant="bodyMd" tone="critical">
+                          Please enter valid discount percentage between 0 and
+                          99
+                        </Text>
+                      ) : null}
+
+                      <Text as="p" variant="bodyMd">
+                        Can't see discount/strike through price?{" "}
+                        <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
+                          Contact support
+                        </Link>
+                      </Text>
+                    </BlockStack>
                   </Card>
                 </div>
 
@@ -1475,35 +1590,100 @@ export default function CampaignDetail() {
                 </div>
                 <div style={{ marginTop: 20 }}>
                   <Card>
-                    <Text as="h4" variant="headingSm">
-                      Order tags
-                    </Text>
-                    <div onKeyDown={handleKeyDown}>
-                      <TextField
-                        label="Order Tags"
-                        value={productTagInput}
-                        onChange={(value) => setProductTagInput(value)} // Polaris style
-                        autoComplete="off"
-                      />
-                    </div>
-                    <Text as="h4" variant="headingSm">
-                      For customers who placed preorders
-                    </Text>
-                    <div>
-                      {productTags.map((tag, index) => (
-                        <span
-                          key={index}
-                          style={{
-                            marginRight: 5,
-                            backgroundColor: "gray",
-                            padding: 5,
-                            borderRadius: 5,
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                    <BlockStack gap={"200"}>
+                      <Text as="h4" variant="headingSm">
+                        Order tags
+                      </Text>
+                      <div onKeyDown={handleKeyDown}>
+                        <TextField
+                          label="Order Tags"
+                          value={productTagInput}
+                          onChange={(value) => setProductTagInput(value)} // Polaris style
+                          autoComplete="off"
+                        />
+                      </div>
+                      <Text as="h4" variant="headingSm">
+                        For customers who placed preorders
+                      </Text>
+                      <div>
+                        {productTags.map((tag, index) => (
+                          <div key={index} style={{ display: "inline-block" }}>
+                            <span
+                              key={index}
+                              style={{
+                                marginRight: 5,
+                                backgroundColor: "gray",
+                                padding: 5,
+                                borderRadius: 5,
+                                position: "relative",
+                              }}
+                            >
+                              {tag}
+                              <button
+                                style={{
+                                  backgroundColor: "gray",
+                                  padding: 5,
+                                  border: "none",
+                                }}
+                                onClick={() => handleRemoveTag(index)}
+                              >
+                                X
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </BlockStack>
+                  </Card>
+                </div>
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <BlockStack gap={"200"}>
+                      <Text as="h4" variant="headingSm">
+                        Customer tags
+                      </Text>
+                      <div onKeyDown={handleKeyDownCustomerTag}>
+                        <TextField
+                          label="Customer Tags"
+                          value={customerTagInput}
+                          onChange={(value) => setCustomerTagInput(value)} // Polaris style
+                          autoComplete="off"
+                        />
+                      </div>
+                      <Text as="h4" variant="headingSm">
+                        For customers who placed preorders
+                      </Text>
+                      <div>
+                        {customerTags.map((tag, index) => (
+                          <div key={index} style={{ display: "inline-block" }}>
+                            <span
+                              key={index}
+                              style={{
+                                marginRight: 5,
+                                backgroundColor: "gray",
+                                padding: 5,
+                                borderRadius: 5,
+                                position: "relative",
+                              }}
+                            >
+                              {tag}
+                              <button
+                                style={{
+                                  backgroundColor: "gray",
+                                  padding: 5,
+                                  border: "none",
+                                }}
+                                onClick={(key) => {
+                                  handleRemoveCustomerTag(index);
+                                }}
+                              >
+                                X
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </BlockStack>
                   </Card>
                 </div>
               </div>
@@ -1513,6 +1693,7 @@ export default function CampaignDetail() {
                 <PreviewDesign
                   designFields={designFields}
                   setDesignFields={setDesignFields}
+                  setTabSelected={setSelected}
                 />
               </div>
             )}
@@ -1533,9 +1714,38 @@ export default function CampaignDetail() {
                         White T-shirt
                       </Text>
                       <div style={{ marginTop: 10 }}>
-                        <Text as="h1" variant="headingMd">
-                          ₹499.00
-                        </Text>
+                        <InlineStack gap="200">
+                          <Text as="h1" variant="headingMd">
+                            {discountPercentage === 0 && flatDiscount === 0 ? (
+                              <Text as="h1" variant="headingLg">
+                                ₹499.00
+                              </Text>
+                            ) : (
+                              <Text as="h1" variant="headingLg">
+                                {activeButtonIndex === 0 &&
+                                discountPercentage !== 0
+                                  ? "₹" +
+                                    (
+                                      499.0 -
+                                      (499.0 * discountPercentage) / 100
+                                    ).toFixed(2)
+                                  : 499.0 - flatDiscount > 0
+                                    ? "₹" + (499.0 - flatDiscount)
+                                    : "₹" + 0}
+                              </Text>
+                            )}
+                          </Text>
+                          {discountPercentage === 0 &&
+                          flatDiscount === 0 ? null : (
+                            <Text
+                              as="h1"
+                              variant="headingMd"
+                              textDecorationLine="line-through"
+                            >
+                              ₹499.00
+                            </Text>
+                          )}
+                        </InlineStack>
                       </div>
                     </div>
                     <div style={{ marginTop: 20 }}>
@@ -1951,7 +2161,5 @@ export default function CampaignDetail() {
         )}
       </Page>
     </AppProvider>
-
   );
-
 }
