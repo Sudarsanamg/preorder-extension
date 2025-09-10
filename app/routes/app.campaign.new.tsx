@@ -226,13 +226,55 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // if the payment option is partial
 
         if (formData.get("paymentMode") === "partial") {
+          const discountType = formData.get("discountType");
 
           let CREATE_SELLING_PLAN =``;
-          //no discount
-          //percentage discount
-          //flat discount
-          CREATE_SELLING_PLAN = `
+          if(discountType=='none'){
+             CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+          }
+          else if(discountType=='percentage'){
+                 CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
     sellingPlanGroupCreate(
       input: {
         name: "Deposit Pre-order"
@@ -256,7 +298,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             {
               fixed: {
                 adjustmentType: PERCENTAGE
-                adjustmentValue: { percentage: 30.0 }
+                adjustmentValue: { percentage: $discountPercentage }
               }
             }
           ]
@@ -280,22 +322,95 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 `;
+          }
+          else if(discountType=='flat'){
+                  CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+            pricingPolicies: [
+            {
+              fixed: {
+                adjustmentType: FIXED_AMOUNT
+                adjustmentValue: { fixedValue: $fixedValue }
+              }
+            }
+          ]
+            
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+          }
+   
           const productIds = products.map((p) => p.id);
 
-          console.log(
-            productIds,
-            Number(formData.get("depositPercent")),
-            "formData >>>>>>>>>>>>>>>>>>>>>>",
-          );
-
           try {
-            let res = await admin.graphql(CREATE_SELLING_PLAN, {
+            let res ;
+            if(discountType=='none'){
+            res = await admin.graphql(CREATE_SELLING_PLAN, {
               variables: {
                 productIds,
                 percentage: Number(formData.get("depositPercent")),
                 days: "P7D",
               },
             });
+          }
+
+          else if(discountType=='percentage'){
+            res = await admin.graphql(CREATE_SELLING_PLAN, {
+              variables: {
+                productIds,
+                percentage: Number(formData.get("depositPercent")),
+                days: "P7D",
+                discountPercentage: Number(formData.get("discountPercent")),
+              },
+            });
+            }
+            else if(discountType=='flat'){
+              res = await admin.graphql(CREATE_SELLING_PLAN, {
+                variables: {
+                  productIds,
+                  percentage: Number(formData.get("depositPercent")),
+                  days: "P7D",
+                  fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
+                },
+              }
+              )
+            }
 
 
             res = await res.json();
