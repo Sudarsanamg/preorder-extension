@@ -20,14 +20,13 @@ import { EmailSettings } from "app/types/type";
 import { hexToHsb } from "app/utils/color";
 import { useCallback, useEffect, useState } from "react";
 import {
-  redirect,
   useLoaderData,
   useSubmit,
   // useNavigate,
   // useFetcher,
   // useActionData,
 } from "@remix-run/react";
-import { createOrUpdateEmailSettings, emailSettingStatusUpdate, getEmailSettingsStatus } from "app/models/campaign.server";
+import { createOrUpdateEmailSettings } from "app/models/campaign.server";
 import { authenticate } from "app/shopify.server";
 
 
@@ -46,8 +45,7 @@ export async function loader({ request }: { request: Request }) {
   const data = await response.json();
 
   const shopId = data.data.shop.id; 
-  const status  = await getEmailSettingsStatus(shopId); 
-  return {shopId, status};
+  return shopId;
 }
 
 export const action = async ({ request }: { request: Request }) => {
@@ -59,7 +57,9 @@ export const action = async ({ request }: { request: Request }) => {
   if (intent === "save-email-preorder-confirmation") {
     const subject = formData.get("subject");
     const shopId = formData.get("shopId");
+    // console.log("Shop ID in action:", shopId);
     const designFields = formData.get("designFields");
+    // console.log("Design Fields:", designFields);
 
     try {
       await createOrUpdateEmailSettings(String(shopId), JSON.parse(designFields as string));
@@ -68,17 +68,6 @@ export const action = async ({ request }: { request: Request }) => {
       return { success: false, error: "Failed to save email settings." };
     }
    
-  }
-  if (intent === "change-status") {
-    const status = formData.get("status");
-    const shopId = formData.get("shopId");
-    try {
-        await emailSettingStatusUpdate(String(shopId), status == "true" ? "true" : "false");
-      return { success: true, status: status === "true" };
-    } catch (error) {
-      console.error("Error changing email settings status:", error);
-      redirect("/app");
-    }
   }
   return { success: false };
 };
@@ -92,7 +81,8 @@ export default function EmailPreorderConfirmationSettings() {
   // const navigate = useNavigate();
   // const fetcher = useFetcher();
   // const actionData = useActionData();
-  const {shopId ,status }= useLoaderData<typeof loader>();
+  const shopId = useLoaderData<typeof loader>();
+  console.log("Shop ID in component:", shopId);
 
   const submit = useSubmit();
   const options = [
@@ -111,13 +101,13 @@ export default function EmailPreorderConfirmationSettings() {
     storeNameColor: "#333333",
     storeNameFontSize: "28",
 
-    subheading: "WE’VE GOT YOUR PREORDER",
+    subheading: "DELIVERY UPDATE",
     subheadingFontSize: "18",
     subheadingColor: "#333333",
     subheadingBold: true,
 
     description:
-      "Your order {order} contains preorder items. We will deliver them as soon as they become available and will notify you once your order has been shipped.",
+      "We wanted to inform you that there will be a delay in shipping the preorder items in order {order}. We are working hard to get your items to you as soon as possible.",
     descriptionFontSize: "14",
     descriptionColor: "#333333",
     descriptionBold: false,
@@ -205,25 +195,13 @@ export default function EmailPreorderConfirmationSettings() {
     shopify.saveBar.show('my-save-bar');
   }, [emailSettings, subject]);
 
-  function handleSwitch(status: boolean) {
-    console.log("Toggling status to:", status);
-    const formData = new FormData();
-    formData.append("intent", "change-status");
-    formData.append("status", (status).toString());
-    formData.append("shopId", shopId);
-    submit(formData, { method: "post" });
-    // navigate(0);
-  }
-
   return (
     <Page
       title="Preorder confirmation email"
       backAction={{ content: "Back", url: "/app/" }}
       primaryAction={{
-        content: status === false ? "Turn On" : "Turn Off",
-        onAction: () => {
-          handleSwitch(status);
-        },
+        content: "Turn On",
+        onAction: () => {},
       }}
     >
        <SaveBar id="my-save-bar">

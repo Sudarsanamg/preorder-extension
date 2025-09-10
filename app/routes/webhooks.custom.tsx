@@ -96,12 +96,13 @@ if(orderTags.length > 0 && orderContainsPreorderItem){
     }
   }
 `;
+const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
   const orderId = payload.admin_graphql_api_id;
   const AddTagsToOrderMutationResponse = await admin.graphql(
     AddTagsToOrderMutation,
     {
-      variables: { id: orderId, tags: [...orderTags,...customerTags] },
+      variables: { id: orderId, tags: uniqueTags },
     },
   );
 

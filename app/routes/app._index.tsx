@@ -27,43 +27,28 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useState } from "react";
-import { getAllCampaign } from "app/models/campaign.server";
+import { getAllCampaign, getEmailSettingsStatus } from "app/models/campaign.server";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-    // const { admin } = await authenticate.admin(request);
-
+ const { admin } = await authenticate.admin(request);
   const campaigns = await getAllCampaign();
 
-  // const query = `
-  //   {
-  //     webhookSubscriptions(first: 10) {
-  //       edges {
-  //         node {
-  //           id
-  //           topic
-  //           endpoint {
-  //             __typename
-  //             ... on WebhookHttpEndpoint {
-  //               callbackUrl
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // `;
-
-  // const existingResp = await admin.graphql(query);
-  // const existingData = await existingResp.json();
-
-  // console.log(
-  //   "Existing webhooks:",
-  //   JSON.stringify(existingData, null, 2)
-  // );
+  const query = `{
+      shop {
+        id
+        name
+        myshopifyDomain
+      }
+    }`;
   
-  return json({ success: true, campaigns });
+    const response = await admin.graphql(query);
+    const data = await response.json();
+    const shopId = data.data.shop.id; 
+    const status  = await getEmailSettingsStatus(shopId);
+    const emailCampaignStatus = status; 
+  
+  return json({ success: true, campaigns,shopId, emailCampaignStatus });
 };
 
 // ---------------- Action ----------------
@@ -170,7 +155,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 // ---------------- Component ----------------
 export default function Index() {
-  const { campaigns } = useLoaderData<typeof loader>();
+  const { campaigns ,emailCampaignStatus } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -310,7 +295,11 @@ export default function Index() {
                 <div style={{display:'flex',alignSelf:'center', justifyContent:'space-between'}}>
                   <div>
                     <Text as="h3" variant="bodyMd" fontWeight="medium">
-                      Preorder confirmation email <Badge tone="critical">Off</Badge>
+                      Preorder confirmation email {
+                        emailCampaignStatus == true ?
+                        <Badge tone="success">On</Badge> :
+                        <Badge tone="critical">Off</Badge>
+                        }
                     </Text>
                     <Text as="p" tone="subdued" variant="bodySm">
                       This notification is sent after an order is placed for preorder
@@ -337,7 +326,7 @@ export default function Index() {
                     </Text>
                   </div>
                   <div>
-                    <Button size="slim">Customize</Button>
+                    <Button size="slim" onClick={() => {navigate('/app/settings/email-preorder-shipping-update')}}>Customize</Button>
                   </div>
                 </div>
               </div>

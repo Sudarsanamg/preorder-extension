@@ -254,3 +254,17 @@ export async function getEmailSettings(shopId: string) {
     where: { shopId },
   });
 }
+
+export async function getEmailSettingsStatus(shopId: string) {
+  const settings = await prisma.emailSettings.findUnique({
+    where: { shopId },
+  });
+  return settings?.enabled ?? false;
+}
+
+export async function emailSettingStatusUpdate(shopId: string, enable: string) {
+  return prisma.emailSettings.updateMany({
+    where: { shopId },
+    data: { enabled: enable == "true" ? false : true },
+  });
+}
