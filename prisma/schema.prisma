@@ -45,6 +45,9 @@ model PreorderCampaign {
   totalOrders        Int                       @default(0)
   orderTags          Json?
   customerTags       Json?
+  discountType       String?                   @default("none") // none, fixed, percentage
+  discountPercent    Int?                     
+  discountFixed      Int?                      
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
 }
@@ -55,7 +58,7 @@ model PreorderCampaignProduct {
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   productId    String
   variantId    String?
-  maxQuantity  Int
+  maxQuantity  Int?
   soldQuantity Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt

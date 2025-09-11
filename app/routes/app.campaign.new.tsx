@@ -125,7 +125,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
           customerTags: JSON.parse(
             (formData.get("customerTags") as string) || "[]",
-          )
+          ),
+          discountType: formData.get("discountType") as string,
+          discountPercent: Number(formData.get("discountPercentage") || "0"),
+          discountFixed: Number(formData.get("flatDiscount") || "0"),
         });
 
         const products = JSON.parse(
@@ -396,7 +399,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 productIds,
                 percentage: Number(formData.get("depositPercent")),
                 days: "P7D",
-                discountPercentage: Number(formData.get("discountPercent")),
+                discountPercentage: Number(formData.get("discountPercentage")),
               },
             });
             }
@@ -541,6 +544,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     (formData.get("campaignEndDate") as string) || Date.now(),
                   ).toISOString(),
                 },
+                {
+                  key: "discount_type",
+                  value: (formData.get("discountType") as string) || "none",
+
+                },
+                {
+                  key: "discountpercent",
+                  value: (formData.get("discountPercentage") as string) || "0",
+                },
+                {
+                  key: "discountfixed",
+                  value: (formData.get("flatDiscount") as string) || "0",
+                },
+                {
+                  key:"campaigntags",
+                  value: JSON.parse((formData.get("orderTags") as string) || "[]").join(",")
+                }
               ],
             },
           });
@@ -897,6 +917,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
 
   useEffect(() => {
     let flag = false;
+    if(!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
       if (productsWithPreorder[i].preorder == true) {
         flag = true;
@@ -914,7 +935,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
 
   const handleDuplication =(id: any)=>  {
 
-   const prod = productsWithPreorder.find((product: any) => product.id === id);
+   const prod = productsWithPreorder?.find((product: any) => product.id === id);
    if (prod && prod.preorder == true) {
      return true;
    }

@@ -18,6 +18,9 @@ export async function createPreorderCampaign(data: {
   campaignEndDate?: Date;
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
+  discountType?: string;
+  discountPercent?: number;
+  discountFixed?: number;
 }) {
   return prisma.preorderCampaign.create({
     data: {
@@ -30,6 +33,9 @@ export async function createPreorderCampaign(data: {
       campaignEndDate: data.campaignEndDate ? data.campaignEndDate : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       orderTags: data.orderTags?? {} ,
       customerTags: data.customerTags?? {},
+      discountType: data.discountType,
+      discountPercent: data.discountPercent,
+      discountFixed: data.discountFixed,
     },
   });
 }
@@ -71,7 +77,7 @@ export async function addProductsToCampaign(
       campaignId,
       productId: p.id,
       variantId: p.variantId,
-      maxQuantity: p.totalInventory
+      maxQuantity: p.totalInventory? p.totalInventory : 0
     })),
   });
 }

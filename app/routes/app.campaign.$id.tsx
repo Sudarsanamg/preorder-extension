@@ -1,5 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import {
+  addProductsToCampaign,
+  createPreorderCampaign,
   deleteCampaign,
   getCampaignById,
   replaceProductsInCampaign,
@@ -64,7 +66,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
   // ✅ get campaign from your DB
   const campaign = await getCampaignById(params.id!);
-
   // ✅ product IDs from campaign
   const productIds = campaign?.products?.map((p) => p.productId) || [];
 
@@ -161,8 +162,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
 
   const formData = await request.formData();
-  const intent = formData.get("intent");
-  const secondaryIntent = formData.get("secondaryIntent");
+  const intent = formData.get("intent") as string;
+  const secondaryIntent = formData.get("secondaryIntent") as string;
   if (intent === "delete-campaign") {
     const id = formData.get("id");
     await deleteCampaign(id);
@@ -449,8 +450,18 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       throw err;
     }
 
-    // if (formData.get("paymentMode") === "partial") {
-    const CREATE_SELLING_PLAN = `
+    console.log(formData.get("paymentMode") ,'Payment Mode >>>>>>>>>>>>>>>>>>>>');
+    console.log(formData.get("discountType"), 'Discount Type >>>>>>>>>>>>>>>>>>>>');
+    console.log(formData.get("depositPercent"), 'Deposit Percent >>>>>>>>>>>>>>>>>>>>');
+    console.log(formData.get("discountPercentage"), 'Discount Percent >>>>>>>>>>>>>>>>>>>>');
+    console.log(formData.get("flatDiscount"), 'Flat Discount >>>>>>>>>>>>>>>>>>>>');
+
+    if (formData.get("paymentMode") === "partial") {
+      const discountType = formData.get("discountType");
+
+      let CREATE_SELLING_PLAN = ``;
+      if (discountType == "none") {
+        CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
     sellingPlanGroupCreate(
       input: {
@@ -491,32 +502,158 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
     }
   }
 `;
-    const productIds = products.map((p) => p.id);
-
-    console.log(
-      productIds,
-      Number(formData.get("depositPercent")),
-      "formData >>>>>>>>>>>>>>>>>>>>>>",
-    );
-
-    try {
-      let res = await admin.graphql(CREATE_SELLING_PLAN, {
-        variables: {
-          productIds,
-          percentage: 30.0,
-          days: "P7D",
-        },
-      });
-
-      res = await res.json();
-    } catch (error) {
-      console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+      } else if (discountType == "percentage") {
+        CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+            pricingPolicies: [
+            {
+              fixed: {
+                adjustmentType: PERCENTAGE
+                adjustmentValue: { percentage: $discountPercentage }
+              }
+            }
+          ]
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
     }
-    // }
+  }
+`;
+      } else if (discountType == "flat") {
+        CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+            pricingPolicies: [
+            {
+              fixed: {
+                adjustmentType: FIXED_AMOUNT
+                adjustmentValue: { fixedValue: $fixedValue }
+              }
+            }
+          ]
+            
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+      }
 
-    await updateCampaignStatus(params.id!, "PUBLISHED");
+      const productIds = products.map((p) => p.id);
 
-    return redirect(`/app/`);
+      console.log(
+        productIds,
+        Number(formData.get("depositPercent")),
+        "formData >>>>>>>>>>>>>>>>>>>>>>",
+      );
+
+      try {
+        let res;
+        if (discountType == "none") {
+          res = await admin.graphql(CREATE_SELLING_PLAN, {
+            variables: {
+              productIds,
+              percentage: Number(formData.get("depositPercent")),
+              days: "P7D",
+            },
+          });
+        } else if (discountType == "percentage") {
+          console.log('Hitted percentage >>>>>>>>>>>>>>>>>>>>>>>>>>>>');
+          res = await admin.graphql(CREATE_SELLING_PLAN, {
+            variables: {
+              productIds,
+              percentage: Number(formData.get("depositPercent")),
+              days: "P7D",
+              discountPercentage: Number(formData.get("discountPercentage") ?? 0),
+            },
+          });
+        } else if (discountType == "flat") {
+          res = await admin.graphql(CREATE_SELLING_PLAN, {
+            variables: {
+              productIds,
+              percentage: Number(formData.get("depositPercent")),
+              days: "P7D",
+              fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
+            },
+          });
+        }
+
+        res = await res.json();
+        console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
+      } catch (error) {
+        console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+      }
+
+      await updateCampaignStatus(params.id!, "PUBLISHED");
+
+      return redirect(`/app/`);
+    }
   }
 
   if (intent === "unpublish-campaign") {
@@ -682,6 +819,475 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!);
       }
+      if(secondaryIntent === "delete-campaign-create-new"){
+         const campaign = await createPreorderCampaign({
+                 name: formData.get("name") as string,
+                 depositPercent: Number(formData.get("depositPercent")),
+                 balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+                 refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
+                 releaseDate: formData.get("campaignEndDate")
+                   ? new Date(formData.get("campaignEndDate") as string)
+                   : undefined,
+                 orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
+                 customerTags: JSON.parse(
+                   (formData.get("customerTags") as string) || "[]",
+                 ),
+                 discountType: formData.get("discountType") as string,
+                 discountPercent: Number(formData.get("discountPercentage") || "0"),
+                 discountFixed: Number(formData.get("flatDiscount") || "0"),
+               });
+       
+               const products = JSON.parse(
+                 (formData.get("products") as string) || "[]",
+               );
+       
+               if (products.length > 0) {
+                 await addProductsToCampaign(campaign.id, products);
+       
+                 // -------------------------------
+                 // PREORDER METAFIELDS UPDATE
+                 // -------------------------------
+                 const mutation = `
+                   mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
+                     metafieldsSet(metafields: $metafields) {
+                       metafields {
+                         id
+                         namespace
+                         key
+                         type
+                         value
+                       }
+                       userErrors {
+                         field
+                         message
+                       }
+                     }
+                   }
+                 `;
+       
+                 const metafields = products.flatMap((product) => [
+                   {
+                     ownerId: product.id,
+                     namespace: "custom",
+                     key: "campaign_id",
+                     type: "single_line_text_field",
+                     value: String(campaign.id),
+                   },
+                   {
+                     ownerId: product.id,
+                     namespace: "custom",
+                     key: "preorder",
+                     type: "boolean",
+                     value: "true",
+                   },
+                   {
+                     ownerId: product.id,
+                     namespace: "custom",
+                     key: "release_date",
+                     type: "date",
+                     value: "2025-08-30",
+                   },
+                   {
+                     ownerId: product.id,
+                     namespace: "custom",
+                     key: "preorder_end_date",
+                     type: "date_time",
+                     value: new Date(
+                       formData.get("campaignEndDate") as string,
+                     ).toISOString(),
+                   },
+                   {
+                     ownerId: product.id,
+                     namespace: "custom",
+                     key: "deposit_percent",
+                     type: "number_integer",
+                     value: String(formData.get("depositPercent") || "0"),
+                   },
+                   {
+                     ownerId: product.id,
+                     namespace: "custom",
+                     key: "balance_due_date",
+                     type: "date",
+                     value: new Date(
+                       formData.get("balanceDueDate") as string,
+                     ).toISOString(),
+                   },
+                   {
+                     ownerId: product.id,
+                     namespace: "custom",
+                     key: "preorder_units",
+                     type: "number_integer",
+                     value: String(product?.maxUnit || "0"),
+                   },
+                 ]);
+       
+                 try {
+                   const response = await admin.graphql(mutation, {
+                     variables: { metafields },
+                   });
+                   console.log("GraphQL response:", response);
+                 } catch (err) {
+                   console.error("GraphQL mutation failed:", err);
+                   throw err;
+                 }
+               }
+       
+               // if the payment option is partial
+       
+               if (formData.get("paymentMode") === "partial") {
+                 const discountType = formData.get("discountType");
+       
+                 let CREATE_SELLING_PLAN =``;
+                 if(discountType=='none'){
+                    CREATE_SELLING_PLAN = `
+         mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
+           sellingPlanGroupCreate(
+             input: {
+               name: "Deposit Pre-order"
+               merchantCode: "pre-order-deposit"
+               options: ["Pre-order"]
+               sellingPlansToCreate: [
+                 {
+                   name: "Deposit, balance later"
+                   category: PRE_ORDER
+                   options: ["Deposit, balance later"]
+                   billingPolicy: {
+                     fixed: {
+                       checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                       remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                       remainingBalanceChargeTimeAfterCheckout: $days
+                     }
+                   }
+                   deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                   inventoryPolicy: { reserve: ON_FULFILLMENT }
+                 }
+               ]
+             }
+             resources: { productIds: $productIds }
+           ) {
+             sellingPlanGroup {
+               id
+               sellingPlans(first: 1) {
+                 edges {
+                   node { id }
+                 }
+               }
+             }
+             userErrors {
+               field
+               message
+             }
+           }
+         }
+       `;
+                 }
+                 else if(discountType=='percentage'){
+                        CREATE_SELLING_PLAN = `
+         mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
+           sellingPlanGroupCreate(
+             input: {
+               name: "Deposit Pre-order"
+               merchantCode: "pre-order-deposit"
+               options: ["Pre-order"]
+               sellingPlansToCreate: [
+                 {
+                   name: "Deposit, balance later"
+                   category: PRE_ORDER
+                   options: ["Deposit, balance later"]
+                   billingPolicy: {
+                     fixed: {
+                       checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                       remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                       remainingBalanceChargeTimeAfterCheckout: $days
+                     }
+                   }
+                   deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                   inventoryPolicy: { reserve: ON_FULFILLMENT }
+                   pricingPolicies: [
+                   {
+                     fixed: {
+                       adjustmentType: PERCENTAGE
+                       adjustmentValue: { percentage: $discountPercentage }
+                     }
+                   }
+                 ]
+                 }
+               ]
+             }
+             resources: { productIds: $productIds }
+           ) {
+             sellingPlanGroup {
+               id
+               sellingPlans(first: 1) {
+                 edges {
+                   node { id }
+                 }
+               }
+             }
+             userErrors {
+               field
+               message
+             }
+           }
+         }
+       `;
+                 }
+                 else if(discountType=='flat'){
+                         CREATE_SELLING_PLAN = `
+         mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
+           sellingPlanGroupCreate(
+             input: {
+               name: "Deposit Pre-order"
+               merchantCode: "pre-order-deposit"
+               options: ["Pre-order"]
+               sellingPlansToCreate: [
+                 {
+                   name: "Deposit, balance later"
+                   category: PRE_ORDER
+                   options: ["Deposit, balance later"]
+                   billingPolicy: {
+                     fixed: {
+                       checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                       remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                       remainingBalanceChargeTimeAfterCheckout: $days
+                     }
+                   }
+                   deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                   inventoryPolicy: { reserve: ON_FULFILLMENT }
+                   pricingPolicies: [
+                   {
+                     fixed: {
+                       adjustmentType: FIXED_AMOUNT
+                       adjustmentValue: { fixedValue: $fixedValue }
+                     }
+                   }
+                 ]
+                   
+                 }
+               ]
+             }
+             resources: { productIds: $productIds }
+           ) {
+             sellingPlanGroup {
+               id
+               sellingPlans(first: 1) {
+                 edges {
+                   node { id }
+                 }
+               }
+             }
+             userErrors {
+               field
+               message
+             }
+           }
+         }
+       `;
+                 }
+          
+                 const productIds = products.map((p) => p.id);
+       
+                 try {
+                   let res ;
+                   if(discountType=='none'){
+                   res = await admin.graphql(CREATE_SELLING_PLAN, {
+                     variables: {
+                       productIds,
+                       percentage: Number(formData.get("depositPercent")),
+                       days: "P7D",
+                     },
+                   });
+                 }
+       
+                 else if(discountType=='percentage'){
+                   res = await admin.graphql(CREATE_SELLING_PLAN, {
+                     variables: {
+                       productIds,
+                       percentage: Number(formData.get("depositPercent")),
+                       days: "P7D",
+                       discountPercentage: Number(formData.get("discountPercentage")),
+                     },
+                   });
+                   }
+                   else if(discountType=='flat'){
+                     res = await admin.graphql(CREATE_SELLING_PLAN, {
+                       variables: {
+                         productIds,
+                         percentage: Number(formData.get("depositPercent")),
+                         days: "P7D",
+                         fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
+                       },
+                     }
+                     )
+                   }
+       
+       
+                   res = await res.json();
+                   console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
+                 } catch (error) {
+                   console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+                 }
+               }
+       
+               const designFields = JSON.parse(formData.get("designFields") as string);
+               console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
+               const fields = Object.entries(designFields).map(([key, value]) => ({
+                 key: key.toLowerCase(),
+                 value: String(value),
+               }));
+               fields.push({
+                 key: "campaign_id",
+                 value: String(campaign.id),
+               });
+       
+               console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
+       
+               const mutation = `
+         mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
+         metaobjectCreate(
+           metaobject: {
+             type: "design_settings",
+             fields: $fields,
+             capabilities: {
+               publishable: {
+                 status: ACTIVE
+               }
+             }
+           }
+         ) {
+           metaobject {
+             id
+             handle
+             capabilities {
+               publishable {
+                 status
+               }
+             }
+           }
+           userErrors {
+             field
+             message
+           }
+         }
+       }
+         `;
+       
+               const campaign_mutation = `
+         mutation CreateCampaign($fields: [MetaobjectFieldInput!]!) {
+           metaobjectCreate(
+             metaobject: {
+               type: "preordercampaign",
+               fields: $fields,
+               capabilities: {
+                 publishable: {
+                   status: ACTIVE
+                 }
+               }
+             }
+           )
+           {
+             metaobject {
+               id
+               handle
+               capabilities {
+                 publishable {
+                   status
+                 }
+               }
+             }
+             userErrors {
+               field
+               message
+             }
+           }
+         }
+         `;
+       
+               try {
+                 const response = await admin.graphql(mutation, {
+                   variables: { fields },
+                 });
+       
+               
+       
+                 const campaign_response = await admin.graphql(campaign_mutation, {
+                   variables: {
+                     fields: [
+                       { key: "campaign_id", value: String(campaign.id) },
+                       {
+                         key: "name",
+                         value:
+                           (formData.get("name") as string) || "Untitled Campaign",
+                       },
+                       { key: "status", value: "publish" },
+                       { key: "campaign_type", value: String(2) }, // must be string
+                       {
+                         key: "button_text",
+                         value: (formData.get("buttonText") as string) || "Preorder",
+                       },
+                       {
+                         key: "shipping_message",
+                         value:
+                           (formData.get("shippingMessage") as string) || "Ship as soon as possible",
+                       },
+                       {
+                         key: "payment_type",
+                         value: (formData.get("paymentMode") as string) || "Full",
+                       },
+                       {
+                         key: "ppercent",
+                         value: String(formData.get("depositPercent") || "0"),
+                       },
+                       {
+                         key: "paymentduedate",
+                         value: new Date(
+                           (formData.get("balanceDueDate") as string) || Date.now(),
+                         ).toISOString(),
+                       },
+                       {
+                         key: "campaign_end_date",
+                         value: new Date(
+                           (formData.get("campaignEndDate") as string) || Date.now(),
+                         ).toISOString(),
+                       },
+                       {
+                         key: "discount_type",
+                         value: (formData.get("discountType") as string) || "none",
+       
+                       },
+                       {
+                         key: "discountpercent",
+                         value: (formData.get("discountPercentage") as string) || "0",
+                       },
+                       {
+                         key: "discountfixed",
+                         value: (formData.get("flatDiscount") as string) || "0",
+                       },
+                       {
+                         key:"campaigntags",
+                         value: JSON.parse((formData.get("orderTags") as string) || "[]").join(",")
+                       }
+                     ],
+                   },
+                 });
+       
+                 const parsedCampaignResponse = await campaign_response.json();
+                 console.log(
+                   parsedCampaignResponse,
+                   "parsedResponse >>>>>>>>>>>>>>>>>>>>>>",
+                 );
+               } catch (error) {
+                 console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
+               }
+       
+                 await updateCampaignStatus(campaign.id, "PUBLISHED");
+                 await deleteCampaign(params.id!);
+
+               
+       
+               return redirect("/app");
+      }
+
 
       return redirect(`/app`);
     } catch (error) {
@@ -700,16 +1306,19 @@ export default function CampaignDetail() {
     parsedCampaignSettingsResponse,
   } = useLoaderData<typeof loader>();
   const designFieldsObj =
-    parsedDesignSettingsResponse.data.metaobjectByHandle.fields;
+    parsedDesignSettingsResponse?.data.metaobjectByHandle.fields;
   const campaignSettingsObj =
-    parsedCampaignSettingsResponse.data.metaobjectByHandle.fields;
-  const campaignSettingsMap = campaignSettingsObj.reduce(
+    parsedCampaignSettingsResponse?.data.metaobjectByHandle.fields;
+  const campaignSettingsMap = campaignSettingsObj?.reduce(
     (acc, field) => {
       acc[field.key] = field.value;
       return acc;
     },
     {} as Record<string, string>,
   );
+
+  console.log(campaignSettingsMap, "campaignSettingsMap");
+
   const submit = useSubmit();
   const navigate = useNavigate();
   const fetcher = useFetcher();
@@ -719,23 +1328,27 @@ export default function CampaignDetail() {
   const [campaignName, setCampaignName] = useState(campaign?.name);
   const [selected, setSelected] = useState(0);
   const [productTagInput, setProductTagInput] = useState("");
-    const [customerTagInput, setCustomerTagInput] = useState("");
-  const [productTags, setProductTags] = useState<string[]>([]);
+  const [customerTagInput, setCustomerTagInput] = useState("");
+  const [productTags, setProductTags] = useState<string[]>(
+    campaignSettingsMap?.campaigntags
+      ? campaignSettingsMap?.campaigntags.split(",")
+      : [],
+  );
   const [customerTags, setCustomerTags] = useState<string[]>([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
   const [selectedOption, setSelectedOption] = useState(
-    Number(campaignSettingsMap.campaign_type),
+    Number(campaignSettingsMap?.campaign_type),
   );
-  const [buttonText, setButtonText] = useState(campaignSettingsMap.button_text);
+  const [buttonText, setButtonText] = useState(campaignSettingsMap?.button_text);
   const [shippingMessage, setShippingMessage] = useState(
-    campaignSettingsMap.shipping_message,
+    campaignSettingsMap?.shipping_message,
   );
   const [partialPaymentPercentage, setPartialPaymentPercentage] = useState(
     campaign?.depositPercent,
   );
   const [paymentMode, setPaymentMode] = useState(
-    campaignSettingsMap.payment_type === "full" ? "full" : "partial",
+    campaignSettingsMap?.payment_type === "full" ? "full" : "partial",
   );
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
@@ -757,8 +1370,8 @@ export default function CampaignDetail() {
   const [selectedProducts, setSelectedProducts] = useState(products || []);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndDate, setCampaignEndDate] = useState<Date | null>(
-    campaignSettingsMap.campaign_end_date
-      ? new Date(campaignSettingsMap.campaign_end_date)
+    campaignSettingsMap?.campaign_end_date
+      ? new Date(campaignSettingsMap?.campaign_end_date)
       : null,
   );
   const [campaignEndPicker, setCampaignEndPicker] = useState({
@@ -777,10 +1390,11 @@ export default function CampaignDetail() {
   const [status, setStatus] = useState<"published" | "not_published">(
     "not_published",
   );
+  const [criticalChange,setCriticalChange] = useState(false)
 
-  console.log(designFieldsObj);
+  // console.log(designFieldsObj);
 
-  const designFieldsMap = designFieldsObj.reduce(
+  const designFieldsMap = designFieldsObj?.reduce(
     (acc, field) => {
       acc[field.key] = field.value;
       return acc;
@@ -788,30 +1402,37 @@ export default function CampaignDetail() {
     {} as Record<string, string>,
   );
 
-  const [designFields, setDesignFields] = useState<DesignFields>({
-    messageFontSize: designFieldsMap.messagefontsize,
-    messageColor: designFieldsMap.messagecolor,
-    fontFamily: designFieldsMap.fontfamily,
-    buttonStyle: designFieldsMap.buttonstyle,
-    buttonBackgroundColor: designFieldsMap.buttonbackgroundcolor,
-    gradientDegree: designFieldsMap.gradientdegree,
-    gradientColor1: designFieldsMap.gradientcolor1,
-    gradientColor2: designFieldsMap.gradientcolor2,
-    borderSize: designFieldsMap.bordersize,
-    borderColor: designFieldsMap.bordercolor,
-    spacingIT: designFieldsMap.spacingit,
-    spacingIB: designFieldsMap.spacingib,
-    spacingOT: designFieldsMap.spacingot,
-    spacingOB: designFieldsMap.spacingob,
-    borderRadius: designFieldsMap.borderradius,
-    preorderMessageColor: designFieldsMap.preordermessagecolor,
-    buttonFontSize: designFieldsMap.buttonfontsize,
-    buttonTextColor: designFieldsMap.buttontextcolor,
-  });
+ const [designFields, setDesignFields] = useState<DesignFields>({
+  messageFontSize: designFieldsMap?.messagefontsize,
+  messageColor: designFieldsMap?.messagecolor,
+  fontFamily: designFieldsMap?.fontfamily,
+  buttonStyle: designFieldsMap?.buttonstyle,
+  buttonBackgroundColor: designFieldsMap?.buttonbackgroundcolor,
+  gradientDegree: designFieldsMap?.gradientdegree,
+  gradientColor1: designFieldsMap?.gradientcolor1,
+  gradientColor2: designFieldsMap?.gradientcolor2,
+  borderSize: designFieldsMap?.bordersize,
+  borderColor: designFieldsMap?.bordercolor,
+  spacingIT: designFieldsMap?.spacingit,
+  spacingIB: designFieldsMap?.spacingib,
+  spacingOT: designFieldsMap?.spacingot,
+  spacingOB: designFieldsMap?.spacingob,
+  borderRadius: designFieldsMap?.borderradius,
+  preorderMessageColor: designFieldsMap?.preordermessagecolor,
+  buttonFontSize: designFieldsMap?.buttonfontsize,
+  buttonTextColor: designFieldsMap?.buttontextcolor,
+});
+
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
-  const [discountType, setDiscountType] = useState("none");
-  const [discountPercentage, setDiscountPercentage] = useState(0);
-  const [flatDiscount, setFlatDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState(
+    campaignSettingsMap?.discount_type
+  );
+  const [discountPercentage, setDiscountPercentage] = useState(
+    Number(campaignSettingsMap?.discountpercent),
+  );
+  const [flatDiscount, setFlatDiscount] = useState(
+    Number(campaignSettingsMap?.discountfixed),
+  );
   const handleCampaignEndDateChange = useCallback((range) => {
     setCampaignEndPicker((prev) => ({
       ...prev,
@@ -1025,10 +1646,57 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
+
+  function handleCriticalChange(id: string): void {
+    const formData = new FormData();
+
+    formData.append("intent", "unpublish-campaign");
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("secondaryIntent", "delete-campaign-create-new");
+    formData.append("id", id);
+
+
+    formData.append("intent", "");
+    formData.append("name", String(campaign?.name));
+    formData.append("depositPercent", String(partialPaymentPercentage));
+    formData.append("balanceDueDate", DueDateinputValue);
+    formData.append("refundDeadlineDays", "0");
+    formData.append(
+      "campaignEndDate",
+      campaignEndDate ? campaignEndDate.toISOString() : ""
+    );
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignType", String(selectedOption));
+    formData.append("buttonText", String(buttonText));
+    formData.append("shippingMessage", String(shippingMessage));
+    formData.append("paymentMode", String(paymentMode));
+    formData.append("designFields", JSON.stringify(designFields));
+    formData.append("discountType", discountType);
+    formData.append("discountPercentage", String(discountPercentage));
+    formData.append("flatDiscount", String(flatDiscount));
+    formData.append("orderTags", JSON.stringify(productTags));
+    formData.append("customerTags", JSON.stringify(customerTags));
+
+    submit(formData, { method: "post" });
+  }
+
+
+
+
+
   const handleSave = () => {
+    if(criticalChange){
+      handleCriticalChange(String(campaign?.id));
+          shopify.saveBar.hide("my-save-bar");
+
+    }
+    else{
     console.log("Saving");
     handleSubmit();
-    shopify.saveBar.hide("my-save-bar");
+        shopify.saveBar.hide("my-save-bar");
+
+    }
+
   };
 
   const handleDiscard = () => {
@@ -1041,6 +1709,12 @@ export default function CampaignDetail() {
     formData.append("intent", "publish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("paymentMode", String(paymentMode));
+    formData.append("depositPercent", String(partialPaymentPercentage));
+    formData.append("discountType", discountType);
+    formData.append("discountPercentage", String(discountPercentage));
+    formData.append("flatDiscount", String(flatDiscount));
+    formData.append("orderTags", JSON.stringify(productTags));
+    formData.append("customerTags", JSON.stringify(customerTags));
     formData.append("id", id);
 
     submit(formData, { method: "post" });
@@ -1060,7 +1734,7 @@ export default function CampaignDetail() {
     shippingMessage,
   ]);
 
-    const handleButtonClick = useCallback(
+  const handleButtonClick = useCallback(
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
@@ -1069,27 +1743,33 @@ export default function CampaignDetail() {
     [activeButtonIndex],
   );
 
-    const handleKeyDownCustomerTag = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDownCustomerTag = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (event.key === "Enter" && customerTagInput.trim() !== "") {
       setCustomerTags((prev) => [...prev, customerTagInput.trim()]);
       setCustomerTagInput("");
       event.preventDefault();
     }
-  
   };
 
-    function handleRemoveTag(index: number): void {
+  function handleRemoveTag(index: number): void {
     const updatedTags = [...productTags];
     updatedTags.splice(index, 1);
     setProductTags(updatedTags);
   }
 
   function handleRemoveCustomerTag(index: number) {
-    const updatedTags =[...customerTags];
+    const updatedTags = [...customerTags];
     updatedTags.splice(index, 1);
     setCustomerTags(updatedTags);
-
   }
+
+  useEffect(() => {
+    if(criticalChange===false){
+      setCriticalChange(true);
+    }
+  }, [discountType, discountPercentage, flatDiscount,paymentMode,partialPaymentPercentage,DueDateinputValue]);
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -1172,7 +1852,7 @@ export default function CampaignDetail() {
           <input
             type="hidden"
             name="campaignEndDate"
-            value={campaignEndDate.toISOString()}
+            value={campaignEndDate ? campaignEndDate.toISOString() : ""}
           />
           <input
             type="hidden"
