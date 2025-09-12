@@ -31,51 +31,153 @@ model Session {
   emailVerified Boolean?  @default(false)
 }
 
-
 model PreorderCampaign {
-  id                 String   @id @default(cuid())
+  id                 String                    @id @default(cuid())
   name               String
-  depositPercent     Int       // e.g. 30
+  depositPercent     Int 
   balanceDueDate     DateTime
-  refundDeadlineDays Int?       // e.g. 14
+  refundDeadlineDays Int? 
   releaseDate        DateTime?
-  status             String    @default("draft")// publish, unpublish, draft
+  status             String                    @default("draft") 
   products           PreorderCampaignProduct[]
   preorders          Preorder[]
   campaignEndDate    DateTime
-  totalOrders        Int       @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  totalOrders        Int                       @default(0)
+  orderTags          Json?
+  customerTags       Json?
+  discountType       String?                   @default("none") // none, fixed, percentage
+  discountPercent    Int?                     
+  discountFixed      Int?                      
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 }
 
-
 model PreorderCampaignProduct {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   campaignId   String
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  productId    String   
-  variantId    String?  
-  maxQuantity  Int      
-  soldQuantity Int      @default(0) 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  productId    String
+  variantId    String?
+  maxQuantity  Int?
+  soldQuantity Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 }
 
 model Preorder {
-  id                   String   @id @default(cuid())
+  id                   String           @id @default(cuid())
   campaignId           String
   campaign             PreorderCampaign @relation(fields: [campaignId], references: [id])
-  productId            String   
+  productId            String
   variantId            String?
   customerId           String
-  orderId              String   // Shopify deposit order ID
+  orderId              String 
   depositTransactionId String
   depositPaidAt        DateTime
   dueInvoiceSentAt     DateTime?
   balanceDueDays       Int
   refundDeadlineDays   Int
-  status               String   
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  status               String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 }
 
+model CampaignOrders {
+  id             String   @id @default(cuid())
+  order_number   Int      @unique
+  order_id       String
+  draft_order_id String   @unique
+  dueDate        DateTime
+  balanceAmount  Int
+  paymentStatus  String
+}
+
+
+model EmailSettings {
+  id                            String   @id @default(uuid())
+  shopId                        String   @unique
+  enabled                       Boolean  @default(false)                
+  subject                       String   @default("Delivery update for order {order}")
+  font                          String   @default("inherit")
+  storeName                     String   @default("preorderstore")
+  storeNameBold                 Boolean  @default(true)
+  storeNameColor                String   @default("#333333")
+  storeNameFontSize             String   @default("28")
+  subheading                    String   @default("WE’VE GOT YOUR PREORDER")
+  subheadingFontSize            String   @default("18")
+  subheadingColor               String   @default("#333333")
+  subheadingBold                Boolean  @default(true)
+  description                   String   @default("Your order {order} contains preorder items. We will deliver them as soon as they become available and will notify you once your order has been shipped.")
+  descriptionFontSize           String   @default("14")
+  descriptionColor              String   @default("#333333")
+  descriptionBold               Boolean  @default(false)
+  productTitleFontSize          String   @default("16")
+  productTitleColor             String   @default("#333333")
+  productTitleBold              Boolean  @default(true)
+  preorderText                  String   @default("Preorder")
+  fullPaymentText               String   @default("Full Payment")
+  partialPaymentText            String   @default("Partial Payment")
+  paymentTextFontSize           String   @default("14")
+  paymentTextColor              String   @default("#333333")
+  paymentTextBold               Boolean  @default(false)
+  showCancelButton              Boolean  @default(true)
+  cancelButtonStyle             String   @default("solid")
+  cancelButtonText              String   @default("Cancel order {order}")
+  cancelButtonFontSize          String   @default("14")
+  cancelButtonTextColor         String   @default("#ffffff")
+  cancelButtonBold              Boolean  @default(false)
+  cancelButtonBackgroundColor   String   @default("#757575")
+  cancelButtonBorderSize        String   @default("1")
+  cancelButtonBorderColor       String   @default("#3d3d3d")
+  cancelButtonGradientDegree    String   @default("90")
+  cancelButtonGradientColor1    String   @default("#757575")
+  cancelButtonGradientColor2    String   @default("#a0a0a0")
+  cancelButtonBorderRadius      String   @default("8")
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+}
+
+
+model ShippingEmailSettings {
+  id                            String   @id @default(uuid())
+  shopId                        String   @unique
+  enabled                       Boolean  @default(false)                
+  subject                       String   @default("Delivery update for order {order}")
+  font                          String   @default("inherit")
+  storeName                     String   @default("preorderstore")
+  storeNameBold                 Boolean  @default(true)
+  storeNameColor                String   @default("#333333")
+  storeNameFontSize             String   @default("28")
+  subheading                    String   @default("WE’VE GOT YOUR PREORDER")
+  subheadingFontSize            String   @default("18")
+  subheadingColor               String   @default("#333333")
+  subheadingBold                Boolean  @default(true)
+  description                   String   @default("Your order {order} contains preorder items. We will deliver them as soon as they become available and will notify you once your order has been shipped.")
+  descriptionFontSize           String   @default("14")
+  descriptionColor              String   @default("#333333")
+  descriptionBold               Boolean  @default(false)
+  productTitleFontSize          String   @default("16")
+  productTitleColor             String   @default("#333333")
+  productTitleBold              Boolean  @default(true)
+  preorderText                  String   @default("Preorder")
+  fullPaymentText               String   @default("Full Payment")
+  partialPaymentText            String   @default("Partial Payment")
+  paymentTextFontSize           String   @default("14")
+  paymentTextColor              String   @default("#333333")
+  paymentTextBold               Boolean  @default(false)
+  showCancelButton              Boolean  @default(true)
+  cancelButtonStyle             String   @default("solid")
+  cancelButtonText              String   @default("Cancel order {order}")
+  cancelButtonFontSize          String   @default("14")
+  cancelButtonTextColor         String   @default("#ffffff")
+  cancelButtonBold              Boolean  @default(false)
+  cancelButtonBackgroundColor   String   @default("#757575")
+  cancelButtonBorderSize        String   @default("1")
+  cancelButtonBorderColor       String   @default("#3d3d3d")
+  cancelButtonGradientDegree    String   @default("90")
+  cancelButtonGradientColor1    String   @default("#757575")
+  cancelButtonGradientColor2    String   @default("#a0a0a0")
+  cancelButtonBorderRadius      String   @default("8")
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+}

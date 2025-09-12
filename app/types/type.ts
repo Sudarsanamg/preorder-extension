@@ -18,3 +18,44 @@ export interface DesignFields {
   buttonFontSize: string;
   buttonTextColor: string;
 }
+
+
+export interface EmailSettings {
+  subject: string;
+  font: string;
+  storeName: string;
+  storeNameBold : boolean;
+  storeNameColor: string;
+  storeNameFontSize: string;
+  subheading: string;
+  subheadingFontSize: string;
+  subheadingColor: string;
+  subheadingBold: boolean;
+  description: string;
+  descriptionFontSize: string;
+  descriptionColor: string;
+  descriptionBold: boolean;
+  productTitleFontSize: string;
+  productTitleColor: string;
+  productTitleBold: boolean;
+  preorderText: string;
+  fullPaymentText: string;
+  partialPaymentText: string;
+  paymentTextFontSize: string;
+  paymentTextColor: string;
+  paymentTextBold: boolean;
+  showCancelButton : boolean;
+  cancelButtonStyle : string;
+  cancelButtonText: string;
+  cancelButtonFontSize: string;
+  cancelButtonTextColor: string;
+  cancelButtonBold: boolean;
+  cancelButtonBackgroundColor: string;
+  cancelButtonBorderSize: string;
+  cancelButtonBorderColor: string;
+  cancelButtonGradientDegree: string;
+  cancelButtonGradientColor1: string;
+  cancelButtonGradientColor2: string;
+  cancelButtonBorderRadius: string;
+
+}

@@ -20,7 +20,7 @@ import { hsbToHex, hexToHsb } from "../utils/color";
 interface PreviewDesignProps {
   designFields: DesignFields;
   setDesignFields: React.Dispatch<React.SetStateAction<DesignFields>>;
-  setTabSelected: React.Dispatch<React.SetStateAction<0 | 1 |2>>;
+  setTabSelected: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export default function PreviewDesign({
@@ -98,7 +98,7 @@ export default function PreviewDesign({
           <BlockStack gap="300">
             <Text as="h3">Button background</Text>
             <RadioButton
-              label="Single Colour Background" // checked={value === 'disabled'}
+              label="Single Colour Background" 
               onChange={() => {
                 setDesignFields((prev) => ({
                   ...prev,
@@ -147,7 +147,9 @@ export default function PreviewDesign({
               checked={designFields.buttonStyle === "gradient"}
             />
 
-           {designFields.buttonStyle === "gradient" && (<div style={{ display: "flex",flexDirection: "column", gap: 10 }}> <RangeSlider
+           {designFields.buttonStyle === "gradient" && (
+            <div style={{ display: "flex",flexDirection: "column", gap: 10 }}> 
+            <RangeSlider
               label="Gradient angle degree"
               value={Number(designFields.gradientDegree)}
               onChange={handleRangeSliderChange}

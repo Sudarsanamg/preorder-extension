@@ -21,6 +21,7 @@ import {
   Icon,
   Tabs,
   Banner,
+  InlineStack,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -29,11 +30,13 @@ import {
   useNavigate,
   useFetcher,
   useActionData,
+  Link,
 } from "@remix-run/react";
 import {
   DiscountIcon,
   CalendarCheckIcon,
   DeleteIcon,
+  CashDollarIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
@@ -119,6 +122,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           releaseDate: formData.get("campaignEndDate")
             ? new Date(formData.get("campaignEndDate") as string)
             : undefined,
+          orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
+          customerTags: JSON.parse(
+            (formData.get("customerTags") as string) || "[]",
+          ),
+          discountType: formData.get("discountType") as string,
+          discountPercent: Number(formData.get("discountPercentage") || "0"),
+          discountFixed: Number(formData.get("flatDiscount") || "0"),
         });
 
         const products = JSON.parse(
@@ -219,7 +229,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // if the payment option is partial
 
         if (formData.get("paymentMode") === "partial") {
-          const CREATE_SELLING_PLAN = `
+          const discountType = formData.get("discountType");
+
+          let CREATE_SELLING_PLAN =``;
+          if(discountType=='none'){
+             CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
     sellingPlanGroupCreate(
       input: {
@@ -260,24 +274,150 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 `;
+          }
+          else if(discountType=='percentage'){
+                 CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+            pricingPolicies: [
+            {
+              fixed: {
+                adjustmentType: PERCENTAGE
+                adjustmentValue: { percentage: $discountPercentage }
+              }
+            }
+          ]
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+          }
+          else if(discountType=='flat'){
+                  CREATE_SELLING_PLAN = `
+  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
+    sellingPlanGroupCreate(
+      input: {
+        name: "Deposit Pre-order"
+        merchantCode: "pre-order-deposit"
+        options: ["Pre-order"]
+        sellingPlansToCreate: [
+          {
+            name: "Deposit, balance later"
+            category: PRE_ORDER
+            options: ["Deposit, balance later"]
+            billingPolicy: {
+              fixed: {
+                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+                remainingBalanceChargeTimeAfterCheckout: $days
+              }
+            }
+            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+            inventoryPolicy: { reserve: ON_FULFILLMENT }
+            pricingPolicies: [
+            {
+              fixed: {
+                adjustmentType: FIXED_AMOUNT
+                adjustmentValue: { fixedValue: $fixedValue }
+              }
+            }
+          ]
+            
+          }
+        ]
+      }
+      resources: { productIds: $productIds }
+    ) {
+      sellingPlanGroup {
+        id
+        sellingPlans(first: 1) {
+          edges {
+            node { id }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+          }
+   
           const productIds = products.map((p) => p.id);
 
-          console.log(
-            productIds,
-            Number(formData.get("depositPercent")),
-            "formData >>>>>>>>>>>>>>>>>>>>>>",
-          );
-
           try {
-            let res = await admin.graphql(CREATE_SELLING_PLAN, {
+            let res ;
+            if(discountType=='none'){
+            res = await admin.graphql(CREATE_SELLING_PLAN, {
               variables: {
                 productIds,
                 percentage: Number(formData.get("depositPercent")),
                 days: "P7D",
               },
             });
+          }
+
+          else if(discountType=='percentage'){
+            res = await admin.graphql(CREATE_SELLING_PLAN, {
+              variables: {
+                productIds,
+                percentage: Number(formData.get("depositPercent")),
+                days: "P7D",
+                discountPercentage: Number(formData.get("discountPercentage")),
+              },
+            });
+            }
+            else if(discountType=='flat'){
+              res = await admin.graphql(CREATE_SELLING_PLAN, {
+                variables: {
+                  productIds,
+                  percentage: Number(formData.get("depositPercent")),
+                  days: "P7D",
+                  fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
+                },
+              }
+              )
+            }
+
 
             res = await res.json();
+            console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
           } catch (error) {
             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
           }
@@ -382,7 +522,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 {
                   key: "shipping_message",
                   value:
-                    (formData.get("shippingMessage") as string) || "No message",
+                    (formData.get("shippingMessage") as string) || "Ship as soon as possible",
                 },
                 {
                   key: "payment_type",
@@ -404,6 +544,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     (formData.get("campaignEndDate") as string) || Date.now(),
                   ).toISOString(),
                 },
+                {
+                  key: "discount_type",
+                  value: (formData.get("discountType") as string) || "none",
+
+                },
+                {
+                  key: "discountpercent",
+                  value: (formData.get("discountPercentage") as string) || "0",
+                },
+                {
+                  key: "discountfixed",
+                  value: (formData.get("flatDiscount") as string) || "0",
+                },
+                {
+                  key:"campaigntags",
+                  value: JSON.parse((formData.get("orderTags") as string) || "[]").join(",")
+                }
               ],
             },
           });
@@ -472,7 +629,9 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
   const [campaignName, setCampaignName] = useState("");
   const [selected, setSelected] = useState(0);
   const [productTagInput, setProductTagInput] = useState("");
-  const [productTags, setProductTags] = useState([]);
+  const [customerTagInput, setCustomerTagInput] = useState("");
+  const [productTags, setProductTags] = useState<string[]>([]);
+  const [customerTags, setCustomerTags] = useState<string[]>([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
   const [selectedOption, setSelectedOption] = useState(2);
@@ -536,6 +695,10 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
   const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
     "Pay {payment} now and {remaining} will be charged on {date}",
   );
+  const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
+  const [discountType, setDiscountType] = useState("none");
+  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [flatDiscount, setFlatDiscount] = useState(0);
   const payment = 3.92;
   const remaining = 35.28;
 
@@ -663,16 +826,35 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     }
   };
 
-  const handleSubmit = () => {
-    if (
-      !campaignName ||
-      !partialPaymentPercentage ||
-      !DueDateinputValue ||
-      selectedProducts.length === 0
-    ) {
-      alert("Please fill all required fields and add at least one product.");
-      return;
+  const handleKeyDownCustomerTag = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && customerTagInput.trim() !== "") {
+      setCustomerTags((prev) => [...prev, customerTagInput.trim()]);
+      setCustomerTagInput("");
+      event.preventDefault();
     }
+  
+  };
+
+  const handleButtonClick = useCallback(
+    (index: number) => {
+      if (activeButtonIndex === index) return;
+      setActiveButtonIndex(index);
+      setDiscountType(index === 0 ? "percentage" : "flat");
+    },
+    [activeButtonIndex],
+  );
+
+
+  const handleSubmit = () => {
+    // if (
+    //   !campaignName ||
+    //   !partialPaymentPercentage ||
+    //   !DueDateinputValue ||
+    //   selectedProducts.length === 0
+    // ) {
+    //   alert("Please fill all required fields and add at least one product.");
+    //   return;
+    // }
 
     console.log("function hit");
     const formData = new FormData();
@@ -688,6 +870,11 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     formData.append("shippingMessage", String(shippingMessage));
     formData.append("paymentMode", String(paymentMode));
     formData.append("designFields", JSON.stringify(designFields));
+    formData.append("discountType", discountType);
+    formData.append("discountPercentage", String(discountPercentage));
+    formData.append("flatDiscount", String(flatDiscount));
+    formData.append("orderTags", JSON.stringify(productTags));
+    formData.append("customerTags", JSON.stringify(customerTags));
 
     submit(formData, { method: "post" });
   };
@@ -730,6 +917,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
 
   useEffect(() => {
     let flag = false;
+    if(!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
       if (productsWithPreorder[i].preorder == true) {
         flag = true;
@@ -747,12 +935,25 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
 
   const handleDuplication =(id: any)=>  {
 
-   const prod = productsWithPreorder.find((product: any) => product.id === id);
+   const prod = productsWithPreorder?.find((product: any) => product.id === id);
    if (prod && prod.preorder == true) {
      return true;
    }
 
    return false;
+  }
+
+  function handleRemoveTag(index: number): void {
+    const updatedTags = [...productTags];
+    updatedTags.splice(index, 1);
+    setProductTags(updatedTags);
+  }
+
+  function handleRemoveCustomerTag(index: number) {
+    const updatedTags =[...customerTags];
+    updatedTags.splice(index, 1);
+    setCustomerTags(updatedTags);
+
   }
 
   return (
@@ -761,16 +962,13 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
         title="Create Preorder campaign"
         backAction={{
           content: "Back",
-          onAction: () => navigate("/app"), // <-- Remix navigate
-        }} // primaryAction={{
-        //   content: "Publish",
-        //   onAction: handleSubmit,
-        // }}
+          onAction: () => navigate("/app"),
+        }}
+        primaryAction={{
+          content: "Publish",
+          onAction: handleSubmit,
+        }}
       >
-        {/* <Link to="/your-route">Go to route</Link> */}
-
-        {/* <Button onClick={handleNavigation}>Create Campaign</Button> */}
-
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
 
         <form method="post" onSubmit={handleSubmit}>
@@ -811,7 +1009,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
           <div
             style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
           >
-            <button
+            {/* <button
               type="submit"
               style={{
                 backgroundColor: "black",
@@ -821,7 +1019,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
               }}
             >
               Publish
-            </button>
+            </button> */}
           </div>
           <SaveBar id="my-save-bar">
             <button variant="primary" onClick={handleSave}></button>
@@ -952,6 +1150,60 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                       autoComplete="off"
                     />
                   </Card>
+                </div>
+
+                {/* discount */}
+                <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <BlockStack gap={"300"}>
+                    <Text as="h4" variant="headingSm">
+                      Discount
+                    </Text>
+                    <Text as="p" variant="bodyMd">
+                      Only works with{" "}
+                      <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
+                        Shopify Payments
+                      </Link>{" "}
+                    </Text>
+                    <InlineStack gap="400">
+                  <ButtonGroup variant="segmented">
+                    <Button
+                      pressed={activeButtonIndex === 0}
+                      onClick={() => handleButtonClick(0)}
+                      icon={DiscountIcon}
+                    >
+                     
+                    </Button>
+                    <Button
+                      pressed={activeButtonIndex === 1}
+                      onClick={() => handleButtonClick(1)}
+                      icon={CashDollarIcon}
+                    >
+                    </Button>
+                  </ButtonGroup>
+                  <TextField 
+                  suffix={activeButtonIndex === 0 ? "%" : "₹"}
+                  id="discount"
+                  type="number"
+                  value={activeButtonIndex === 0 ? discountPercentage : flatDiscount}
+                  onChange={(val) => {
+                    if(activeButtonIndex === 0){
+                      setDiscountPercentage(Number(val));
+                    }else{
+                      setFlatDiscount(Number(val));
+                    }
+                  }}
+                  />
+                  </InlineStack>
+                  {
+                    (activeButtonIndex === 0 && discountPercentage <0 || discountPercentage >=100 )? <Text as="p" variant="bodyMd" tone="critical">Please enter valid discount percentage between 0 and 99</Text> : null
+                  }
+
+                  <Text as="p" variant="bodyMd">Can't see discount/strike through price? <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">Contact support</Link></Text>
+
+                  </BlockStack>
+                  </Card>
+
                 </div>
 
                 {/* preorder Note */}
@@ -1183,6 +1435,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                 </div>
                 <div style={{ marginTop: 20 }}>
                   <Card>
+                    <BlockStack gap={"200"}>
                     <Text as="h4" variant="headingSm">
                       Order tags
                     </Text>
@@ -1199,6 +1452,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                     </Text>
                     <div>
                       {productTags.map((tag, index) => (
+                        <div key={index} style={{ display: "inline-block" }}>
                         <span
                           key={index}
                           style={{
@@ -1206,12 +1460,57 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                             backgroundColor: "gray",
                             padding: 5,
                             borderRadius: 5,
+                            position: "relative",
                           }}
                         >
-                          {tag}
+                          {tag} 
+                          <button style={{backgroundColor:'gray' ,padding:5 ,border:'none'}} onClick={() => handleRemoveTag(index)}>X</button>
                         </span>
+                        </div>
                       ))}
                     </div>
+                    </BlockStack>
+                  </Card>
+                </div>
+                 <div style={{ marginTop: 20 }}>
+                  <Card>
+                    <BlockStack gap={"200"}>
+                    <Text as="h4" variant="headingSm">
+                      Customer tags
+                    </Text>
+                    <div onKeyDown={handleKeyDownCustomerTag}>
+                      <TextField
+                        label="Customer Tags"
+                        value={customerTagInput}
+                        onChange={(value) => setCustomerTagInput(value)} // Polaris style
+                        autoComplete="off"
+                      />
+                    </div>
+                    <Text as="h4" variant="headingSm">
+                      For customers who placed preorders
+                    </Text>
+                    <div>
+                      {customerTags.map((tag, index) => (
+                        <div key={index} style={{ display: "inline-block" }}>
+                        <span
+                          key={index}
+                          style={{
+                            marginRight: 5,
+                            backgroundColor: "gray",
+                            padding: 5,
+                            borderRadius: 5,
+                            position: "relative",
+                          }}
+                        >
+                          {tag} 
+                          <button style={{backgroundColor:'gray' ,padding:5 ,border:'none'}} onClick={(key) =>{
+                            handleRemoveCustomerTag(index)
+                          }}>X</button>
+                        </span>
+                        </div>
+                      ))}
+                    </div>
+                    </BlockStack>
                   </Card>
                 </div>
                 <div style={{ marginTop: 20 }}>
@@ -1249,9 +1548,22 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                         White T-shirt
                       </Text>
                       <div style={{ marginTop: 10 }}>
+                        <InlineStack gap="200" >
                         <Text as="h1" variant="headingMd">
-                          ₹499.00
+                          
+                          {discountPercentage ===0 && flatDiscount === 0 ? 
+                          <Text as="h1" variant="headingLg">₹499.00</Text> :
+                          
+                          <Text as="h1" variant="headingLg">{(activeButtonIndex === 0 && discountPercentage !== 0)
+                              ? '₹'+(499.00-((499.00*discountPercentage)/100)).toFixed(2)
+                              : ((499.00-(flatDiscount)) > 0) ? '₹'+ (499.00-(flatDiscount)) : '₹'+ 0}
+                              </Text>
+                          }
                         </Text>
+                        { discountPercentage ===0 && flatDiscount === 0 ? null :<Text as="h1" variant="headingMd" textDecorationLine="line-through">
+                          ₹499.00
+                        </Text>}
+                        </InlineStack>
                       </div>
                     </div>
                     <div style={{ marginTop: 20 }}>
@@ -1461,185 +1773,194 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
             )}
             {selectedProducts.length > 0 && (
               <div>
-              
-        {warningPopoverActive && <div style={{ padding: "8px" }}>
-          <Banner
-            title="Some of the products are assigned to multiple campaigns"
-            tone="warning"
-          >
-            <p>
-              Highlighted products are assigned to multiple Preorder campaigns.
-              When publishing this campaign products will be removed from other
-              campaigns.
-            </p>
-          </Banner>
-        </div> }
-              <Card title="Selected Products">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "10px",
-                  }}
-                >
-                  <div>
-                    <TextField
-                      // label="Search products"
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                      autoComplete="off"
-                      placeholder="Search by product name"
-                    />
+                {warningPopoverActive && (
+                  <div style={{ padding: "8px" }}>
+                    <Banner
+                      title="Some of the products are assigned to multiple campaigns"
+                      tone="warning"
+                    >
+                      <p>
+                        Highlighted products are assigned to multiple Preorder
+                        campaigns. When publishing this campaign products will
+                        be removed from other campaigns.
+                      </p>
+                    </Banner>
                   </div>
-                  <div>
-                    <ButtonGroup>
-                      <Button onClick={openResourcePicker}>
-                        Add More Products
-                      </Button>
-                      <Button onClick={() => setSelectedProducts([])}>
-                        Remove all Products
-                      </Button>
-                    </ButtonGroup>
+                )}
+                <Card title="Selected Products">
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "10px",
+                    }}
+                  >
+                    <div>
+                      <TextField
+                        // label="Search products"
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        autoComplete="off"
+                        placeholder="Search by product name"
+                      />
+                    </div>
+                    <div>
+                      <ButtonGroup>
+                        <Button onClick={openResourcePicker}>
+                          Add More Products
+                        </Button>
+                        <Button onClick={() => setSelectedProducts([])}>
+                          Remove all Products
+                        </Button>
+                      </ButtonGroup>
+                    </div>
                   </div>
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Image
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Product
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Inventory
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Inventory limit
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Price
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        ></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProducts.map((product) => (
-                        <tr key={product.id} style={{    backgroundColor : handleDuplication(product.id) ? "#ea9898ff" : "",
-}}>
-                          <td
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                      <thead>
+                        <tr>
+                          <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
                             }}
                           >
-                            <img
-                              src={
-                                product.images?.[0]?.originalSrc ||
-                                product.image
-                              }
-                              alt={product.title}
+                            Image
+                          </th>
+                          <th
+                            style={{
+                              padding: "8px",
+                              borderBottom: "1px solid #eee",
+                            }}
+                          >
+                            Product
+                          </th>
+                          <th
+                            style={{
+                              padding: "8px",
+                              borderBottom: "1px solid #eee",
+                            }}
+                          >
+                            Inventory
+                          </th>
+                          <th
+                            style={{
+                              padding: "8px",
+                              borderBottom: "1px solid #eee",
+                            }}
+                          >
+                            Inventory limit
+                          </th>
+                          <th
+                            style={{
+                              padding: "8px",
+                              borderBottom: "1px solid #eee",
+                            }}
+                          >
+                            Price
+                          </th>
+                          <th
+                            style={{
+                              padding: "8px",
+                              borderBottom: "1px solid #eee",
+                            }}
+                          ></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProducts.map((product) => (
+                          <tr
+                            key={product.id}
+                            style={{
+                              backgroundColor: handleDuplication(product.id)
+                                ? "#ea9898ff"
+                                : "",
+                            }}
+                          >
+                            <td
                               style={{
-                                width: 50,
-                                height: 50,
-                                objectFit: "cover",
-                              }}
-                            />
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            {product.title}
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            {product.totalInventory
-                              ? product.totalInventory
-                              : product.inventory}
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                              width: "100px",
-                            }}
-                          >
-                            <TextField
-                              type="number"
-                              min={0}
-                              value={product?.maxUnit?.toString() || "0"} // Polaris expects string
-                              onChange={(value) =>
-                                handleMaxUnitChange(product.id, Number(value))
-                              }
-                            />
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            {product.variants?.[0]?.price || product.price}
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            <div
-                              onClick={() => {
-                                handleRemoveProduct(product.id);
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
                               }}
                             >
-                              <Icon source={DeleteIcon} />
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+                              <img
+                                src={
+                                  product.images?.[0]?.originalSrc ||
+                                  product.image
+                                }
+                                alt={product.title}
+                                style={{
+                                  width: 50,
+                                  height: 50,
+                                  objectFit: "cover",
+                                }}
+                              />
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                              }}
+                            >
+                              {product.title}
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                              }}
+                            >
+                              {product.totalInventory
+                                ? product.totalInventory
+                                : product.inventory}
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                                width: "100px",
+                              }}
+                            >
+                              <TextField
+                                type="number"
+                                min={0}
+                                value={product?.maxUnit?.toString() || "0"} // Polaris expects string
+                                onChange={(value) =>
+                                  handleMaxUnitChange(product.id, Number(value))
+                                }
+                              />
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                              }}
+                            >
+                              {product.variants?.[0]?.price || product.price}
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                              }}
+                            >
+                              <div
+                                onClick={() => {
+                                  handleRemoveProduct(product.id);
+                                }}
+                              >
+                                <Icon source={DeleteIcon} />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
               </div>
             )}
             <Modal id="my-modal">
