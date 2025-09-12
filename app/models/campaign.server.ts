@@ -255,8 +255,35 @@ export async function createOrUpdateEmailSettings(shopId: string, settings: any)
   }
 }
 
+export async function createOrUpdateShippingEmailSettings(shopId: string, settings: any) {
+  const existing = await prisma.shippingEmailSettings.findUnique({
+    where: { shopId },
+  });
+
+  if (existing) {
+    return prisma.shippingEmailSettings.update({
+      where: { shopId },
+      data: settings,
+    });
+  } else {
+    return prisma.shippingEmailSettings.create({
+      data: {
+        shopId,
+        ...settings,
+      },
+    });
+  }
+}
+
+
 export async function getEmailSettings(shopId: string) {
   return prisma.emailSettings.findUnique({
+    where: { shopId },
+  });
+}
+
+export async function getShippingEmailSettings(shopId: string) {
+  return prisma.shippingEmailSettings.findUnique({
     where: { shopId },
   });
 }
@@ -268,8 +295,22 @@ export async function getEmailSettingsStatus(shopId: string) {
   return settings?.enabled ?? false;
 }
 
+export async function getShippingEmailSettingsStatus(shopId: string) {
+  const settings = await prisma.shippingEmailSettings.findUnique({
+    where: { shopId },
+  });
+  return settings?.enabled ?? false;
+}
+
 export async function emailSettingStatusUpdate(shopId: string, enable: string) {
   return prisma.emailSettings.updateMany({
+    where: { shopId },
+    data: { enabled: enable == "true" ? false : true },
+  });
+}
+
+export async function shippingEmailSettingsStatusUpdate(shopId: string, enable: string) {
+  return prisma.shippingEmailSettings.updateMany({
     where: { shopId },
     data: { enabled: enable == "true" ? false : true },
   });

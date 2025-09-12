@@ -18,15 +18,16 @@ import {
 } from "@shopify/polaris";
 import { EmailSettings } from "app/types/type";
 import { hexToHsb } from "app/utils/color";
-import { useCallback, useEffect, useState } from "react";
+import {  useEffect, useState } from "react";
 import {
+  redirect,
   useLoaderData,
   useSubmit,
   // useNavigate,
   // useFetcher,
   // useActionData,
 } from "@remix-run/react";
-import { createOrUpdateEmailSettings } from "app/models/campaign.server";
+import {  createOrUpdateShippingEmailSettings, getShippingEmailSettingsStatus, shippingEmailSettingsStatusUpdate } from "app/models/campaign.server";
 import { authenticate } from "app/shopify.server";
 
 
@@ -45,31 +46,41 @@ export async function loader({ request }: { request: Request }) {
   const data = await response.json();
 
   const shopId = data.data.shop.id; 
-  return shopId;
+  const status  = await getShippingEmailSettingsStatus(shopId); 
+  return {shopId ,status };
 }
 
 export const action = async ({ request }: { request: Request }) => {
-  const { session } = await authenticate.admin(request);
-
-  const formData = await request.formData();
-  const intent = formData.get("intent");
-
-  if (intent === "save-email-preorder-confirmation") {
-    const subject = formData.get("subject");
-    const shopId = formData.get("shopId");
-    // console.log("Shop ID in action:", shopId);
-    const designFields = formData.get("designFields");
-    // console.log("Design Fields:", designFields);
-
-    try {
-      await createOrUpdateEmailSettings(String(shopId), JSON.parse(designFields as string));
-    } catch (error) {
-      console.error("Error saving email settings:", error);
-      return { success: false, error: "Failed to save email settings." };
+   const { session } = await authenticate.admin(request);
+  
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+  
+    if (intent === "save-email-preorder-confirmation") {
+      const subject = formData.get("subject");
+      const shopId = formData.get("shopId");
+      const designFields = formData.get("designFields");
+  
+      try {
+        await createOrUpdateShippingEmailSettings(String(shopId), JSON.parse(designFields as string));
+      } catch (error) {
+        console.error("Error saving email settings:", error);
+        return { success: false, error: "Failed to save email settings." };
+      }
+     
     }
-   
-  }
-  return { success: false };
+    if (intent === "change-status") {
+      const status = formData.get("status");
+      const shopId = formData.get("shopId");
+      try {
+          await shippingEmailSettingsStatusUpdate(String(shopId), status == "true" ? "true" : "false");
+        return { success: true, status: status === "true" };
+      } catch (error) {
+        console.error("Error changing email settings status:", error);
+        redirect("/app");
+      }
+    }
+    return { success: false };
 };
 
 
@@ -78,10 +89,10 @@ export const action = async ({ request }: { request: Request }) => {
 export default function EmailPreorderConfirmationSettings() {
 
   const shopify = useAppBridge();
+    const {shopId ,status }= useLoaderData<typeof loader>();
   // const navigate = useNavigate();
   // const fetcher = useFetcher();
   // const actionData = useActionData();
-  const shopId = useLoaderData<typeof loader>();
   console.log("Shop ID in component:", shopId);
 
   const submit = useSubmit();
@@ -195,13 +206,25 @@ export default function EmailPreorderConfirmationSettings() {
     shopify.saveBar.show('my-save-bar');
   }, [emailSettings, subject]);
 
+   function handleSwitch(status: boolean) {
+    console.log("Toggling status to:", status);
+    const formData = new FormData();
+    formData.append("intent", "change-status");
+    formData.append("status", (status).toString());
+    formData.append("shopId", shopId);
+    submit(formData, { method: "post" });
+    // navigate(0);
+  }
+
   return (
     <Page
       title="Preorder confirmation email"
       backAction={{ content: "Back", url: "/app/" }}
       primaryAction={{
-        content: "Turn On",
-        onAction: () => {},
+        content: status === false ? "Turn On" : "Turn Off",
+        onAction: () => {
+          handleSwitch(status);
+        },
       }}
     >
        <SaveBar id="my-save-bar">

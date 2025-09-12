@@ -22,12 +22,15 @@ import {
   Badge,
   BlockStack,
   Divider,
+  InlineStack,
+  Icon,
 } from "@shopify/polaris";
 
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useState } from "react";
 import { getAllCampaign, getEmailSettingsStatus } from "app/models/campaign.server";
+import { FileIcon } from '@shopify/polaris-icons';
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -289,6 +292,41 @@ export default function Index() {
 
       <div style={{marginTop:20, marginBottom:20}}>
         <Card>
+          <Text as="h4" variant="headingMd"> General settings </Text>
+          <Text as="p" variant="bodyMd">
+            Manage settings that will apply to all preorder campaigns
+          </Text>
+          <div style={{marginTop:20}}>
+          <Card >
+            <InlineStack blockAlign="center" gap={"100"} align="space-between">
+              <InlineStack gap={"100"}>
+              <div>
+              <Icon source={FileIcon} />
+              </div>
+              <BlockStack gap={"100"}>
+                <Text as="h3" variant="bodyMd" fontWeight="medium">
+                  Preorder widget
+                </Text>
+                <Text as="p" tone="subdued" variant="bodySm">
+                  Customize the appearance of the preorder widget
+                </Text>
+              </BlockStack>
+              </InlineStack>
+              <Button
+                onClick={() => {
+                  navigate("/app/settings/preorder-display");
+                }}
+              >Manage</Button>
+            </InlineStack>
+          </Card>
+          </div>
+        </Card>
+      </div>
+
+      <div style={{marginTop:20, marginBottom:20}}>
+        <Card>
+          <Text as="h4" variant="headingMd"> Notifications </Text>
+        <Card >
             <BlockStack gap="500">
               {/* Preorder Confirmation Email */}
               <div>
@@ -346,11 +384,13 @@ export default function Index() {
                     </Text>
                   </div>
                   <div>
-                    <Button size="slim">Manage</Button>
+                    <Button size="slim"
+                      onClick={() => {navigate('/app/settings/email')}}>Manage</Button>
                   </div>
                 </div>
               </div>
             </BlockStack>
+          </Card>
           </Card>
       </div>
     </Page>

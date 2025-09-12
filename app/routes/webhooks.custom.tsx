@@ -17,7 +17,8 @@ export const action = async ({ request }: { request: Request }) => {
     // console.log('Order Number',payload.order_number);
     // console.log(payload);
     console.log(`Received ${topic} webhook for ${shop}`);
-    // console.log(payload);
+    console.log(payload);
+    const products = payload.line_items || [];
     const line_items = payload.line_items || [];
     const productIds = line_items.map((item: any) => item.product_id);
 
@@ -49,6 +50,17 @@ for (const node of GetCampaignIdsQueryResponseBody.data.nodes) {
   if (node?.metafield?.value) {
     campaignIds.push(node.metafield.value);
   }
+}
+//update no of orders for campaign
+for (const campaignId of campaignIds) {
+  await prisma.preorderCampaign.update({
+    where: { id: campaignId },
+    data: {
+      totalOrders: {
+        increment: 1,
+      },
+    },
+  });
 }
 
 // find unique campaign ids
@@ -253,7 +265,7 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
           where: { shopId },
         });
 
-        const emailTemplate = generateEmailTemplate({...emailSettings, orderId: formattedOrderId});
+        const emailTemplate = generateEmailTemplate(emailSettings, products);
 
         const transporter = nodemailer.createTransport({
           service: "Gmail", // or use SMTP/SendGrid/Postmark

@@ -10,7 +10,7 @@ Here’s the numbered list so you can copy the numbers too:
 
 Here’s your list with numbering added:
 #
-1. Enable preorder for selected products or variants via tag or manual switch (Create def via API and delete via API) we need to turn off
+# 1. Enable preorder for selected products or variants via tag or manual switch (Create def via API and delete via API) we need to turn off
 
 # 2. Preorder badge or label display
 # 3. Set release/shipping date per item
@@ -22,7 +22,7 @@ Here’s your list with numbering added:
 
 # 4. Allow full or partial payment (e.g., 30% upfront)
 
-8. Add notes or tags in Shopify Orders to mark as preorder
+# 8. Add notes or tags in Shopify Orders to mark as preorder
 
 
 
@@ -30,7 +30,7 @@ Here’s your list with numbering added:
 12. Handle partial refunds automatically if product release is delayed or canceled
 
 
-9. Email notifications (optional): confirm preorder, notify when item ships, request balance payment
+# 9. Email notifications (optional): confirm preorder, notify when item ships, request balance payment
 
 Reference App:
 Essential Pre-Order

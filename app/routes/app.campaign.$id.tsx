@@ -2472,13 +2472,13 @@ export default function CampaignDetail() {
                           justifyContent: "center",
                           alignItems: "center",
                           backgroundColor:
-                            designFields.buttonStyle === "single"
-                              ? designFields.buttonBackgroundColor
+                            designFields?.buttonStyle === "single"
+                              ? designFields?.buttonBackgroundColor
                               : "black",
                           background:
-                            designFields.buttonStyle === "gradient"
-                              ? `linear-gradient(${designFields.gradientDegree}deg, ${designFields.gradientColor1}, ${designFields.gradientColor2})`
-                              : "black",
+                            designFields?.buttonStyle === "gradient"
+                              ? `linear-gradient(${designFields?.gradientDegree}deg, ${designFields?.gradientColor1}, ${designFields?.gradientColor2})`
+                              :  designFields?.buttonBackgroundColor,
                           borderRadius: designFields.borderRadius + "px",
                           // marginTop: "auto",
                           borderColor: designFields.borderColor,
