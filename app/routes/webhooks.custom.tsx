@@ -321,11 +321,6 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
    console.log("Vaulted payment methods:", JSON.stringify(methods));
    const mandateId = methods?.[0]?.id;
 
-   console.log(
-     "Vaulted payment method ID ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^:",
-     mandateId,
-   );
-
    // 3. Pay the remaining balance on the order
    const CREATE_ORDER_PAYMENT = `
   mutation orderPayment(
@@ -348,6 +343,17 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
   }
 `;
 
+const accessTokenRes = await prisma.session.findFirst({
+  where: {
+    shop: 'us-preorder-store.myshopify.com',
+  },
+  select: {
+    accessToken: true,
+  },
+});
+
+const accessToken = accessTokenRes?.accessToken || '';
+
    const duePaymentCreation = await createDuePayment(
      orderId,
      crypto.randomUUID().replace(/-/g, "").slice(0, 32),
@@ -356,37 +362,38 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
      mandateId,
      new Date(),
      "pending",
+     accessToken
    );
 
    console.log("Due payment created:", duePaymentCreation);
 
-   const res3 = await admin.graphql(CREATE_ORDER_PAYMENT, {
-     variables: {
-       id: orderId, // gid://shopify/Order/12345
-       idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-       amount: {
-         amount: remaining.toString(),
-         currencyCode: "USD",
-       },
-       mandateId: mandateId,
-     },
-   });
-   const { data: paymentData } = await res3.json();
+  //  const res3 = await admin.graphql(CREATE_ORDER_PAYMENT, {
+  //    variables: {
+  //      id: orderId, // gid://shopify/Order/12345
+  //      idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
+  //      amount: {
+  //        amount: remaining.toString(),
+  //        currencyCode: "USD",
+  //      },
+  //      mandateId: mandateId,
+  //    },
+  //  });
+  //  const { data: paymentData } = await res3.json();
 
-   const paymentResult = paymentData?.orderCreateMandatePayment;
-   if (paymentResult?.userErrors?.length) {
-     console.error("Payment errors:", paymentResult.userErrors);
-     throw new Error("Failed to capture payment.");
-   }
+  //  const paymentResult = paymentData?.orderCreateMandatePayment;
+  //  if (paymentResult?.userErrors?.length) {
+  //    console.error("Payment errors:", paymentResult.userErrors);
+  //    throw new Error("Failed to capture payment.");
+  //  }
 
-   console.log("Payment success:", paymentResult?.payment);
-   await orderStatusUpdateByOrderId(orderId);
-   console.log("Order status updated successfully");
+  //  console.log("Payment success:", paymentResult?.payment);
+  //  await orderStatusUpdateByOrderId(orderId);
+  //  console.log("Order status updated successfully");
 
-   await prisma.duePayment.update({
-     where: { orderID: orderId },
-     data: { paymentStatus: "paid" },
-   });
+  //  await prisma.duePayment.update({
+  //    where: { orderID: orderId },
+  //    data: { paymentStatus: "paid" },
+  //  });
  }
     }
 

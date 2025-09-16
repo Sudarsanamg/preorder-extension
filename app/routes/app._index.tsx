@@ -92,7 +92,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://put-honors-jewish-stationery.trycloudflare.com/webhooks/custom",
+            "https://trance-dancing-annually-jefferson.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },
@@ -134,7 +134,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_PAID",
         webhookSubscription: {
           callbackUrl:
-            "https://put-honors-jewish-stationery.trycloudflare.com/webhooks/order_paid",
+            "https://trance-dancing-annually-jefferson.trycloudflare.com/webhooks/order_paid",
           format: "JSON",
         },
       },

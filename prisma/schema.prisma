@@ -39,6 +39,7 @@ model DuePayment {
   mandateId      String
   dueDate        DateTime  @default(now())
   paymentStatus  String
+  accessToken    String?
 }
 
 model PreorderCampaign {

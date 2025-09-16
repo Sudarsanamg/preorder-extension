@@ -334,7 +334,8 @@ export async function createDuePayment(
   currencyCode: string,
   mandateId: string,
   dueDate: Date,
-  paymentStatus: string
+  paymentStatus: string,
+  accessToken: string
 ){
   return prisma.duePayment.create({
     data: {
@@ -344,7 +345,8 @@ export async function createDuePayment(
       currencyCode,
       mandateId,
       dueDate,
-      paymentStatus
+      paymentStatus,
+      accessToken
     },
   });
 }
