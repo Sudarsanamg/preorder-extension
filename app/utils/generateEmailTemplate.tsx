@@ -1,7 +1,7 @@
-export function generateEmailTemplate(emailSettings: any, products: any) {
+export function generateEmailTemplate(emailSettings: any, products: any,orderId: any) {
   const formattedDescription = emailSettings.description.replace(
     "{order}",
-    emailSettings.orderId
+    orderId
   );
 
   const productSection = products
@@ -105,7 +105,7 @@ export function generateEmailTemplate(emailSettings: any, products: any) {
                          : ""
                      }
                    ">
-                  Cancel order ${emailSettings.orderId}
+                  Cancel order ${orderId}
                 </a>
               </td>
             </tr>`

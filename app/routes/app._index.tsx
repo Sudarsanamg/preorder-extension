@@ -31,6 +31,9 @@ import { authenticate } from "../shopify.server";
 import { useState } from "react";
 import { getAllCampaign, getEmailSettingsStatus } from "app/models/campaign.server";
 import { FileIcon } from '@shopify/polaris-icons';
+import preorderCampaignDef from "app/utils/preorderCampaignDef";
+import designSettingsDef from "app/utils/designSettingsDef";
+import productMetafieldDefinitions from "app/utils/productMetafieldDefinitions";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -89,7 +92,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://biz-beautiful-permit-hour.trycloudflare.com//webhooks/custom",
+            "https://put-honors-jewish-stationery.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },
@@ -131,7 +134,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_PAID",
         webhookSubscription: {
           callbackUrl:
-            "https://biz-beautiful-permit-hour.trycloudflare.com/webhooks/order_paid",
+            "https://put-honors-jewish-stationery.trycloudflare.com/webhooks/order_paid",
           format: "JSON",
         },
       },
@@ -149,6 +152,74 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 400 }
     );
   }
+
+   const mutation = `
+      mutation CreateMetaobjectDefinition($definition: MetaobjectDefinitionCreateInput!) {
+        metaobjectDefinitionCreate(definition: $definition) {
+          metaobjectDefinition {
+            id
+            name
+            type
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+   try {
+     const response = await admin.graphql(mutation, {
+       variables: { definition: preorderCampaignDef },
+     });
+     const result = await response.json();
+     console.log("Metaobject definition result:", result);
+     console.log("Response:", JSON.stringify(result, null, 2));
+
+     const designSettingsResponse = await admin.graphql(mutation, {
+       variables: { definition: designSettingsDef },
+     });
+     const designSettingsResponseResult = await designSettingsResponse.json();
+
+     console.log(
+       "Design Response:",
+       JSON.stringify(designSettingsResponseResult, null, 2),
+     );
+     console.log("Metaobject definition result:", designSettingsResponseResult);
+
+     for (const def of productMetafieldDefinitions) {
+       const mutation = `
+    mutation MetafieldDefinitionCreate($definition: MetafieldDefinitionInput!) {
+  metafieldDefinitionCreate(definition: $definition) {
+    createdDefinition {
+      id
+      name
+      key
+      type {
+        name
+        category
+      }
+      ownerType
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+  `;
+
+       const response = await admin.graphql(mutation, {
+         variables: { definition: def },
+       });
+       console.log("Metafield definition result:", response);
+     }
+   } catch (err) {
+     console.error("Failed to create metaobject definition:", err);
+   }
+  
 
   return json({
     success: true,

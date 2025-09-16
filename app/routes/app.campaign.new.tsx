@@ -129,6 +129,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           discountType: formData.get("discountType") as string,
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
+          campaignType: Number(formData.get("campaignType")),
         });
 
         const products = JSON.parse(
@@ -422,6 +423,325 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
           }
         }
+//         else if(formData.get("paymentMode") === "full"){
+//             const discountType = formData.get("discountType");
+
+//           let CREATE_SELLING_PLAN =``;
+//           if(discountType=='none'){
+//              CREATE_SELLING_PLAN = `
+//   mutation CreateSellingPlan($productIds: [ID!]!) {
+//     sellingPlanGroupCreate(
+//       input: {
+//         name: "Full Payment Pre-order"
+//         merchantCode: "pre-order-deposit"
+//         options: ["Pre-order"]
+//         sellingPlansToCreate: [
+//           {
+//             name: "Pay full upfront"
+//             category: PRE_ORDER
+//             options: ["Full payment"]
+//             billingPolicy: {
+//               fixed: {
+//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                
+//               }
+//             }
+//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+//             inventoryPolicy: { reserve: ON_FULFILLMENT }
+//           }
+//         ]
+//       }
+//       resources: { productIds: $productIds }
+//     ) {
+//       sellingPlanGroup {
+//         id
+//         sellingPlans(first: 1) {
+//           edges {
+//             node { id }
+//           }
+//         }
+//       }
+//       userErrors {
+//         field
+//         message
+//       }
+//     }
+//   }
+// `;
+//           }
+//           else if(discountType=='percentage'){
+//                  CREATE_SELLING_PLAN = `
+//   mutation CreateSellingPlan($productIds: [ID!]!, $discountPercentage: Float!) {
+//     sellingPlanGroupCreate(
+//       input: {
+//         name: "Full Payment Pre-order"
+//         merchantCode: "pre-order-full"
+//         options: ["Pre-order"]
+//         sellingPlansToCreate: [
+//           {
+//             name: "Pay full upfront"
+//             category: PRE_ORDER
+//             options: ["Full payment"]
+//             billingPolicy: {
+//               fixed: {
+//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+//               }
+//             }
+//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+//             inventoryPolicy: { reserve: ON_FULFILLMENT }
+//             pricingPolicies: [
+//             {
+//               fixed: {
+//                 adjustmentType: PERCENTAGE
+//                 adjustmentValue: { percentage: $discountPercentage }
+//               }
+//             }
+//           ]
+//           }
+//         ]
+//       }
+//       resources: { productIds: $productIds }
+//     ) {
+//       sellingPlanGroup {
+//         id
+//         sellingPlans(first: 1) {
+//           edges {
+//             node { id }
+//           }
+//         }
+//       }
+//       userErrors {
+//         field
+//         message
+//       }
+//     }
+//   }
+// `;
+//           }
+//           else if(discountType=='flat'){
+//                   CREATE_SELLING_PLAN = `
+//   mutation CreateSellingPlan($productIds: [ID!]!,$fixedValue: Decimal!) {
+//     sellingPlanGroupCreate(
+//       input: {
+//         name: "Full Payment Pre-order"
+//         merchantCode: "pre-order-deposit"
+//         options: ["Pre-order"]
+//         sellingPlansToCreate: [
+//           {
+//             name: "Pay full upfront"
+//             category: PRE_ORDER
+//             options: ["Full payment"]
+//             billingPolicy: {
+//               fixed: {
+//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+//               }
+//             }
+//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+//             inventoryPolicy: { reserve: ON_FULFILLMENT }
+//             pricingPolicies: [
+//             {
+//               fixed: {
+//                 adjustmentType: FIXED_AMOUNT
+//                 adjustmentValue: { fixedValue: $fixedValue }
+//               }
+//             }
+//           ]
+            
+//           }
+//         ]
+//       }
+//       resources: { productIds: $productIds }
+//     ) {
+//       sellingPlanGroup {
+//         id
+//         sellingPlans(first: 1) {
+//           edges {
+//             node { id }
+//           }
+//         }
+//       }
+//       userErrors {
+//         field
+//         message
+//       }
+//     }
+//   }
+// `;
+//           }
+   
+//           const productIds = products.map((p) => p.id);
+
+//           try {
+//             let res ;
+//             if(discountType=='none'){
+//             res = await admin.graphql(CREATE_SELLING_PLAN, {
+//               variables: {
+//                 productIds,
+//               },
+//             });
+//           }
+
+//           else if(discountType=='percentage'){
+//             res = await admin.graphql(CREATE_SELLING_PLAN, {
+//               variables: {
+//                 productIds,
+//                 discountPercentage: Number(formData.get("discountPercentage")),
+//               },
+//             });
+//             }
+//             else if(discountType=='flat'){
+//               res = await admin.graphql(CREATE_SELLING_PLAN, {
+//                 variables: {
+//                   productIds,
+//                   fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
+//                 },
+//               }
+//               )
+//             }
+
+
+//             res = await res.json();
+//             console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP in full payment");
+//           } catch (error) {
+//             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+//           }
+//         }
+
+else  {
+  const discountType = formData.get("discountType");
+  let CREATE_SELLING_PLAN = ``;
+
+  if (discountType === "none") {
+    CREATE_SELLING_PLAN = `
+      mutation CreateSellingPlan($productIds: [ID!]!) {
+        sellingPlanGroupCreate(
+          input: {
+            name: "Full Payment Pre-order"
+            merchantCode: "pre-order-full"
+            options: ["Pre-order"]
+            sellingPlansToCreate: [
+              {
+                name: "Pay full upfront"
+                category: PRE_ORDER
+                options: ["Full payment"]
+                billingPolicy: {
+                  fixed: {
+                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
+                  }
+                }
+                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                inventoryPolicy: { reserve: ON_FULFILLMENT }
+              }
+            ]
+          }
+          resources: { productIds: $productIds }
+        ) {
+          sellingPlanGroup { id }
+          userErrors { field message }
+        }
+      }
+    `;
+  } else if (discountType === "percentage") {
+    CREATE_SELLING_PLAN = `
+      mutation CreateSellingPlan($productIds: [ID!]!, $discountPercentage: Float!) {
+        sellingPlanGroupCreate(
+          input: {
+            name: "Full Payment Pre-order"
+            merchantCode: "pre-order-full"
+            options: ["Pre-order"]
+            sellingPlansToCreate: [
+              {
+                name: "Pay full upfront"
+                category: PRE_ORDER
+                options: ["Full payment"]
+                billingPolicy: {
+                  fixed: {
+                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
+                  }
+                }
+                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                inventoryPolicy: { reserve: ON_FULFILLMENT }
+                pricingPolicies: [
+                  {
+                    fixed: {
+                      adjustmentType: PERCENTAGE
+                      adjustmentValue: { percentage: $discountPercentage }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+          resources: { productIds: $productIds }
+        ) {
+          sellingPlanGroup { id }
+          userErrors { field message }
+        }
+      }
+    `;
+  } else if (discountType === "flat") {
+    CREATE_SELLING_PLAN = `
+      mutation CreateSellingPlan($productIds: [ID!]!, $fixedValue: Decimal!) {
+        sellingPlanGroupCreate(
+          input: {
+            name: "Full Payment Pre-order"
+            merchantCode: "pre-order-full"
+            options: ["Pre-order"]
+            sellingPlansToCreate: [
+              {
+                name: "Pay full upfront"
+                category: PRE_ORDER
+                options: ["Full payment"]
+                billingPolicy: {
+                  fixed: {
+                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
+                  }
+                }
+                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                inventoryPolicy: { reserve: ON_FULFILLMENT }
+                pricingPolicies: [
+                  {
+                    fixed: {
+                      adjustmentType: FIXED_AMOUNT
+                      adjustmentValue: { amount: $fixedValue }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+          resources: { productIds: $productIds }
+        ) {
+          sellingPlanGroup { id }
+          userErrors { field message }
+        }
+      }
+    `;
+  }
+
+  const productIds = products.map((p) => p.id);
+
+  try {
+    const response = await admin.graphql(CREATE_SELLING_PLAN, {
+      variables:
+        discountType === "percentage"
+          ? { productIds, discountPercentage: Number(formData.get("discountPercentage")) }
+          : discountType === "flat"
+          ? { productIds, fixedValue: (formData.get("flatDiscount") ?? "0").toString() }
+          : { productIds },
+    });
+
+    const data = await response.json();
+console.log(JSON.stringify(data, null, 2), "res >>>>>>>>>>>>>>>>>>>>>> SGP in full payment");
+  } catch (error) {
+    console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+  }
+}
+
+
 
         const designFields = JSON.parse(formData.get("designFields") as string);
         console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
@@ -502,6 +822,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             variables: { fields },
           });
 
+          const result = await response.json();
+      console.log("design Metaobject:", JSON.stringify(result, null, 2));
+
         
 
           const campaign_response = await admin.graphql(campaign_mutation, {
@@ -514,7 +837,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     (formData.get("name") as string) || "Untitled Campaign",
                 },
                 { key: "status", value: "publish" },
-                { key: "campaign_type", value: String(2) }, // must be string
                 {
                   key: "button_text",
                   value: (formData.get("buttonText") as string) || "Preorder",
@@ -560,7 +882,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 {
                   key:"campaigntags",
                   value: JSON.parse((formData.get("orderTags") as string) || "[]").join(",")
+                },
+                {
+                  key:"campaigntype",
+                  value: String(formData.get("campaignType") as string)
                 }
+
               ],
             },
           });
@@ -570,6 +897,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             parsedCampaignResponse,
             "parsedResponse >>>>>>>>>>>>>>>>>>>>>>",
           );
+            console.log("store meta Metaobject //////:", JSON.stringify(parsedCampaignResponse, null, 2));
+
+
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
         }
@@ -875,6 +1205,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     formData.append("flatDiscount", String(flatDiscount));
     formData.append("orderTags", JSON.stringify(productTags));
     formData.append("customerTags", JSON.stringify(customerTags));
+    formData.append('campaignType', String(selectedOption));
 
     submit(formData, { method: "post" });
   };

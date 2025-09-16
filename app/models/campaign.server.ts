@@ -21,6 +21,7 @@ export async function createPreorderCampaign(data: {
   discountType?: string;
   discountPercent?: number;
   discountFixed?: number;
+  campaignType?: number;
 }) {
   return prisma.preorderCampaign.create({
     data: {
@@ -36,6 +37,7 @@ export async function createPreorderCampaign(data: {
       discountType: data.discountType,
       discountPercent: data.discountPercent,
       discountFixed: data.discountFixed,
+      campaignType: data.campaignType
     },
   });
 }
@@ -50,6 +52,7 @@ export async function updateCampaign(data:{
   releaseDate?: Date;
   status?: string;
   campaignEndDate?: Date;
+  campaignType: number;
 }) {
   return prisma.preorderCampaign.update({
     where: {
@@ -62,6 +65,7 @@ export async function updateCampaign(data:{
       refundDeadlineDays: data.refundDeadlineDays,
       releaseDate: data.releaseDate,
       status: data.status ?? "active",
+      campaignType: data.campaignType,
       campaignEndDate: data.campaignEndDate ? data.campaignEndDate : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   })
@@ -200,7 +204,7 @@ export async function createOrder({
   order_id: string;
   draft_order_id: string;
   dueDate: Date;
-  balanceAmount: number;
+  balanceAmount?: number;
   paymentStatus: string;
 }) {
   try {
@@ -226,6 +230,13 @@ export async function orderStatusUpdate(orderdraft_order_id: string, paymentStat
   return prisma.campaignOrders.update({
     where: { draft_order_id: orderdraft_order_id },
     data: { paymentStatus },
+  })
+}
+
+export async function orderStatusUpdateByOrderId(orderId: string) {
+  return prisma.campaignOrders.update({
+    where: { order_id: orderId },
+    data: { paymentStatus: "paid" },
   })
 }
 
@@ -313,5 +324,27 @@ export async function shippingEmailSettingsStatusUpdate(shopId: string, enable: 
   return prisma.shippingEmailSettings.updateMany({
     where: { shopId },
     data: { enabled: enable == "true" ? false : true },
+  });
+}
+
+export async function createDuePayment(
+  orderID: string,
+  idempotencyKey: string,
+  amount: string,
+  currencyCode: string,
+  mandateId: string,
+  dueDate: Date,
+  paymentStatus: string
+){
+  return prisma.duePayment.create({
+    data: {
+      orderID,
+      idempotencyKey,
+      amount,
+      currencyCode,
+      mandateId,
+      dueDate,
+      paymentStatus
+    },
   });
 }

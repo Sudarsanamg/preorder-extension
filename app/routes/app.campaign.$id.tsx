@@ -180,6 +180,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         releaseDate: formData.get("campaignEndDate")
           ? new Date(formData.get("campaignEndDate") as string)
           : undefined,
+        campaignType: Number(formData.get("campaignType")),
       });
 
       console.log(updatedCampaign, "updated campaign");
@@ -276,6 +277,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           (formData.get("campaignEndDate") as string) || Date.now(),
         ).toISOString(),
       },
+      {
+        key: "campaigntype",
+        value: String(formData.get("campaignType") || "0"),
+      }
     ];
 
     const campaignUpdateResponse = await admin.graphql(updateCampaignMutation, {
@@ -835,6 +840,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
                  discountType: formData.get("discountType") as string,
                  discountPercent: Number(formData.get("discountPercentage") || "0"),
                  discountFixed: Number(formData.get("flatDiscount") || "0"),
+                 campaignType: Number(formData.get("campaignType")),
                });
        
                const products = JSON.parse(
@@ -1266,6 +1272,10 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
                        {
                          key:"campaigntags",
                          value: JSON.parse((formData.get("orderTags") as string) || "[]").join(",")
+                       },
+                       {
+                        key:"campaigntype",
+                        value: (formData.get("campaignType") as string)
                        }
                      ],
                    },
@@ -1338,7 +1348,7 @@ export default function CampaignDetail() {
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
   const [selectedOption, setSelectedOption] = useState(
-    Number(campaignSettingsMap?.campaign_type),
+    Number(campaignSettingsMap?.campaigntype),
   );
   const [buttonText, setButtonText] = useState(campaignSettingsMap?.button_text);
   const [shippingMessage, setShippingMessage] = useState(
@@ -1599,6 +1609,7 @@ export default function CampaignDetail() {
     formData.append("shippingMessage", String(shippingMessage));
     formData.append("paymentMode", String(paymentMode));
     formData.append("designFields", JSON.stringify(designFields));
+    formData.append("campaignType",String(selectedOption));
     submit(formData, { method: "post" });
   };
 
@@ -1676,6 +1687,7 @@ export default function CampaignDetail() {
     formData.append("flatDiscount", String(flatDiscount));
     formData.append("orderTags", JSON.stringify(productTags));
     formData.append("customerTags", JSON.stringify(customerTags));
+    formData.append("campaignType",String(selectedOption)); 
 
     submit(formData, { method: "post" });
   }

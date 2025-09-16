@@ -3,11 +3,59 @@ document.addEventListener("DOMContentLoaded", function () {
   const addToCartBtn = document.querySelector("form[action*='/cart/add'] [type='submit']");
    const productData = document.getElementById("product-data");
   const isPreorder = productData?.dataset.preorder === "true";
-  
-  if (buyNowBtn && addToCartBtn && isPreorder) {
+  const campaignData = document.getElementById("campaign-data");
+  const campaignType = parseInt(campaignData?.dataset.campaignType, 10);
+
+    // Replace this with the actual value, e.g. from a data attribute or server-rendered variable
+const stockEl = document.getElementById("product-stock");
+const inStock = stockEl?.dataset.inStock === "true";
+
+function hideNormalButtons(){
+  if (buyNowBtn && addToCartBtn) {
     buyNowBtn.style.display = "none";
     addToCartBtn.style.display = "none";
   }
+}
+
+function hidePreorderButton(){
+  const preorderBtn = document.querySelector(".preorder-button");
+  if (preorderBtn) {
+    preorderBtn.style.display = "none";
+    
+  }
+}
+
+function disableNormalButtons(){
+  if (buyNowBtn && addToCartBtn) {
+    buyNowBtn.disabled = true;
+    addToCartBtn.disabled = true;
+  }
+}
+
+  if (campaignType === 1) {
+    // Preorder only if OUT OF STOCK
+    if (!inStock) {
+      hideNormalButtons();
+
+    } else {
+      hidePreorderButton();
+
+    }
+  } else if (campaignType === 2) {
+    // Always Preorder
+    hideNormalButtons();
+  } else if (campaignType === 3) {
+    // Preorder only if IN STOCK
+    if (inStock) {
+      hideNormalButtons();
+      
+    } else {
+      disableNormalButtons();
+      hidePreorderButton();
+
+    }
+  }
+
     
   const preorderBtn = document.querySelector(".preorder-button");
   const sellingPlanData = document.getElementById("selling-plan-data");

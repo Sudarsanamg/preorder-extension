@@ -1,6 +1,8 @@
 import {
+  createDuePayment,
   createOrder,
   findOrder,
+  orderStatusUpdateByOrderId,
   updateOrderPaymentStatus,
 } from "app/models/campaign.server";
 import { authenticate } from "../shopify.server";
@@ -16,8 +18,8 @@ export const action = async ({ request }: { request: Request }) => {
     console.log("Webhook hitted");
     // console.log('Order Number',payload.order_number);
     // console.log(payload);
-    console.log(`Received ${topic} webhook for ${shop}`);
-    console.log(payload);
+    // console.log(`Received ${topic} webhook for ${shop}`);
+    // console.log(payload);
     const products = payload.line_items || [];
     const line_items = payload.line_items || [];
     const productIds = line_items.map((item: any) => item.product_id);
@@ -120,10 +122,10 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
   const AddTagsToOrderMutationResponseBody =
     await AddTagsToOrderMutationResponse.json();  
-  console.log(
-    AddTagsToOrderMutationResponseBody,
-    "AddTagsToOrderMutationResponseBody >>>>>>>>>>>>>>>>>>>>>>",
-  );
+  // console.log(
+  //   AddTagsToOrderMutationResponseBody,
+  //   "AddTagsToOrderMutationResponseBody >>>>>>>>>>>>>>>>>>>>>>",
+  // );
 }
 
     if (topic === "ORDERS_CREATE") {
@@ -141,6 +143,8 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
       const remaining = Number(secondSchedule?.amount);
 
       // console.log("💰 Remaining balance to invoice:", remaining);
+              const uuid = uuidv4();
+
 
       // // Draft order mutation
       if (remaining > 0) {
@@ -165,7 +169,6 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
         }
       `;
 
-        const uuid = uuidv4();
 
         const variables = {
           input: {
@@ -205,36 +208,39 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
         const draftOrderId = data.data.draftOrderCreate.draftOrder.id;
 
-        const emailMutation = `
-        mutation sendInvoice($id: ID!, $email: EmailInput!) {
-          draftOrderInvoiceSend(id: $id, email: $email) {
-            draftOrder {
-              id
-              invoiceUrl
-            }
-            userErrors {
-              field
-              message
-            }
+      //   const emailMutation = `
+      //   mutation sendInvoice($id: ID!, $email: EmailInput!) {
+      //     draftOrderInvoiceSend(id: $id, email: $email) {
+      //       draftOrder {
+      //         id
+      //         invoiceUrl
+      //       }
+      //       userErrors {
+      //         field
+      //         message
+      //       }
+      //     }
+      //   }
+      // `;
+
+      //   // Call Shopify Admin API
+      //   const emailResponse = await admin.graphql(emailMutation, {
+      //     variables: {
+      //       id: draftOrderId,
+      //       email: {
+      //         to: customerEmail,
+      //       },
+      //     },
+      //   });
+
+      //   const emailData = await emailResponse.json();
+      //   console.log(
+      //     "📧 Invoice send response:",
+      //     JSON.stringify(emailData, null, 2),
+          
+      //   );
+
           }
-        }
-      `;
-
-        // Call Shopify Admin API
-        const emailResponse = await admin.graphql(emailMutation, {
-          variables: {
-            id: draftOrderId,
-            email: {
-              to: customerEmail,
-            },
-          },
-        });
-
-        const emailData = await emailResponse.json();
-        console.log(
-          "📧 Invoice send response:",
-          JSON.stringify(emailData, null, 2),
-        );
 
         const newOrder = await createOrder({
           order_number,
@@ -265,7 +271,7 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
           where: { shopId },
         });
 
-        const emailTemplate = generateEmailTemplate(emailSettings, products);
+        const emailTemplate = generateEmailTemplate(emailSettings, products,formattedOrderId);
 
         const transporter = nodemailer.createTransport({
           service: "Gmail", // or use SMTP/SendGrid/Postmark
@@ -285,8 +291,103 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
         } catch (error) {
           console.error("❌ Email send error:", error);
         }
-      }
       // }
+
+ if (remaining > 0) {
+   console.log("🚀 Starting mandate creation process...");
+   // 1. Get customer's vaulted payment method
+   const QUERY = `
+    query getOrderVaultedMethods($id: ID!) {
+      order(id: $id) {
+        paymentCollectionDetails {
+          vaultedPaymentMethods {
+            id
+          }
+          additionalPaymentCollectionUrl
+        }
+      }
+    }
+  `;
+
+   const response = await admin.graphql(QUERY, {
+     variables: { id: orderId },
+   });
+
+   const { data } = await response.json();
+
+   console.log(data);
+
+   const methods = data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
+   console.log("Vaulted payment methods:", JSON.stringify(methods));
+   const mandateId = methods?.[0]?.id;
+
+   console.log(
+     "Vaulted payment method ID ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^:",
+     mandateId,
+   );
+
+   // 3. Pay the remaining balance on the order
+   const CREATE_ORDER_PAYMENT = `
+  mutation orderPayment(
+    $id: ID!,
+    $idempotencyKey: String!,
+    $amount: MoneyInput!,
+    $mandateId: ID!
+  ) {
+    orderCreateMandatePayment(
+      id: $id
+      idempotencyKey: $idempotencyKey
+      amount: $amount
+      mandateId: $mandateId
+    ) {
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+   const duePaymentCreation = await createDuePayment(
+     orderId,
+     crypto.randomUUID().replace(/-/g, "").slice(0, 32),
+     remaining.toString(),
+     "USD",
+     mandateId,
+     new Date(),
+     "pending",
+   );
+
+   console.log("Due payment created:", duePaymentCreation);
+
+   const res3 = await admin.graphql(CREATE_ORDER_PAYMENT, {
+     variables: {
+       id: orderId, // gid://shopify/Order/12345
+       idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
+       amount: {
+         amount: remaining.toString(),
+         currencyCode: "USD",
+       },
+       mandateId: mandateId,
+     },
+   });
+   const { data: paymentData } = await res3.json();
+
+   const paymentResult = paymentData?.orderCreateMandatePayment;
+   if (paymentResult?.userErrors?.length) {
+     console.error("Payment errors:", paymentResult.userErrors);
+     throw new Error("Failed to capture payment.");
+   }
+
+   console.log("Payment success:", paymentResult?.payment);
+   await orderStatusUpdateByOrderId(orderId);
+   console.log("Order status updated successfully");
+
+   await prisma.duePayment.update({
+     where: { orderID: orderId },
+     data: { paymentStatus: "paid" },
+   });
+ }
     }
 
     // if(topic === "ORDERS_UPDATE"){
@@ -296,7 +397,7 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
     if (topic === "DRAFT_ORDERS_UPDATE") {
       console.log("🛒 Draft payment update hitted");
-      console.log(payload);
+      // console.log(payload);
     }
   } catch (error) {
     console.error("❌ Webhook error:", error);
