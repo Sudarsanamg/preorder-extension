@@ -1,3 +1,4 @@
+import { ActionFunctionArgs, LoaderFunctionArgs, redirect  } from "@remix-run/node";
 import {
   BlockStack,
   Card,
@@ -6,18 +7,102 @@ import {
   Page,
   Text,
 } from "@shopify/polaris";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {SaveBar, useAppBridge} from '@shopify/app-bridge-react';
+import { authenticate } from "../shopify.server";
+import { useLoaderData ,useSubmit} from "@remix-run/react";
+import { getPreorderDisplaySettings, savePreorderDisplay } from "app/models/campaign.server";
+
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  // return storeId;
+  const {admin} = await authenticate.admin(request);
+
+  const query = `{
+    shop {
+      id
+      name
+      myshopifyDomain
+    }
+  }`;
+
+  const response = await admin.graphql(query);
+  const data = await response.json();
+  const shopId = data.data.shop.id;
+  const settings = await getPreorderDisplaySettings(shopId);    
+
+  return {shopId  ,settings};
+};
+
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+  switch (intent) {
+    case "save-preorder-display":{
+      const settings = formData.get("settings");
+      const shopId = formData.get("shopId");
+      try {
+        const response = await savePreorderDisplay(String(shopId), JSON.parse(settings as string));
+        console.log(response,'????????????');
+        redirect('/app');
+      } catch (error) {
+        console.error("Error saving email settings:", error);
+        return { success: false, error: "Failed to save email settings." };
+      }
+    }
+      
+    default:
+      return { error: "Invalid intent" };
+  }
+}
+
+
+
 
 export default function PreorderDisplay() {
+
+  const { shopId ,settings} = useLoaderData<typeof loader>();
+  const settingsData = settings?.settings ?? {};
   const [checked, setChecked] = useState({
-    productPage: true,
-    featuredProducts: true,
-    quickBuy: true,
-    multiplePages: true,
+    productPage: settingsData.productPage ?? true,
+    featuredProducts:  settingsData.featuredProducts ?? true,
+    quickBuy: settingsData.quickBuy ?? true,
+    multiplePages: settingsData.multiplePages ?? true,
+    preOrderDiscount: settingsData.preOrderDiscount ?? true,
   });
+
+    const shopify = useAppBridge();
+    const submit = useSubmit();
+
+     const handleSave = () => {
+    console.log('Saving');
+    const formdata = new FormData();
+    formdata.append("intent", "save-preorder-display");
+    formdata.append("settings", JSON.stringify(checked));
+    formdata.append("shopId",shopId); 
+    submit(formdata, { method: "post" });
+
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  const handleDiscard = () => {
+    console.log('Discarding');
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+
+  useEffect(() => {
+    shopify.saveBar.show("my-save-bar");
+  }, [checked]);
+
 
   return (
     <Page backAction={{ content: "Back", url: "/app/" }} title="Pages:Button">
+      <SaveBar id="my-save-bar">
+        <button variant="primary" onClick={handleSave}></button>
+        <button onClick={handleDiscard}></button>
+      </SaveBar>
       <InlineStack align="space-between" gap={"300"} wrap={false}>
         {/* left */}
         <BlockStack gap={"300"}>
@@ -29,8 +114,23 @@ export default function PreorderDisplay() {
               Preorder button replaces ‘Add to cart’
             </Text>
             <BlockStack gap={"100"}>
-              <Checkbox label="Basic checkbox" checked={true} />
-              <Checkbox label="Featured products" checked={true} />
+              <Checkbox label="Basic checkbox" 
+              onChange={() => {
+                setChecked((prev) => ({
+                  ...prev,
+                  productPage: !prev.productPage,
+                }));
+              }}
+              checked={checked.productPage}
+               />
+              <Checkbox label="Featured products"
+              onChange={() => {
+                setChecked((prev) => ({
+                  ...prev,
+                  featuredProducts: !prev.featuredProducts,
+                }));
+              }}
+               checked={checked.featuredProducts} />
               <div style={{paddingLeft:"20px"}}>
               <Text variant="bodyMd" as="p" >
                 Add Preorder button on featured products in homepage, collection
@@ -40,11 +140,23 @@ export default function PreorderDisplay() {
               <Checkbox
                 label="
 Quick buy modals"
-                checked={true}
+                onChange={() => {
+                  setChecked((prev) => ({
+                    ...prev,
+                    quickBuy: !prev.quickBuy,
+                  }));
+                }}
+                checked={checked.quickBuy}
               />
               <Checkbox
                 label="Product lists in collection, homepage and search pages"
-                checked={true}
+                onChange={() => {
+                  setChecked((prev) => ({
+                    ...prev,
+                    multiplePages: !prev.multiplePages,
+                  }));
+                }}
+                checked={checked.multiplePages}
               />
             </BlockStack>
           </Card>
@@ -54,7 +166,13 @@ Quick buy modals"
             </Text>
             <Checkbox
                 label="Show preorder discount in featured products, quick buy modals and lists"
-                checked={true}
+                onChange={() => {
+                  setChecked((prev) => ({
+                    ...prev,
+                    preOrderDiscount: !prev.preOrderDiscount,
+                  }));
+                }}
+                checked={checked.preOrderDiscount}
               />
           </Card>
         </BlockStack>
@@ -70,7 +188,7 @@ Quick buy modals"
                 <div>
                     <img src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg" alt="" style={{width:"120px" ,height:"50px"}} />
                     <p>Baby T shirt</p>
-                    <button style={{width:"100%" ,backgroundColor:"black",color:"white",border:"none" ,padding:"5px 2px"}}>Preorder</button>
+                    <button style={{width:"100%" ,backgroundColor:"black",color:"white",border:"none" ,padding:"5px 2px"}}>{checked.featuredProducts===true ? "Preorder" : "Add to cart"}</button>
                 </div>
             ))}
             </div>
@@ -118,7 +236,7 @@ Quick buy modals"
                           </span>
                         </div>
                       </div>
-                        <button style={{width:"100%" ,backgroundColor:"black",color:"white",border:"none" ,padding:"7px 3px",marginTop:"20px",borderRadius:"5px"}}>Preorder</button>
+                        <button style={{width:"100%" ,backgroundColor:"black",color:"white",border:"none" ,padding:"7px 3px",marginTop:"20px",borderRadius:"5px"}}>{checked.featuredProducts===true ? "Preorder" : "Add to cart"}</button>
                         <p style={{textAlign:"center"}}>preorder Message</p>
                         <p style={{textAlign:"center"}}>Partial payment message
 </p>

@@ -32,18 +32,19 @@ model Session {
 }
 
 model DuePayment {
-  orderID        String @unique
+  orderID        String   @unique
   idempotencyKey String
   amount         String
   currencyCode   String
   mandateId      String
-  dueDate        DateTime  @default(now())
+  dueDate        DateTime @default(now())
   paymentStatus  String
   accessToken    String?
 }
 
 model PreorderCampaign {
   id                 String                    @id @default(cuid())
+  storeId            String?
   name               String
   campaignType       Int                       @default(2)
   depositPercent     Int
@@ -190,4 +191,19 @@ model ShippingEmailSettings {
   cancelButtonBorderRadius    String   @default("8")
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
+}
+
+model GeneralSettings {
+  id       String @id @unique @default(cuid())
+  storeId  String @unique
+  settings Json
+}
+
+model EmailConfig {
+  id         String  @id @unique @default(cuid())
+  storeId    String  @unique
+  emailId    String?
+  senderType String
+  fromName   String
+  replyName  String
 }

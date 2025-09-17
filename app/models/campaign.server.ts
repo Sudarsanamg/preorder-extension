@@ -350,3 +350,56 @@ export async function createDuePayment(
     },
   });
 }
+
+export async function getPreorderDisplaySettings(storeId: string) {
+  return prisma.generalSettings.findFirst({
+    where: { storeId },
+  });
+}
+
+
+export async function savePreorderDisplay(
+  storeId: string,
+  settings: Prisma.JsonValue
+) {
+  return prisma.generalSettings.upsert({
+    where: { storeId },
+    update: { settings: settings as Prisma.InputJsonValue },
+    create: {
+      storeId,
+      settings: settings as Prisma.InputJsonValue,
+    },
+  });
+}
+
+
+
+export async function EmailConfig(storeId: string, 
+  emailId: string,
+  senderType: string,
+  fromName: string,
+  replyName: string
+) {
+  return prisma.emailConfig.upsert({
+    where: { storeId },
+    update: {
+      emailId,
+      senderType,
+      fromName,
+      replyName
+     },
+    create: {
+      storeId,
+      emailId,
+      senderType,
+      fromName,
+      replyName
+    },
+  });
+}
+
+export async function getPreorderEmailConfig(storeId: string) {
+  return prisma.emailConfig.findFirst({
+    where: { storeId },
+  });
+}

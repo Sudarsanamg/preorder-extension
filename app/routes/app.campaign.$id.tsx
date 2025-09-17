@@ -1437,6 +1437,15 @@ export default function CampaignDetail() {
   const [discountType, setDiscountType] = useState(
     campaignSettingsMap?.discount_type
   );
+  useEffect(()=>{
+    if(discountType === 'percentage'){
+      setActiveButtonIndex(0)
+    }
+    else if(discountType === 'fixed'){
+      setActiveButtonIndex(1)
+    }
+  },[discountType])
+
   const [discountPercentage, setDiscountPercentage] = useState(
     Number(campaignSettingsMap?.discountpercent),
   );
@@ -2026,7 +2035,7 @@ export default function CampaignDetail() {
                           ></Button>
                         </ButtonGroup>
                         <TextField
-                          suffix={activeButtonIndex === 0 ? "%" : "₹"}
+                          suffix={activeButtonIndex === 0 ? "%" : "$"}
                           id="discount"
                           type="number"
                           value={
@@ -2145,7 +2154,7 @@ export default function CampaignDetail() {
                               <div style={{ flex: 1 }}>
                                 <TextField
                                   autoComplete="off"
-                                  suffix={` ${partialPaymentType === "percent" ? "%" : "₹"}`}
+                                  suffix={` ${partialPaymentType === "percent" ? "%" : "$"}`}
                                   value={partialPaymentPercentage}
                                   onChange={setPartialPaymentPercentage}
                                 />
@@ -2410,20 +2419,20 @@ export default function CampaignDetail() {
                           <Text as="h1" variant="headingMd">
                             {discountPercentage === 0 && flatDiscount === 0 ? (
                               <Text as="h1" variant="headingLg">
-                                ₹499.00
+                                $499.00
                               </Text>
                             ) : (
                               <Text as="h1" variant="headingLg">
                                 {activeButtonIndex === 0 &&
                                 discountPercentage !== 0
-                                  ? "₹" +
+                                  ? "$" +
                                     (
                                       499.0 -
                                       (499.0 * discountPercentage) / 100
                                     ).toFixed(2)
                                   : 499.0 - flatDiscount > 0
-                                    ? "₹" + (499.0 - flatDiscount)
-                                    : "₹" + 0}
+                                    ? "$" + (499.0 - flatDiscount)
+                                    : "$" + 0}
                               </Text>
                             )}
                           </Text>
@@ -2434,7 +2443,7 @@ export default function CampaignDetail() {
                               variant="headingMd"
                               textDecorationLine="line-through"
                             >
-                              ₹499.00
+                              $499.00
                             </Text>
                           )}
                         </InlineStack>
@@ -2543,7 +2552,7 @@ export default function CampaignDetail() {
                         style={{ display: "flex", justifyContent: "center" }}
                       >
                         <Text as="h1" variant="headingMd">
-                          Pay ₹3.92 now and ₹35.28 will be charged on{" "}
+                          Pay $3.92 now and $35.28 will be charged on{" "}
                           {DueDateinputValue}
                         </Text>
                       </div>
