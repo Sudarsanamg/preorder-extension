@@ -38,7 +38,6 @@ import productMetafieldDefinitions from "app/utils/productMetafieldDefinitions";
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
  const { admin } = await authenticate.admin(request);
-  const campaigns = await getAllCampaign();
 
   const query = `{
       shop {
@@ -53,6 +52,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopId = data.data.shop.id; 
     const status  = await getEmailSettingsStatus(shopId);
     const emailCampaignStatus = status; 
+    const campaigns = await getAllCampaign(shopId);
   
   return json({ success: true, campaigns,shopId, emailCampaignStatus });
 };

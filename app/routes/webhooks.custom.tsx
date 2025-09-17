@@ -16,9 +16,6 @@ export const action = async ({ request }: { request: Request }) => {
   try {
     const { topic, shop, payload, admin } = await authenticate.webhook(request);
     console.log("Webhook hitted");
-    // console.log('Order Number',payload.order_number);
-    // console.log(payload);
-    // console.log(`Received ${topic} webhook for ${shop}`);
     // console.log(payload);
     const products = payload.line_items || [];
     const line_items = payload.line_items || [];
@@ -122,10 +119,6 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
   const AddTagsToOrderMutationResponseBody =
     await AddTagsToOrderMutationResponse.json();  
-  // console.log(
-  //   AddTagsToOrderMutationResponseBody,
-  //   "AddTagsToOrderMutationResponseBody >>>>>>>>>>>>>>>>>>>>>>",
-  // );
 }
 
     if (topic === "ORDERS_CREATE") {
@@ -133,17 +126,14 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
       const formattedOrderId = orderId.split("/").pop();
       const customerId = payload.customer?.admin_graphql_api_id;
       const order_number = payload.order_number;
-      // console.log("🛒 New order created:", orderId);
       const schedules = payload?.payment_terms?.payment_schedules || [];
       const secondSchedule = schedules[1];
       const customerEmail = payload.email || payload.customer?.email;
-      // console.log(secondSchedule);
 
       // // Calculate remaining amount from your pre-order logic
       const remaining = Number(secondSchedule?.amount);
 
-      // console.log("💰 Remaining balance to invoice:", remaining);
-              const uuid = uuidv4();
+      const uuid = uuidv4();
 
 
       // // Draft order mutation
@@ -242,16 +232,6 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
           }
 
-        const newOrder = await createOrder({
-          order_number,
-          order_id: orderId,
-          draft_order_id: uuid,
-          dueDate: new Date(),
-          balanceAmount: remaining,
-          paymentStatus: "pending",
-        });
-
-        console.log("✅ Order created:", newOrder);
 
         const storeIdQuery = `{
     shop {
@@ -279,6 +259,16 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
           },
+        });
+
+         await createOrder({
+          order_number,
+          order_id: orderId,
+          draft_order_id: uuid,
+          dueDate: new Date(),
+          balanceAmount: remaining,
+          paymentStatus: "pending",
+          storeId : shopId
         });
 
         try {
@@ -321,27 +311,6 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
    console.log("Vaulted payment methods:", JSON.stringify(methods));
    const mandateId = methods?.[0]?.id;
 
-   // 3. Pay the remaining balance on the order
-   const CREATE_ORDER_PAYMENT = `
-  mutation orderPayment(
-    $id: ID!,
-    $idempotencyKey: String!,
-    $amount: MoneyInput!,
-    $mandateId: ID!
-  ) {
-    orderCreateMandatePayment(
-      id: $id
-      idempotencyKey: $idempotencyKey
-      amount: $amount
-      mandateId: $mandateId
-    ) {
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
 
 const accessTokenRes = await prisma.session.findFirst({
   where: {
@@ -367,40 +336,9 @@ const accessToken = accessTokenRes?.accessToken || '';
 
    console.log("Due payment created:", duePaymentCreation);
 
-  //  const res3 = await admin.graphql(CREATE_ORDER_PAYMENT, {
-  //    variables: {
-  //      id: orderId, // gid://shopify/Order/12345
-  //      idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-  //      amount: {
-  //        amount: remaining.toString(),
-  //        currencyCode: "USD",
-  //      },
-  //      mandateId: mandateId,
-  //    },
-  //  });
-  //  const { data: paymentData } = await res3.json();
 
-  //  const paymentResult = paymentData?.orderCreateMandatePayment;
-  //  if (paymentResult?.userErrors?.length) {
-  //    console.error("Payment errors:", paymentResult.userErrors);
-  //    throw new Error("Failed to capture payment.");
-  //  }
-
-  //  console.log("Payment success:", paymentResult?.payment);
-  //  await orderStatusUpdateByOrderId(orderId);
-  //  console.log("Order status updated successfully");
-
-  //  await prisma.duePayment.update({
-  //    where: { orderID: orderId },
-  //    data: { paymentStatus: "paid" },
-  //  });
  }
     }
-
-    // if(topic === "ORDERS_UPDATE"){
-    //   const orderId = payload.admin_graphql_api_id;
-    //   console.log("🛒 Order updated:", orderId);
-    // }
 
     if (topic === "DRAFT_ORDERS_UPDATE") {
       console.log("🛒 Draft payment update hitted");

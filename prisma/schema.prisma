@@ -44,7 +44,7 @@ model DuePayment {
 
 model PreorderCampaign {
   id                 String                    @id @default(cuid())
-  storeId            String?
+  storeId            String
   name               String
   campaignType       Int                       @default(2)
   depositPercent     Int
@@ -97,6 +97,7 @@ model Preorder {
 
 model CampaignOrders {
   id             String   @id @default(cuid())
+  storeId        String?
   order_number   Int      @unique
   order_id       String   @unique
   draft_order_id String   @unique

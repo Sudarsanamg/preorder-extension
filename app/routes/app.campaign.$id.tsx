@@ -1327,7 +1327,7 @@ export default function CampaignDetail() {
     {} as Record<string, string>,
   );
 
-  console.log(campaignSettingsMap, "campaignSettingsMap");
+  // console.log(campaignSettingsMap, "campaignSettingsMap");
 
   const submit = useSubmit();
   const navigate = useNavigate();

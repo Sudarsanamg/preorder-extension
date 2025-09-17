@@ -55,6 +55,18 @@ import type { DesignFields } from "../types/type";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
 
+  const query = `{
+      shop {
+        id
+        name
+        myshopifyDomain
+      }
+    }`;
+  
+    const response = await admin.graphql(query);
+    const data = await response.json();
+    const storeId = data.data.shop.id; 
+
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
 
@@ -123,7 +135,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true });
+  return json({ success: true ,storeId });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -154,6 +166,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "create-campaign": {
         const campaign = await createPreorderCampaign({
           name: formData.get("name") as string,
+          storeId: formData.get("storeId") as string,
           depositPercent: Number(formData.get("depositPercent")),
           balanceDueDate: new Date(formData.get("balanceDueDate") as string),
           refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
@@ -994,7 +1007,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  const { prod } = useLoaderData<typeof loader>();
+  const { prod ,storeId } = useLoaderData<typeof loader>();
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
@@ -1236,6 +1249,7 @@ export default function Newcampaign() {
     const formData = new FormData();
     formData.append("intent", "create-campaign");
     formData.append("name", campaignName);
+    formData.append("storeId",storeId);
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");

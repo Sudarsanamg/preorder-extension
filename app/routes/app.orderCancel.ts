@@ -28,6 +28,11 @@ export const loader = async () => {
         where: { orderID: payment.orderID },
         data: { paymentStatus: "cancelled" },
       });
+
+      await prisma.campaignOrders.update({
+        where: { order_id: payment.orderID },
+        data: { paymentStatus: "cancelled" },
+      })
     } catch (err) {
       console.error("❌ Payment failed:", err);
     }

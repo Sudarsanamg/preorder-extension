@@ -4,8 +4,12 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { Prisma } from "@prisma/client";
 
-export async function getAllCampaign(){
-  return prisma.preorderCampaign.findMany();
+export async function getAllCampaign(shopId?: string) {
+  return prisma.preorderCampaign.findMany({
+    where: {
+      storeId: shopId,
+    },
+  });
 }
 
 export async function createPreorderCampaign(data: {
@@ -22,10 +26,12 @@ export async function createPreorderCampaign(data: {
   discountPercent?: number;
   discountFixed?: number;
   campaignType?: number;
+  storeId? : string
 }) {
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
+      storeId :data.storeId,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -159,8 +165,11 @@ export async function getAllProducts(request: Request) {
 
 
 // Fetch all campaigns
-export async function getCampaigns() {
+export async function getCampaigns(storeId: string) {
   return prisma.preorderCampaign.findMany({
+    where: {
+      storeId
+    },
     include: { products: true },
   });
 }
@@ -188,8 +197,14 @@ export async function updateCampaignStatus(id: string, status: string) {
   });
 }
 
-export async function getOrders() {
-  return prisma.campaignOrders.findMany();
+export async function getOrders(shopId: string) {
+  return prisma.campaignOrders.findMany(
+    {
+      where: {
+        storeId: shopId
+      },
+    }
+  );
 }
 
 export async function createOrder({
@@ -199,6 +214,7 @@ export async function createOrder({
   dueDate,
   balanceAmount,
   paymentStatus,
+  storeId
 }: {
   order_number: number;
   order_id: string;
@@ -206,11 +222,13 @@ export async function createOrder({
   dueDate: Date;
   balanceAmount?: number;
   paymentStatus: string;
+  storeId: string
 }) {
   try {
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
+        storeId,
         order_id,
         draft_order_id,
         dueDate,
