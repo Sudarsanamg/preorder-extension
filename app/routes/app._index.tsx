@@ -39,6 +39,7 @@ import productMetafieldDefinitions from "app/utils/productMetafieldDefinitions";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
  const { admin } = await authenticate.admin(request);
 
+// get store id
   const query = `{
       shop {
         id
@@ -92,7 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://trance-dancing-annually-jefferson.trycloudflare.com/webhooks/custom",
+            "https://tattoo-per-numeric-newsletters.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },
@@ -134,7 +135,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_PAID",
         webhookSubscription: {
           callbackUrl:
-            "https://trance-dancing-annually-jefferson.trycloudflare.com/webhooks/order_paid",
+            "https://tattoo-per-numeric-newsletters.trycloudflare.com/webhooks/order_paid",
           format: "JSON",
         },
       },

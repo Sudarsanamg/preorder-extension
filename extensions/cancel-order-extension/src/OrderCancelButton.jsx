@@ -16,7 +16,7 @@ function CancelOrderButton() {
   if (!order) return null;
 
   const handleCancel = async () => {
-    const res = await fetch("/apps/cancel-order", {
+    const res = await fetch("https://us-preorder-store.myshopify.com/apps/cancel-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId: order.id }),

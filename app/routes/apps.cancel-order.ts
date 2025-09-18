@@ -1,37 +1,52 @@
-// app/routes/apps.cancel-order.ts
-import { json } from "@remix-run/node";
+import { json, type ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
+// This is the main action function for the route.
+// It will handle both the preflight OPTIONS request and the actual POST request.
+export const action = async ({ request }: ActionFunctionArgs) => {
+  // --- CORS Preflight Handler (MUST be the first check) ---
+  // The browser sends a preflight OPTIONS request before the actual POST request.
+  // We must return a successful response with the correct CORS headers for the preflight check to pass.
+  // The 204 status code (No Content) is the standard for a successful preflight response.
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400", // Cache the preflight response for 24 hours
+      },
+    });
+  }
 
-// const SHOPIFY_ADMIN_API_ACCESS_TOKEN = "b78b494489a7f316679a1d513c9aeef1";
-
-export const action = async ({ request }: { request: Request }) => {
+  // If the request is not a preflight, proceed with the main application logic.
+  // The `authenticate.admin` helper handles validation for the actual POST request.
   const { admin } = await authenticate.admin(request);
 
-  const body = await request.json();
-  const { orderId } = body;
+  try {
+    const body = await request.json();
+    const { orderId } = body;
 
-  const mutation = `
-    mutation orderCancel($id: ID!) {
-      orderCancel(id: $id) {
-        order {
-          id
-          status
-          canceledAt
-        }
-        userErrors {
-          field
-          message
+    const mutation = `
+      mutation orderCancel($id: ID!) {
+        orderCancel(id: $id) {
+          order {
+            id
+            status
+            canceledAt
+          }
+          userErrors {
+            field
+            message
+          }
         }
       }
-    }
-  `;
+    `;
 
-  try {
     const response = await admin.graphql(mutation, {
       variables: { id: orderId },
     });
-
     const result = await response.json();
 
     if (result.data?.orderCancel?.order) {
@@ -40,8 +55,6 @@ export const action = async ({ request }: { request: Request }) => {
         {
           headers: {
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
           },
         }
       );
@@ -52,38 +65,20 @@ export const action = async ({ request }: { request: Request }) => {
           status: 400,
           headers: {
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
           },
         }
       );
     }
   } catch (err: any) {
+    console.error("Error in action function:", err);
     return json(
       { success: false, error: err.message },
       {
         status: 500,
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
         },
       }
     );
   }
-};
-
-// Handle preflight requests (OPTIONS)
-export const loader = async ({ request }: { request: Request }) => {
-  if (request.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
-  }
-
-  return new Response("Method not allowed", { status: 405 });
 };

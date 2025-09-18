@@ -8,10 +8,91 @@ import {
   InlineStack,
   TextField,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import {SaveBar, useAppBridge} from '@shopify/app-bridge-react';
+import { json, useLoaderData ,useSubmit } from "@remix-run/react";
+import { authenticate } from "../shopify.server";
+import prisma from "app/db.server";
+
+export const loader = async ({ request }: { request: Request }) => {
+  const {admin } = await authenticate.admin(request);
+   const query = `{
+      shop {
+        id
+        name
+        myshopifyDomain
+      }
+    }`;
+  
+    const response = await admin.graphql(query);
+    const data = await response.json();
+    const shopId = data.data.shop.id;
+
+    const emailConfig = await prisma.emailConfig.findUnique({
+      where: { storeId: shopId },
+    });
+    
+
+    return {shopId ,emailConfig};
+}
+
+export const action = async ({ request }: { request: Request }) => {
+  const { admin } = await authenticate.admin(request);
+
+  const formData = await request.formData();
+  const fromName = formData.get('fromName') as string;
+  const fromEmail = formData.get('fromEmail') as string;
+  const replyName = formData.get('replyName') as string;
+  const storeId = formData.get('storeId') as string;
+
+  console.log(fromName,fromEmail,replyName,storeId,'???????????????????????/');
+
+  await prisma.emailConfig.upsert({
+    where: { storeId },
+    update: {
+      fromName,
+      replyName
+     },
+    create: {
+      storeId,
+      fromName,
+      senderType: "main",
+      replyName
+    },
+  });
+
+  return json({ success: true });
+}
+
 
 export default function SettingsEmail() {
+  const {shopId ,emailConfig} = useLoaderData();
+  console.log(shopId);
+  console.log(emailConfig);
+  const [formData, setFormData] = useState({
+    fromName: emailConfig?.fromName || "preorder",
+    fromEmail: "info@essentialspreorder.com",
+    replyName: emailConfig?.replyName || "preorder",
+  })
   const [value, setValue] = useState("main");
+
+  const shopify = useAppBridge();
+  const submit = useSubmit();
+  const handleSave = () => {
+  const fd = new FormData(); // <-- renamed
+  fd.append("intent", "save-email-settings");
+  fd.append("storeId", String(shopId));
+  fd.append("fromName", formData.fromName);
+  fd.append("fromEmail", formData.fromEmail);
+  fd.append("replyName", formData.replyName);
+  submit(fd, { method: "post" });
+  shopify.saveBar.hide('my-save-bar');
+  };
+
+  const handleDiscard = () => {
+    console.log('Discarding');
+    shopify.saveBar.hide('my-save-bar');
+  };
 
   const handleChange = useCallback(
     (_: boolean, newValue: string) => setValue(newValue),
@@ -20,11 +101,19 @@ export default function SettingsEmail() {
 
   const [fromName,setFromName] = useState("preorder");
 
+  useEffect(()=>{
+    shopify.saveBar.show('my-save-bar');
+  },[formData]);
+
   return (
     <Page
       title="Customize Sender Email"
       backAction={{ content: "Back", url: "/app/" }}
     >
+      <SaveBar id="my-save-bar">
+        <button variant="primary" onClick={handleSave}></button>
+        <button onClick={handleDiscard}></button>
+      </SaveBar>
       <Card >
         <BlockStack gap={"400"}>
           <Text variant="headingMd" as="h2">
@@ -46,8 +135,13 @@ export default function SettingsEmail() {
                     <InlineStack gap={"400"} align="space-around">
                         <TextField
                             type="text"
-                            value="preorder"
-                            
+                            value={formData.fromName}
+                            onChange={(value)=>{
+                                setFormData({
+                                    ...formData,
+                                    fromName:value
+                                })
+                            }}
                             label="From name"
                             autoComplete="off"
                         />
@@ -62,6 +156,13 @@ export default function SettingsEmail() {
                         <TextField
                             type="text"                            
                             label="Reply-to name"
+                            value={formData.replyName}
+                            onChange={(value)=>{
+                                setFormData({
+                                    ...formData,
+                                    replyName:value
+                                })
+                            }}
                             autoComplete="off"
                             placeholder="Reply-to name"
                         />

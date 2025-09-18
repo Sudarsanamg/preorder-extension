@@ -121,7 +121,7 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
     await AddTagsToOrderMutationResponse.json();  
 }
 
-    if (topic === "ORDERS_CREATE") {
+    if (topic === "ORDERS_CREATE" && orderContainsPreorderItem) {
       const orderId = payload.admin_graphql_api_id;
       const formattedOrderId = orderId.split("/").pop();
       const customerId = payload.customer?.admin_graphql_api_id;
@@ -232,7 +232,7 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
           }
 
-
+          //find email settings respective to shop
         const storeIdQuery = `{
     shop {
       id
@@ -243,7 +243,6 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
         const storeIdQueryResponse = await admin.graphql(storeIdQuery);
         const storeIdQueryResponseData = await storeIdQueryResponse.json();
-
         const shopId = storeIdQueryResponseData.data.shop.id;
 
         // get email template
@@ -254,7 +253,7 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
         const emailTemplate = generateEmailTemplate(emailSettings, products,formattedOrderId);
 
         const transporter = nodemailer.createTransport({
-          service: "Gmail", // or use SMTP/SendGrid/Postmark
+          service: "Gmail", 
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
@@ -271,9 +270,14 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
           storeId : shopId
         });
 
+        const emailConfig = await prisma.emailConfig.findFirst({
+          where: { storeId: shopId },
+        })
+
+
         try {
           await transporter.sendMail({
-            from: '"Preorder Store" <no-reply@preorderstore.com>',
+            from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
             to: customerEmail,
             subject: "Your Preorder is Confirmed!",
             html: emailTemplate,

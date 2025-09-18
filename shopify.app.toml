@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://chances-reproduction-trance-richmond.trycloudflare.com"
+application_url = "https://ruth-mazda-publicly-cycle.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -30,13 +30,13 @@ scopes = "read_customers,read_metaobjects,read_orders,read_payment_mandate,unaut
 
 [auth]
 redirect_urls = [
-  "https://chances-reproduction-trance-richmond.trycloudflare.com/auth/callback",
-  "https://chances-reproduction-trance-richmond.trycloudflare.com/auth/shopify/callback",
-  "https://chances-reproduction-trance-richmond.trycloudflare.com/api/auth/callback"
+  "https://ruth-mazda-publicly-cycle.trycloudflare.com/auth/callback",
+  "https://ruth-mazda-publicly-cycle.trycloudflare.com/auth/shopify/callback",
+  "https://ruth-mazda-publicly-cycle.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://chances-reproduction-trance-richmond.trycloudflare.com/apps/cancel-order"
+url = "https://ruth-mazda-publicly-cycle.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

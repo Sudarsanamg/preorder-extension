@@ -6,18 +6,36 @@
 {% assign selected_selling_plan_allocation = variant.selling_plan_allocations.first %}
 {% assign compare_at_price = selected_selling_plan_allocation.compare_at_price %}
 {% assign price = selected_selling_plan_allocation.price %}
+{%  assign campaignid  = product.metafields.custom.campaign_id %} 
+{% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
+{%  assign campaignType = campaignprops.campaigntype  %}
+{% comment %} <p>{{campaignType}}</p> {% endcomment %}
 
-
-{% if deposit_percent > 0  and product.metafields.custom.preorder == true %}
+{% if deposit_percent > 0  and product.metafields.custom.preorder == true and campaignprops.payment_type.value == 'partial'%}
   {% assign initial_payment = price | times: deposit_percent | divided_by: 100 %}
   {% assign balance_payment = price | minus: initial_payment %}
   {% assign balance_due_date = product.metafields.custom.balance_due_date.value %}
 
+  {% if campaignType == 1 %}
+  {% unless variant.available %}
+    <div class="preorder-payment-info" style="text-align: center;">
+      <p>
+        Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b %Y" }}
+      </p>
+    </div>
+  {% endunless %}
+  {% else %}
   <div class="preorder-payment-info" style="text-align: center;">
-    <p>
-      Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b %Y" }}
-    </p>
-  </div>
+      <p>
+        Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b %Y" }}
+      </p>
+    </div>
+    
+{% endif %}
+
+
+
+
 
   
 {% endif %}
