@@ -1,21 +1,40 @@
-{%  assign campaignid  = product.metafields.custom.campaign_id %} 
+{% assign campaignid   = product.metafields.custom.campaign_id %}
 {% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
-{% assign designprops = shop.metaobjects.design_settings[campaignid] %}
+{% assign designprops  = shop.metaobjects.design_settings[campaignid] %}
+{% assign campaignType = campaignprops.campaigntype %}
+{% assign variant      = product.selected_or_first_available_variant %}
 
-{% if product.metafields.custom.preorder == true 
+{% if product.metafields.custom.preorder == true %}
+  {% if campaignType == 1 %}
+    {% unless variant.available %}
+      <p style="
+        color: {{ designprops.preordermessagecolor }};
+        text-align: center;
+      ">
+        {{ campaignprops.shipping_message }}
+      </p>
+    {% endunless %}
 
-    %}
-  {% comment %} <p>Preorder available. Ships on 
-     {{ product.metafields.custom.release_date.value | date: "%B %d, %Y" }}.
-  </p> {% endcomment %}
-  <p 
-  style="
-  color: {{ designprops.preordermessagecolor}};
-  text-align:center;
-  "
-  >{{campaignprops.shipping_message}}</p>
-  {% comment %} <p>{{ designprops.preordermessagecolor}}</p> {% endcomment %}
+  {% elsif campaignType == 3 %}
+    {% if variant.available %}
+      <p style="
+        color: {{ designprops.preordermessagecolor }};
+        text-align: center;
+      ">
+        {{ campaignprops.shipping_message }}
+      </p>
+    {% endif %}
+
+  {% else %}
+    <p style="
+      color: {{ designprops.preordermessagecolor }};
+      text-align: center;
+    ">
+      {{ campaignprops.shipping_message }}
+    </p>
+  {% endif %}
 {% endif %}
+
 {% schema %}
 {
   "name": "release block",

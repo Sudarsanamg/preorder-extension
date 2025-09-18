@@ -4,8 +4,12 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { Prisma } from "@prisma/client";
 
-export async function getAllCampaign(){
-  return prisma.preorderCampaign.findMany();
+export async function getAllCampaign(shopId?: string) {
+  return prisma.preorderCampaign.findMany({
+    where: {
+      storeId: shopId,
+    },
+  });
 }
 
 export async function createPreorderCampaign(data: {
@@ -21,10 +25,13 @@ export async function createPreorderCampaign(data: {
   discountType?: string;
   discountPercent?: number;
   discountFixed?: number;
+  campaignType?: number;
+  storeId? : string
 }) {
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
+      storeId :data.storeId,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -36,6 +43,7 @@ export async function createPreorderCampaign(data: {
       discountType: data.discountType,
       discountPercent: data.discountPercent,
       discountFixed: data.discountFixed,
+      campaignType: data.campaignType
     },
   });
 }
@@ -50,6 +58,7 @@ export async function updateCampaign(data:{
   releaseDate?: Date;
   status?: string;
   campaignEndDate?: Date;
+  campaignType: number;
 }) {
   return prisma.preorderCampaign.update({
     where: {
@@ -62,6 +71,7 @@ export async function updateCampaign(data:{
       refundDeadlineDays: data.refundDeadlineDays,
       releaseDate: data.releaseDate,
       status: data.status ?? "active",
+      campaignType: data.campaignType,
       campaignEndDate: data.campaignEndDate ? data.campaignEndDate : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   })
@@ -155,8 +165,11 @@ export async function getAllProducts(request: Request) {
 
 
 // Fetch all campaigns
-export async function getCampaigns() {
+export async function getCampaigns(storeId: string) {
   return prisma.preorderCampaign.findMany({
+    where: {
+      storeId
+    },
     include: { products: true },
   });
 }
@@ -184,8 +197,14 @@ export async function updateCampaignStatus(id: string, status: string) {
   });
 }
 
-export async function getOrders() {
-  return prisma.campaignOrders.findMany();
+export async function getOrders(shopId: string) {
+  return prisma.campaignOrders.findMany(
+    {
+      where: {
+        storeId: shopId
+      },
+    }
+  );
 }
 
 export async function createOrder({
@@ -195,18 +214,21 @@ export async function createOrder({
   dueDate,
   balanceAmount,
   paymentStatus,
+  storeId
 }: {
   order_number: number;
   order_id: string;
   draft_order_id: string;
   dueDate: Date;
-  balanceAmount: number;
+  balanceAmount?: number;
   paymentStatus: string;
+  storeId: string
 }) {
   try {
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
+        storeId,
         order_id,
         draft_order_id,
         dueDate,
@@ -226,6 +248,13 @@ export async function orderStatusUpdate(orderdraft_order_id: string, paymentStat
   return prisma.campaignOrders.update({
     where: { draft_order_id: orderdraft_order_id },
     data: { paymentStatus },
+  })
+}
+
+export async function orderStatusUpdateByOrderId(orderId: string) {
+  return prisma.campaignOrders.update({
+    where: { order_id: orderId },
+    data: { paymentStatus: "paid" },
   })
 }
 
@@ -313,5 +342,82 @@ export async function shippingEmailSettingsStatusUpdate(shopId: string, enable: 
   return prisma.shippingEmailSettings.updateMany({
     where: { shopId },
     data: { enabled: enable == "true" ? false : true },
+  });
+}
+
+export async function createDuePayment(
+  orderID: string,
+  idempotencyKey: string,
+  amount: string,
+  currencyCode: string,
+  mandateId: string,
+  dueDate: Date,
+  paymentStatus: string,
+  accessToken: string
+){
+  return prisma.duePayment.create({
+    data: {
+      orderID,
+      idempotencyKey,
+      amount,
+      currencyCode,
+      mandateId,
+      dueDate,
+      paymentStatus,
+      accessToken
+    },
+  });
+}
+
+export async function getPreorderDisplaySettings(storeId: string) {
+  return prisma.generalSettings.findFirst({
+    where: { storeId },
+  });
+}
+
+
+export async function savePreorderDisplay(
+  storeId: string,
+  settings: Prisma.JsonValue
+) {
+  return prisma.generalSettings.upsert({
+    where: { storeId },
+    update: { settings: settings as Prisma.InputJsonValue },
+    create: {
+      storeId,
+      settings: settings as Prisma.InputJsonValue,
+    },
+  });
+}
+
+
+
+export async function EmailConfig(storeId: string, 
+  emailId: string,
+  senderType: string,
+  fromName: string,
+  replyName: string
+) {
+  return prisma.emailConfig.upsert({
+    where: { storeId },
+    update: {
+      emailId,
+      senderType,
+      fromName,
+      replyName
+     },
+    create: {
+      storeId,
+      emailId,
+      senderType,
+      fromName,
+      replyName
+    },
+  });
+}
+
+export async function getPreorderEmailConfig(storeId: string) {
+  return prisma.emailConfig.findFirst({
+    where: { storeId },
   });
 }

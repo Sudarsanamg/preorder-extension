@@ -5,7 +5,7 @@
   {% assign compare_at_price = selected_selling_plan_allocation.compare_at_price %}
   {% assign price = selected_selling_plan_allocation.price %}
 
-  {% if compare_at_price > price %}
+  {% if compare_at_price >= price %}
    
     <span class="product-price--discounted" style="color: rgb(18, 17, 17); font-weight: bold; margin-left: 8px;">
       {{ price | money }}

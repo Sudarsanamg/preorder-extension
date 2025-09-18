@@ -31,6 +31,7 @@ import {
   useFetcher,
   useActionData,
   Link,
+  useLoaderData,
 } from "@remix-run/react";
 import {
   DiscountIcon,
@@ -52,40 +53,89 @@ import PreviewDesign from "app/components/PreviewDesign";
 import type { DesignFields } from "../types/type";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
 
-  // const query = `
-  //   query {
-  //     products(first: 20) {
-  //       edges {
-  //         node {
-  //           id
-  //           title
-  //           totalInventory
-  //           priceRangeV2 {
-  //             minVariantPrice {
-  //               amount
-  //               currencyCode
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // `;
+  const query = `{
+      shop {
+        id
+        name
+        myshopifyDomain
+      }
+    }`;
+  
+    const response = await admin.graphql(query);
+    const data = await response.json();
+    const storeId = data.data.shop.id; 
 
-  // const response = await admin.graphql(query);
-  // const data = await response.json();
+  const url = new URL(request.url);
+  const intent = url.searchParams.get("intent");
 
-  // const products = data.data.products.edges.map(({ node }) => ({
-  //   id: node.id.replace("gid://shopify/Product/", ""), // numeric id for metafield updates
-  //   gid: node.id,
-  //   title: node.title,
-  //   stock: node.totalInventory,
-  //   price: `${node.priceRangeV2.minVariantPrice.amount} ${node.priceRangeV2.minVariantPrice.currencyCode}`,
-  // }));
+  switch (intent) {
+    case "fetchProductsInCollection": {
+      const collectionId = url.searchParams.get("collectionId");
 
-  return json({ success: true });
+      try {
+        const query = `
+    query getCollectionProducts($id: ID!) {
+      collection(id: $id) {
+        products(first: 50) {
+          edges {
+            node {
+              id
+              title
+              handle
+              images(first: 1) {
+                edges {
+                  node { src }
+                }
+              }
+              variants(first: 1) {
+                edges {
+                  node { 
+                    price
+                    inventoryQuantity
+
+                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+        const response = await admin.graphql(query, {
+          variables: { id: collectionId },
+        });
+
+        const res = await response.json();
+
+        const prod = res.data.collection.products.edges.map((edge: any) => {
+          const node = edge.node;
+
+          const totalInventory = node.variants.edges.reduce(
+            (sum: number, v: any) => sum + (v.node.inventoryQuantity || 0),
+            0,
+          );
+
+          return {
+            id: node.id,
+            title: node.title,
+            handle: node.handle,
+            image: node.images.edges[0]?.node?.src || null,
+            price: node.variants.edges[0]?.node?.price || null,
+            totalInventory,
+          };
+        });
+        return json({ prod });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  }
+
+  return json({ success: true ,storeId });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -116,6 +166,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "create-campaign": {
         const campaign = await createPreorderCampaign({
           name: formData.get("name") as string,
+          storeId: formData.get("storeId") as string,
           depositPercent: Number(formData.get("depositPercent")),
           balanceDueDate: new Date(formData.get("balanceDueDate") as string),
           refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
@@ -129,6 +180,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           discountType: formData.get("discountType") as string,
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
+          campaignType: Number(formData.get("campaignType")),
         });
 
         const products = JSON.parse(
@@ -231,9 +283,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (formData.get("paymentMode") === "partial") {
           const discountType = formData.get("discountType");
 
-          let CREATE_SELLING_PLAN =``;
-          if(discountType=='none'){
-             CREATE_SELLING_PLAN = `
+          let CREATE_SELLING_PLAN = ``;
+          if (discountType == "none") {
+            CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
     sellingPlanGroupCreate(
       input: {
@@ -274,9 +326,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 `;
-          }
-          else if(discountType=='percentage'){
-                 CREATE_SELLING_PLAN = `
+          } else if (discountType == "percentage") {
+            CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
     sellingPlanGroupCreate(
       input: {
@@ -325,9 +376,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 `;
-          }
-          else if(discountType=='flat'){
-                  CREATE_SELLING_PLAN = `
+          } else if (discountType == "flat") {
+            CREATE_SELLING_PLAN = `
   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
     sellingPlanGroupCreate(
       input: {
@@ -378,32 +428,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 `;
           }
-   
+
           const productIds = products.map((p) => p.id);
 
           try {
-            let res ;
-            if(discountType=='none'){
-            res = await admin.graphql(CREATE_SELLING_PLAN, {
-              variables: {
-                productIds,
-                percentage: Number(formData.get("depositPercent")),
-                days: "P7D",
-              },
-            });
-          }
-
-          else if(discountType=='percentage'){
-            res = await admin.graphql(CREATE_SELLING_PLAN, {
-              variables: {
-                productIds,
-                percentage: Number(formData.get("depositPercent")),
-                days: "P7D",
-                discountPercentage: Number(formData.get("discountPercentage")),
-              },
-            });
-            }
-            else if(discountType=='flat'){
+            let res;
+            if (discountType == "none") {
+              res = await admin.graphql(CREATE_SELLING_PLAN, {
+                variables: {
+                  productIds,
+                  percentage: Number(formData.get("depositPercent")),
+                  days: "P7D",
+                },
+              });
+            } else if (discountType == "percentage") {
+              res = await admin.graphql(CREATE_SELLING_PLAN, {
+                variables: {
+                  productIds,
+                  percentage: Number(formData.get("depositPercent")),
+                  days: "P7D",
+                  discountPercentage: Number(
+                    formData.get("discountPercentage"),
+                  ),
+                },
+              });
+            } else if (discountType == "flat") {
               res = await admin.graphql(CREATE_SELLING_PLAN, {
                 variables: {
                   productIds,
@@ -411,13 +460,339 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   days: "P7D",
                   fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
                 },
-              }
-              )
+              });
             }
-
 
             res = await res.json();
             console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
+          } catch (error) {
+            console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+          }
+        }
+        //         else if(formData.get("paymentMode") === "full"){
+        //             const discountType = formData.get("discountType");
+
+        //           let CREATE_SELLING_PLAN =``;
+        //           if(discountType=='none'){
+        //              CREATE_SELLING_PLAN = `
+        //   mutation CreateSellingPlan($productIds: [ID!]!) {
+        //     sellingPlanGroupCreate(
+        //       input: {
+        //         name: "Full Payment Pre-order"
+        //         merchantCode: "pre-order-deposit"
+        //         options: ["Pre-order"]
+        //         sellingPlansToCreate: [
+        //           {
+        //             name: "Pay full upfront"
+        //             category: PRE_ORDER
+        //             options: ["Full payment"]
+        //             billingPolicy: {
+        //               fixed: {
+        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+
+        //               }
+        //             }
+        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
+        //           }
+        //         ]
+        //       }
+        //       resources: { productIds: $productIds }
+        //     ) {
+        //       sellingPlanGroup {
+        //         id
+        //         sellingPlans(first: 1) {
+        //           edges {
+        //             node { id }
+        //           }
+        //         }
+        //       }
+        //       userErrors {
+        //         field
+        //         message
+        //       }
+        //     }
+        //   }
+        // `;
+        //           }
+        //           else if(discountType=='percentage'){
+        //                  CREATE_SELLING_PLAN = `
+        //   mutation CreateSellingPlan($productIds: [ID!]!, $discountPercentage: Float!) {
+        //     sellingPlanGroupCreate(
+        //       input: {
+        //         name: "Full Payment Pre-order"
+        //         merchantCode: "pre-order-full"
+        //         options: ["Pre-order"]
+        //         sellingPlansToCreate: [
+        //           {
+        //             name: "Pay full upfront"
+        //             category: PRE_ORDER
+        //             options: ["Full payment"]
+        //             billingPolicy: {
+        //               fixed: {
+        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+        //               }
+        //             }
+        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
+        //             pricingPolicies: [
+        //             {
+        //               fixed: {
+        //                 adjustmentType: PERCENTAGE
+        //                 adjustmentValue: { percentage: $discountPercentage }
+        //               }
+        //             }
+        //           ]
+        //           }
+        //         ]
+        //       }
+        //       resources: { productIds: $productIds }
+        //     ) {
+        //       sellingPlanGroup {
+        //         id
+        //         sellingPlans(first: 1) {
+        //           edges {
+        //             node { id }
+        //           }
+        //         }
+        //       }
+        //       userErrors {
+        //         field
+        //         message
+        //       }
+        //     }
+        //   }
+        // `;
+        //           }
+        //           else if(discountType=='flat'){
+        //                   CREATE_SELLING_PLAN = `
+        //   mutation CreateSellingPlan($productIds: [ID!]!,$fixedValue: Decimal!) {
+        //     sellingPlanGroupCreate(
+        //       input: {
+        //         name: "Full Payment Pre-order"
+        //         merchantCode: "pre-order-deposit"
+        //         options: ["Pre-order"]
+        //         sellingPlansToCreate: [
+        //           {
+        //             name: "Pay full upfront"
+        //             category: PRE_ORDER
+        //             options: ["Full payment"]
+        //             billingPolicy: {
+        //               fixed: {
+        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+        //               }
+        //             }
+        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
+        //             pricingPolicies: [
+        //             {
+        //               fixed: {
+        //                 adjustmentType: FIXED_AMOUNT
+        //                 adjustmentValue: { fixedValue: $fixedValue }
+        //               }
+        //             }
+        //           ]
+
+        //           }
+        //         ]
+        //       }
+        //       resources: { productIds: $productIds }
+        //     ) {
+        //       sellingPlanGroup {
+        //         id
+        //         sellingPlans(first: 1) {
+        //           edges {
+        //             node { id }
+        //           }
+        //         }
+        //       }
+        //       userErrors {
+        //         field
+        //         message
+        //       }
+        //     }
+        //   }
+        // `;
+        //           }
+
+        //           const productIds = products.map((p) => p.id);
+
+        //           try {
+        //             let res ;
+        //             if(discountType=='none'){
+        //             res = await admin.graphql(CREATE_SELLING_PLAN, {
+        //               variables: {
+        //                 productIds,
+        //               },
+        //             });
+        //           }
+
+        //           else if(discountType=='percentage'){
+        //             res = await admin.graphql(CREATE_SELLING_PLAN, {
+        //               variables: {
+        //                 productIds,
+        //                 discountPercentage: Number(formData.get("discountPercentage")),
+        //               },
+        //             });
+        //             }
+        //             else if(discountType=='flat'){
+        //               res = await admin.graphql(CREATE_SELLING_PLAN, {
+        //                 variables: {
+        //                   productIds,
+        //                   fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
+        //                 },
+        //               }
+        //               )
+        //             }
+
+        //             res = await res.json();
+        //             console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP in full payment");
+        //           } catch (error) {
+        //             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+        //           }
+        //         }
+        else {
+          const discountType = formData.get("discountType");
+          let CREATE_SELLING_PLAN = ``;
+
+          if (discountType === "none") {
+            CREATE_SELLING_PLAN = `
+      mutation CreateSellingPlan($productIds: [ID!]!) {
+        sellingPlanGroupCreate(
+          input: {
+            name: "Full Payment Pre-order"
+            merchantCode: "pre-order-full"
+            options: ["Pre-order"]
+            sellingPlansToCreate: [
+              {
+                name: "Pay full upfront"
+                category: PRE_ORDER
+                options: ["Full payment"]
+                billingPolicy: {
+                  fixed: {
+                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
+                  }
+                }
+                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                inventoryPolicy: { reserve: ON_FULFILLMENT }
+              }
+            ]
+          }
+          resources: { productIds: $productIds }
+        ) {
+          sellingPlanGroup { id }
+          userErrors { field message }
+        }
+      }
+    `;
+          } else if (discountType === "percentage") {
+            CREATE_SELLING_PLAN = `
+      mutation CreateSellingPlan($productIds: [ID!]!, $discountPercentage: Float!) {
+        sellingPlanGroupCreate(
+          input: {
+            name: "Full Payment Pre-order"
+            merchantCode: "pre-order-full"
+            options: ["Pre-order"]
+            sellingPlansToCreate: [
+              {
+                name: "Pay full upfront"
+                category: PRE_ORDER
+                options: ["Full payment"]
+                billingPolicy: {
+                  fixed: {
+                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
+                  }
+                }
+                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                inventoryPolicy: { reserve: ON_FULFILLMENT }
+                pricingPolicies: [
+                  {
+                    fixed: {
+                      adjustmentType: PERCENTAGE
+                      adjustmentValue: { percentage: $discountPercentage }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+          resources: { productIds: $productIds }
+        ) {
+          sellingPlanGroup { id }
+          userErrors { field message }
+        }
+      }
+    `;
+          } else if (discountType === "flat") {
+            CREATE_SELLING_PLAN = `
+      mutation CreateSellingPlan($productIds: [ID!]!, $fixedValue: Decimal!) {
+        sellingPlanGroupCreate(
+          input: {
+            name: "Full Payment Pre-order"
+            merchantCode: "pre-order-full"
+            options: ["Pre-order"]
+            sellingPlansToCreate: [
+              {
+                name: "Pay full upfront"
+                category: PRE_ORDER
+                options: ["Full payment"]
+                billingPolicy: {
+                  fixed: {
+                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
+                  }
+                }
+                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+                inventoryPolicy: { reserve: ON_FULFILLMENT }
+                pricingPolicies: [
+                  {
+                    fixed: {
+                      adjustmentType: FIXED_AMOUNT
+                      adjustmentValue: { amount: $fixedValue }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+          resources: { productIds: $productIds }
+        ) {
+          sellingPlanGroup { id }
+          userErrors { field message }
+        }
+      }
+    `;
+          }
+
+          const productIds = products.map((p) => p.id);
+
+          try {
+            const response = await admin.graphql(CREATE_SELLING_PLAN, {
+              variables:
+                discountType === "percentage"
+                  ? {
+                      productIds,
+                      discountPercentage: Number(
+                        formData.get("discountPercentage"),
+                      ),
+                    }
+                  : discountType === "flat"
+                    ? {
+                        productIds,
+                        fixedValue: (
+                          formData.get("flatDiscount") ?? "0"
+                        ).toString(),
+                      }
+                    : { productIds },
+            });
+
+            const data = await response.json();
+            console.log(
+              JSON.stringify(data, null, 2),
+              "res >>>>>>>>>>>>>>>>>>>>>> SGP in full payment",
+            );
           } catch (error) {
             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
           }
@@ -502,7 +877,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             variables: { fields },
           });
 
-        
+          const result = await response.json();
+          console.log("design Metaobject:", JSON.stringify(result, null, 2));
 
           const campaign_response = await admin.graphql(campaign_mutation, {
             variables: {
@@ -514,7 +890,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     (formData.get("name") as string) || "Untitled Campaign",
                 },
                 { key: "status", value: "publish" },
-                { key: "campaign_type", value: String(2) }, // must be string
                 {
                   key: "button_text",
                   value: (formData.get("buttonText") as string) || "Preorder",
@@ -522,7 +897,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 {
                   key: "shipping_message",
                   value:
-                    (formData.get("shippingMessage") as string) || "Ship as soon as possible",
+                    (formData.get("shippingMessage") as string) ||
+                    "Ship as soon as possible",
                 },
                 {
                   key: "payment_type",
@@ -547,7 +923,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 {
                   key: "discount_type",
                   value: (formData.get("discountType") as string) || "none",
-
                 },
                 {
                   key: "discountpercent",
@@ -558,9 +933,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   value: (formData.get("flatDiscount") as string) || "0",
                 },
                 {
-                  key:"campaigntags",
-                  value: JSON.parse((formData.get("orderTags") as string) || "[]").join(",")
-                }
+                  key: "campaigntags",
+                  value: JSON.parse(
+                    (formData.get("orderTags") as string) || "[]",
+                  ).join(","),
+                },
+                {
+                  key: "campaigntype",
+                  value: String(formData.get("campaignType") as string),
+                },
               ],
             },
           });
@@ -570,12 +951,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             parsedCampaignResponse,
             "parsedResponse >>>>>>>>>>>>>>>>>>>>>>",
           );
+          console.log(
+            "store meta Metaobject //////:",
+            JSON.stringify(parsedCampaignResponse, null, 2),
+          );
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
         }
 
-          await updateCampaignStatus(campaign.id, "PUBLISHED");
-        
+        await updateCampaignStatus(campaign.id, "PUBLISHED");
 
         return redirect("/app");
       }
@@ -596,7 +980,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   `;
 
-  productIds = productIds.map((product)=> product.id)
+        productIds = productIds.map((product) => product.id);
 
         const response = await admin.graphql(query, {
           variables: { ids: productIds },
@@ -623,7 +1007,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWithPreorder: [] };
+  const { prod ,storeId } = useLoaderData<typeof loader>();
+  const { productsWithPreorder } = useActionData<typeof action>() ?? {
+    productsWithPreorder: [],
+  };
   const submit = useSubmit();
   const navigate = useNavigate();
   const [campaignName, setCampaignName] = useState("");
@@ -703,8 +1090,8 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
   const remaining = 35.28;
 
   const formattedText = partialPaymentInfoText
-    .replace("{payment}", `₹${payment}`)
-    .replace("{remaining}", `₹${remaining}`)
+    .replace("{payment}", `$${payment}`)
+    .replace("{remaining}", `$${remaining}`)
     .replace("{date}", DueDateinputValue);
 
   const handleCampaignEndDateChange = useCallback((range) => {
@@ -754,14 +1141,16 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
       options: {
         selectMultiple: true,
         initialSelectionIds: selectedProducts.map((p) => ({ id: p.id })),
-
       },
     });
 
     picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
       if (productRadio === "option1") {
         setSelectedProducts(payload.selection);
-        
+        console.log(payload.selection);
+      } else {
+        await fetchProductsInCollection(payload.selection[0].id);
+        // setSelectedProducts(products);
       }
     });
 
@@ -810,7 +1199,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     },
   ];
 
-  const filteredProducts = selectedProducts.filter((product) =>
+  const filteredProducts = selectedProducts?.filter((product) =>
     product.title.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
@@ -826,13 +1215,14 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     }
   };
 
-  const handleKeyDownCustomerTag = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDownCustomerTag = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (event.key === "Enter" && customerTagInput.trim() !== "") {
       setCustomerTags((prev) => [...prev, customerTagInput.trim()]);
       setCustomerTagInput("");
       event.preventDefault();
     }
-  
   };
 
   const handleButtonClick = useCallback(
@@ -843,7 +1233,6 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     },
     [activeButtonIndex],
   );
-
 
   const handleSubmit = () => {
     // if (
@@ -860,6 +1249,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     const formData = new FormData();
     formData.append("intent", "create-campaign");
     formData.append("name", campaignName);
+    formData.append("storeId",storeId);
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
@@ -875,6 +1265,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
     formData.append("flatDiscount", String(flatDiscount));
     formData.append("orderTags", JSON.stringify(productTags));
     formData.append("customerTags", JSON.stringify(customerTags));
+    formData.append("campaignType", String(selectedOption));
 
     submit(formData, { method: "post" });
   };
@@ -917,7 +1308,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
 
   useEffect(() => {
     let flag = false;
-    if(!productsWithPreorder) return;
+    if (!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
       if (productsWithPreorder[i].preorder == true) {
         flag = true;
@@ -927,21 +1318,21 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
 
     if (flag) {
       setWarningPopoverActive(true);
-    }
-    else {
+    } else {
       setWarningPopoverActive(false);
     }
   }, [productsWithPreorder]);
 
-  const handleDuplication =(id: any)=>  {
+  const handleDuplication = (id: any) => {
+    const prod = productsWithPreorder?.find(
+      (product: any) => product.id === id,
+    );
+    if (prod && prod.preorder == true) {
+      return true;
+    }
 
-   const prod = productsWithPreorder?.find((product: any) => product.id === id);
-   if (prod && prod.preorder == true) {
-     return true;
-   }
-
-   return false;
-  }
+    return false;
+  };
 
   function handleRemoveTag(index: number): void {
     const updatedTags = [...productTags];
@@ -950,10 +1341,19 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
   }
 
   function handleRemoveCustomerTag(index: number) {
-    const updatedTags =[...customerTags];
+    const updatedTags = [...customerTags];
     updatedTags.splice(index, 1);
     setCustomerTags(updatedTags);
+  }
 
+  async function fetchProductsInCollection(id: string) {
+    submit(
+      { intent: "fetchProductsInCollection", collectionId: id },
+      { method: "get" },
+    );
+    if (prod) {
+      setSelectedProducts(prod);
+    }
   }
 
   return (
@@ -1156,54 +1556,62 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                 <div style={{ marginTop: 20 }}>
                   <Card>
                     <BlockStack gap={"300"}>
-                    <Text as="h4" variant="headingSm">
-                      Discount
-                    </Text>
-                    <Text as="p" variant="bodyMd">
-                      Only works with{" "}
-                      <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
-                        Shopify Payments
-                      </Link>{" "}
-                    </Text>
-                    <InlineStack gap="400">
-                  <ButtonGroup variant="segmented">
-                    <Button
-                      pressed={activeButtonIndex === 0}
-                      onClick={() => handleButtonClick(0)}
-                      icon={DiscountIcon}
-                    >
-                     
-                    </Button>
-                    <Button
-                      pressed={activeButtonIndex === 1}
-                      onClick={() => handleButtonClick(1)}
-                      icon={CashDollarIcon}
-                    >
-                    </Button>
-                  </ButtonGroup>
-                  <TextField 
-                  suffix={activeButtonIndex === 0 ? "%" : "₹"}
-                  id="discount"
-                  type="number"
-                  value={activeButtonIndex === 0 ? discountPercentage : flatDiscount}
-                  onChange={(val) => {
-                    if(activeButtonIndex === 0){
-                      setDiscountPercentage(Number(val));
-                    }else{
-                      setFlatDiscount(Number(val));
-                    }
-                  }}
-                  />
-                  </InlineStack>
-                  {
-                    (activeButtonIndex === 0 && discountPercentage <0 || discountPercentage >=100 )? <Text as="p" variant="bodyMd" tone="critical">Please enter valid discount percentage between 0 and 99</Text> : null
-                  }
+                      <Text as="h4" variant="headingSm">
+                        Discount
+                      </Text>
+                      <Text as="p" variant="bodyMd">
+                        Only works with{" "}
+                        <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
+                          Shopify Payments
+                        </Link>{" "}
+                      </Text>
+                      <InlineStack gap="400">
+                        <ButtonGroup variant="segmented">
+                          <Button
+                            pressed={activeButtonIndex === 0}
+                            onClick={() => handleButtonClick(0)}
+                            icon={DiscountIcon}
+                          ></Button>
+                          <Button
+                            pressed={activeButtonIndex === 1}
+                            onClick={() => handleButtonClick(1)}
+                            icon={CashDollarIcon}
+                          ></Button>
+                        </ButtonGroup>
+                        <TextField
+                          suffix={activeButtonIndex === 0 ? "%" : "$"}
+                          id="discount"
+                          type="number"
+                          value={
+                            activeButtonIndex === 0
+                              ? discountPercentage
+                              : flatDiscount
+                          }
+                          onChange={(val) => {
+                            if (activeButtonIndex === 0) {
+                              setDiscountPercentage(Number(val));
+                            } else {
+                              setFlatDiscount(Number(val));
+                            }
+                          }}
+                        />
+                      </InlineStack>
+                      {(activeButtonIndex === 0 && discountPercentage < 0) ||
+                      discountPercentage >= 100 ? (
+                        <Text as="p" variant="bodyMd" tone="critical">
+                          Please enter valid discount percentage between 0 and
+                          99
+                        </Text>
+                      ) : null}
 
-                  <Text as="p" variant="bodyMd">Can't see discount/strike through price? <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">Contact support</Link></Text>
-
-                  </BlockStack>
+                      <Text as="p" variant="bodyMd">
+                        Can't see discount/strike through price?{" "}
+                        <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
+                          Contact support
+                        </Link>
+                      </Text>
+                    </BlockStack>
                   </Card>
-
                 </div>
 
                 {/* preorder Note */}
@@ -1291,7 +1699,7 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                               <div style={{ flex: 1 }}>
                                 <TextField
                                   autoComplete="off"
-                                  suffix={` ${partialPaymentType === "percent" ? "%" : "₹"}`}
+                                  suffix={` ${partialPaymentType === "percent" ? "%" : "$"}`}
                                   value={partialPaymentPercentage}
                                   onChange={setPartialPaymentPercentage}
                                 />
@@ -1436,80 +1844,98 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                 <div style={{ marginTop: 20 }}>
                   <Card>
                     <BlockStack gap={"200"}>
-                    <Text as="h4" variant="headingSm">
-                      Order tags
-                    </Text>
-                    <div onKeyDown={handleKeyDown}>
-                      <TextField
-                        label="Order Tags"
-                        value={productTagInput}
-                        onChange={(value) => setProductTagInput(value)} // Polaris style
-                        autoComplete="off"
-                      />
-                    </div>
-                    <Text as="h4" variant="headingSm">
-                      For customers who placed preorders
-                    </Text>
-                    <div>
-                      {productTags.map((tag, index) => (
-                        <div key={index} style={{ display: "inline-block" }}>
-                        <span
-                          key={index}
-                          style={{
-                            marginRight: 5,
-                            backgroundColor: "gray",
-                            padding: 5,
-                            borderRadius: 5,
-                            position: "relative",
-                          }}
-                        >
-                          {tag} 
-                          <button style={{backgroundColor:'gray' ,padding:5 ,border:'none'}} onClick={() => handleRemoveTag(index)}>X</button>
-                        </span>
-                        </div>
-                      ))}
-                    </div>
+                      <Text as="h4" variant="headingSm">
+                        Order tags
+                      </Text>
+                      <div onKeyDown={handleKeyDown}>
+                        <TextField
+                          label="Order Tags"
+                          value={productTagInput}
+                          onChange={(value) => setProductTagInput(value)} // Polaris style
+                          autoComplete="off"
+                        />
+                      </div>
+                      <Text as="h4" variant="headingSm">
+                        For customers who placed preorders
+                      </Text>
+                      <div>
+                        {productTags.map((tag, index) => (
+                          <div key={index} style={{ display: "inline-block" }}>
+                            <span
+                              key={index}
+                              style={{
+                                marginRight: 5,
+                                backgroundColor: "gray",
+                                padding: 5,
+                                borderRadius: 5,
+                                position: "relative",
+                              }}
+                            >
+                              {tag}
+                              <button
+                                style={{
+                                  backgroundColor: "gray",
+                                  padding: 5,
+                                  border: "none",
+                                }}
+                                onClick={() => handleRemoveTag(index)}
+                              >
+                                X
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </BlockStack>
                   </Card>
                 </div>
-                 <div style={{ marginTop: 20 }}>
+                <div style={{ marginTop: 20 }}>
                   <Card>
                     <BlockStack gap={"200"}>
-                    <Text as="h4" variant="headingSm">
-                      Customer tags
-                    </Text>
-                    <div onKeyDown={handleKeyDownCustomerTag}>
-                      <TextField
-                        label="Customer Tags"
-                        value={customerTagInput}
-                        onChange={(value) => setCustomerTagInput(value)} // Polaris style
-                        autoComplete="off"
-                      />
-                    </div>
-                    <Text as="h4" variant="headingSm">
-                      For customers who placed preorders
-                    </Text>
-                    <div>
-                      {customerTags.map((tag, index) => (
-                        <div key={index} style={{ display: "inline-block" }}>
-                        <span
-                          key={index}
-                          style={{
-                            marginRight: 5,
-                            backgroundColor: "gray",
-                            padding: 5,
-                            borderRadius: 5,
-                            position: "relative",
-                          }}
-                        >
-                          {tag} 
-                          <button style={{backgroundColor:'gray' ,padding:5 ,border:'none'}} onClick={(key) =>{
-                            handleRemoveCustomerTag(index)
-                          }}>X</button>
-                        </span>
-                        </div>
-                      ))}
-                    </div>
+                      <Text as="h4" variant="headingSm">
+                        Customer tags
+                      </Text>
+                      <div onKeyDown={handleKeyDownCustomerTag}>
+                        <TextField
+                          label="Customer Tags"
+                          value={customerTagInput}
+                          onChange={(value) => setCustomerTagInput(value)} // Polaris style
+                          autoComplete="off"
+                        />
+                      </div>
+                      <Text as="h4" variant="headingSm">
+                        For customers who placed preorders
+                      </Text>
+                      <div>
+                        {customerTags.map((tag, index) => (
+                          <div key={index} style={{ display: "inline-block" }}>
+                            <span
+                              key={index}
+                              style={{
+                                marginRight: 5,
+                                backgroundColor: "gray",
+                                padding: 5,
+                                borderRadius: 5,
+                                position: "relative",
+                              }}
+                            >
+                              {tag}
+                              <button
+                                style={{
+                                  backgroundColor: "gray",
+                                  padding: 5,
+                                  border: "none",
+                                }}
+                                onClick={(key) => {
+                                  handleRemoveCustomerTag(index);
+                                }}
+                              >
+                                X
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </BlockStack>
                   </Card>
                 </div>
@@ -1548,21 +1974,37 @@ const { productsWithPreorder } = useActionData<typeof action>() ?? { productsWit
                         White T-shirt
                       </Text>
                       <div style={{ marginTop: 10 }}>
-                        <InlineStack gap="200" >
-                        <Text as="h1" variant="headingMd">
-                          
-                          {discountPercentage ===0 && flatDiscount === 0 ? 
-                          <Text as="h1" variant="headingLg">₹499.00</Text> :
-                          
-                          <Text as="h1" variant="headingLg">{(activeButtonIndex === 0 && discountPercentage !== 0)
-                              ? '₹'+(499.00-((499.00*discountPercentage)/100)).toFixed(2)
-                              : ((499.00-(flatDiscount)) > 0) ? '₹'+ (499.00-(flatDiscount)) : '₹'+ 0}
+                        <InlineStack gap="200">
+                          <Text as="h1" variant="headingMd">
+                            {discountPercentage === 0 && flatDiscount === 0 ? (
+                              <Text as="h1" variant="headingLg">
+                                $499.00
                               </Text>
-                          }
-                        </Text>
-                        { discountPercentage ===0 && flatDiscount === 0 ? null :<Text as="h1" variant="headingMd" textDecorationLine="line-through">
-                          ₹499.00
-                        </Text>}
+                            ) : (
+                              <Text as="h1" variant="headingLg">
+                                {activeButtonIndex === 0 &&
+                                discountPercentage !== 0
+                                  ? "$" +
+                                    (
+                                      499.0 -
+                                      (499.0 * discountPercentage) / 100
+                                    ).toFixed(2)
+                                  : 499.0 - flatDiscount > 0
+                                    ? "$" + (499.0 - flatDiscount)
+                                    : "$" + 0}
+                              </Text>
+                            )}
+                          </Text>
+                          {discountPercentage === 0 &&
+                          flatDiscount === 0 ? null : (
+                            <Text
+                              as="h1"
+                              variant="headingMd"
+                              textDecorationLine="line-through"
+                            >
+                              $499.00
+                            </Text>
+                          )}
                         </InlineStack>
                       </div>
                     </div>

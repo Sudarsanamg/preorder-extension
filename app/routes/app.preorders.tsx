@@ -19,10 +19,22 @@ import { useLoaderData ,  useNavigate} from "@remix-run/react";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const adminSession = await authenticate.admin(request);
-
+    const {admin} = await authenticate.admin(request);
     // console.log(adminSession.session.shop)
 
-  const orders = await getOrders();
+    const query = `{
+      shop {
+        id
+        name
+        myshopifyDomain
+      }
+    }`;
+  
+    const response = await admin.graphql(query);
+    const data = await response.json();
+    const shopId = data.data.shop.id; 
+
+  const orders = await getOrders(shopId);
 
     const shopDomain = adminSession.session.shop;
 
@@ -80,7 +92,7 @@ export default function AdditionalPage() {
                   <Text>{new Date(order.dueDate).toLocaleDateString()}</Text>
                 </td>
                 <td style={{ padding: "8px", textAlign: "right" }}>
-                  <Text>{order.balanceAmount}</Text>
+                  <Text>{order.balanceAmount ? order.balanceAmount : "0.00"}</Text>
                 </td>
                 <td style={{ padding: "8px" }}>
                   <Text>{order.paymentStatus}</Text>

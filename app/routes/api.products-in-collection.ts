@@ -1,8 +1,9 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
-export async function action({ request }) {
+export async function action({ request } : { request: Request }) {
   const { collectionId } = await request.json();
+  console.log("collectionId", collectionId);
   const { admin } = await authenticate.admin(request);
 
   const response = await admin.graphql(
@@ -34,7 +35,6 @@ export async function action({ request }) {
     { variables: { id: collectionId } }
   );
 
-  // ✅ Handle both response shapes
   const data = response.data || response.body?.data;
   if (!data?.collection) {
     return json({ products: [] });
