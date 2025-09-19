@@ -26,12 +26,13 @@ export async function createPreorderCampaign(data: {
   discountPercent?: number;
   discountFixed?: number;
   campaignType?: number;
-  storeId? : string
+  storeId? : string;
+getDueByValt : boolean
 }) {
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
-      storeId :data.storeId,
+      storeId: data.storeId ?? "",
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -43,7 +44,8 @@ export async function createPreorderCampaign(data: {
       discountType: data.discountType,
       discountPercent: data.discountPercent,
       discountFixed: data.discountFixed,
-      campaignType: data.campaignType
+      campaignType: data.campaignType,
+      getDueByValt: data.getDueByValt
     },
   });
 }

@@ -93,7 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://tattoo-per-numeric-newsletters.trycloudflare.com/webhooks/custom",
+            "https://karma-alt-pension-missions.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },
@@ -135,7 +135,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_PAID",
         webhookSubscription: {
           callbackUrl:
-            "https://tattoo-per-numeric-newsletters.trycloudflare.com/webhooks/order_paid",
+            "https://karma-alt-pension-missions.trycloudflare.com/webhooks/order_paid",
           format: "JSON",
         },
       },
