@@ -22,6 +22,7 @@ import {
   Tabs,
   Banner,
   InlineStack,
+  Checkbox,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -60,12 +61,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         id
         name
         myshopifyDomain
+        plan {
+          displayName
+          partnerDevelopment
+          shopifyPlus
+        }
       }
     }`;
-  
-    const response = await admin.graphql(query);
-    const data = await response.json();
-    const storeId = data.data.shop.id; 
+
+  const response = await admin.graphql(query);
+  const data = await response.json();
+  const storeId = data.data.shop.id;
+  const plusStore = data.data.shop.plan.shopifyPlus;
 
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
@@ -135,7 +142,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true ,storeId });
+  return json({ success: true, storeId , plusStore});
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -181,6 +188,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
+          getDueByValt : formData.get("getDueByValt") === "true"
         });
 
         const products = JSON.parse(
@@ -1007,7 +1015,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  const { prod ,storeId } = useLoaderData<typeof loader>();
+  const { prod, storeId  ,plusStore} = useLoaderData<typeof loader>();
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
@@ -1086,6 +1094,7 @@ export default function Newcampaign() {
   const [discountType, setDiscountType] = useState("none");
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [flatDiscount, setFlatDiscount] = useState(0);
+  const [getPaymentsViaValtedPayments , setGetPaymentsViaValtedPayments] = useState(plusStore);
   const payment = 3.92;
   const remaining = 35.28;
 
@@ -1249,7 +1258,7 @@ export default function Newcampaign() {
     const formData = new FormData();
     formData.append("intent", "create-campaign");
     formData.append("name", campaignName);
-    formData.append("storeId",storeId);
+    formData.append("storeId", storeId);
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
@@ -1266,6 +1275,7 @@ export default function Newcampaign() {
     formData.append("orderTags", JSON.stringify(productTags));
     formData.append("customerTags", JSON.stringify(customerTags));
     formData.append("campaignType", String(selectedOption));
+    formData.append("getDueByValt", String(getPaymentsViaValtedPayments))
 
     submit(formData, { method: "post" });
   };
@@ -1710,6 +1720,8 @@ export default function Newcampaign() {
                                 marginTop: 10,
                                 display: "flex",
                                 gap: 10,
+                                alignContent: "center",
+                                alignItems: "center",
                               }}
                             >
                               <div>
@@ -1726,7 +1738,7 @@ export default function Newcampaign() {
                                   ></Button>
                                 </ButtonGroup>
                               </div>
-                              <div style={{ flex: 1 }}>
+                              <div style={{}}>
                                 {duePaymentType === 1 && (
                                   <TextField
                                     id="partialPaymentNote"
@@ -1735,11 +1747,11 @@ export default function Newcampaign() {
                                   />
                                 )}
                                 {duePaymentType === 2 && (
-                                  <div>
+                                  <div >
                                     <Popover
                                       active={popoverActive}
                                       activator={
-                                        <div style={{ flex: 1 }}>
+                                        // <div style={{ flex: 1 }}>
                                           <TextField
                                             label="Select date for due payment"
                                             value={DueDateinputValue}
@@ -1747,7 +1759,7 @@ export default function Newcampaign() {
                                             onChange={() => {}}
                                             autoComplete="off"
                                           />
-                                        </div>
+                                        // </div>
                                       }
                                       onClose={() => setPopoverActive(false)}
                                     >
@@ -1761,8 +1773,16 @@ export default function Newcampaign() {
                                     </Popover>
                                   </div>
                                 )}
-                              </div>
+                              </div>                              
                             </div>
+                            <div>
+                               { plusStore && <Checkbox 
+                                label = 'Get Due payments via Valted credit cards Note:Works only with Shopify Payments'
+                               
+                                checked={getPaymentsViaValtedPayments}
+                                onChange={() => setGetPaymentsViaValtedPayments(!getPaymentsViaValtedPayments)}
+                                /> }
+                              </div>
                             <TextField
                               autoComplete="off"
                               label="Partial payment text"

@@ -38,62 +38,66 @@ export const action = async ({ request }: { request: Request }) => {
   }
 `;
 
-const GetCampaignIdsQueryResponse = await admin.graphql(GetCampaignIdsQuery, {
-  variables: { ids: formattedProductIds },
-});
-
-const GetCampaignIdsQueryResponseBody = await GetCampaignIdsQueryResponse.json();
-
-let campaignIds: string[] = [];
-for (const node of GetCampaignIdsQueryResponseBody.data.nodes) {
-  if (node?.metafield?.value) {
-    campaignIds.push(node.metafield.value);
-  }
-}
-//update no of orders for campaign
-for (const campaignId of campaignIds) {
-  await prisma.preorderCampaign.update({
-    where: { id: campaignId },
-    data: {
-      totalOrders: {
-        increment: 1,
+    const GetCampaignIdsQueryResponse = await admin.graphql(
+      GetCampaignIdsQuery,
+      {
+        variables: { ids: formattedProductIds },
       },
-    },
-  });
-}
+    );
 
-// find unique campaign ids
-campaignIds = [...new Set(campaignIds)];
+    const GetCampaignIdsQueryResponseBody =
+      await GetCampaignIdsQueryResponse.json();
 
-let orderContainsPreorderItem = false;
-if(campaignIds.length > 0) {
-  orderContainsPreorderItem = true;
-}
-// get Tags from campaign ids
-let orderTags: string[] = [];
-let customerTags: string[] = [];
-
-if (campaignIds.length > 0) {
-  const campaigns = await prisma.preorderCampaign.findMany({
-    where: {
-      id: {
-        in: campaignIds,
-      },
-    },
-  });
-
-  for (const campaign of campaigns) {
-    if (campaign.orderTags) {
-      orderTags.push(String(campaign.orderTags));
+    let campaignIds: string[] = [];
+    for (const node of GetCampaignIdsQueryResponseBody.data.nodes) {
+      if (node?.metafield?.value) {
+        campaignIds.push(node.metafield.value);
+      }
     }
-    if (campaign.customerTags) {
-      customerTags.push(String(campaign.customerTags));
+    //update no of orders for campaign
+    for (const campaignId of campaignIds) {
+      await prisma.preorderCampaign.update({
+        where: { id: campaignId },
+        data: {
+          totalOrders: {
+            increment: 1,
+          },
+        },
+      });
     }
-  }
-}
-if(orderTags.length > 0 && orderContainsPreorderItem){
-  // add tags to order using mutation
-  const AddTagsToOrderMutation = `
+
+    // find unique campaign ids
+    campaignIds = [...new Set(campaignIds)];
+
+    let orderContainsPreorderItem = false;
+    if (campaignIds.length > 0) {
+      orderContainsPreorderItem = true;
+    }
+    // get Tags from campaign ids
+    let orderTags: string[] = [];
+    let customerTags: string[] = [];
+
+    if (campaignIds.length > 0) {
+      const campaigns = await prisma.preorderCampaign.findMany({
+        where: {
+          id: {
+            in: campaignIds,
+          },
+        },
+      });
+
+      for (const campaign of campaigns) {
+        if (campaign.orderTags) {
+          orderTags.push(String(campaign.orderTags));
+        }
+        if (campaign.customerTags) {
+          customerTags.push(String(campaign.customerTags));
+        }
+      }
+    }
+    if (orderTags.length > 0 && orderContainsPreorderItem) {
+      // add tags to order using mutation
+      const AddTagsToOrderMutation = `
   mutation AddTagsToOrder($id: ID!, $tags: [String!]!) {
     orderUpdate(input: {id: $id, tags: $tags}) {
       order {
@@ -107,19 +111,19 @@ if(orderTags.length > 0 && orderContainsPreorderItem){
     }
   }
 `;
-const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
+      const uniqueTags = [...new Set(orderTags), ...new Set(customerTags)];
 
-  const orderId = payload.admin_graphql_api_id;
-  const AddTagsToOrderMutationResponse = await admin.graphql(
-    AddTagsToOrderMutation,
-    {
-      variables: { id: orderId, tags: uniqueTags },
-    },
-  );
+      const orderId = payload.admin_graphql_api_id;
+      const AddTagsToOrderMutationResponse = await admin.graphql(
+        AddTagsToOrderMutation,
+        {
+          variables: { id: orderId, tags: uniqueTags },
+        },
+      );
 
-  const AddTagsToOrderMutationResponseBody =
-    await AddTagsToOrderMutationResponse.json();  
-}
+      const AddTagsToOrderMutationResponseBody =
+        await AddTagsToOrderMutationResponse.json();
+    }
 
     if (topic === "ORDERS_CREATE" && orderContainsPreorderItem) {
       const orderId = payload.admin_graphql_api_id;
@@ -134,10 +138,90 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
       const remaining = Number(secondSchedule?.amount);
 
       const uuid = uuidv4();
+      const storeIdQuery = `{
+    shop {
+      id
+      name
+      myshopifyDomain
+      plan {
+          displayName
+          partnerDevelopment
+          shopifyPlus
+        }
+    }
+  }`;
 
+      const storeIdQueryResponse = await admin.graphql(storeIdQuery);
+      const storeIdQueryResponseData = await storeIdQueryResponse.json();
+      const shopId = storeIdQueryResponseData.data.shop.id;
+      const plusStore = storeIdQueryResponseData.data.shop.plan.shopifyPlus;
+
+      console.log('plusStore>>>>>>>>>>>>>>>>>>.', plusStore);
+
+      // getDueByValt is true
+      // this should be in whole store
+      let vaultPayment = false;
+      if (plusStore) {
+        const campaign = await prisma.preorderCampaign.findFirst({
+          where: {
+            id: campaignIds[0],
+          },
+        });
+        console.log('campaign>>>>>>>>>>>>>>>>>>.', campaign);
+
+        if (campaign?.getDueByValt) {
+          vaultPayment = true;
+        }
+      }
+
+      //find email settings respective to shop
+
+      // get email template
+      const emailSettings = await prisma.emailSettings.findFirst({
+        where: { shopId },
+      });
+
+      const emailTemplate = generateEmailTemplate(
+        emailSettings,
+        products,
+        formattedOrderId,
+      );
+
+      const transporter = nodemailer.createTransport({
+        service: "Gmail",
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      await createOrder({
+        order_number,
+        order_id: orderId,
+        draft_order_id: uuid,
+        dueDate: new Date(),
+        balanceAmount: remaining,
+        paymentStatus: "pending",
+        storeId: shopId,
+      });
+
+      const emailConfig = await prisma.emailConfig.findFirst({
+        where: { storeId: shopId },
+      });
+
+      try {
+        await transporter.sendMail({
+          from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
+          to: customerEmail,
+          subject: "Your Preorder is Confirmed!",
+          html: emailTemplate,
+        });
+      } catch (error) {
+        console.error("❌ Email send error:", error);
+      }
 
       // // Draft order mutation
-      if (remaining > 0) {
+      if (remaining > 0 && vaultPayment === false) {
         const mutation = `
         mutation draftOrderCreate($input: DraftOrderInput!) {
           draftOrderCreate(input: $input) {
@@ -158,7 +242,6 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
           }
         }
       `;
-
 
         const variables = {
           input: {
@@ -198,99 +281,46 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
 
         const draftOrderId = data.data.draftOrderCreate.draftOrder.id;
 
-      //   const emailMutation = `
-      //   mutation sendInvoice($id: ID!, $email: EmailInput!) {
-      //     draftOrderInvoiceSend(id: $id, email: $email) {
-      //       draftOrder {
-      //         id
-      //         invoiceUrl
-      //       }
-      //       userErrors {
-      //         field
-      //         message
-      //       }
-      //     }
-      //   }
-      // `;
-
-      //   // Call Shopify Admin API
-      //   const emailResponse = await admin.graphql(emailMutation, {
-      //     variables: {
-      //       id: draftOrderId,
-      //       email: {
-      //         to: customerEmail,
-      //       },
-      //     },
-      //   });
-
-      //   const emailData = await emailResponse.json();
-      //   console.log(
-      //     "📧 Invoice send response:",
-      //     JSON.stringify(emailData, null, 2),
-          
-      //   );
-
+        const emailMutation = `
+        mutation sendInvoice($id: ID!, $email: EmailInput!) {
+          draftOrderInvoiceSend(id: $id, email: $email) {
+            draftOrder {
+              id
+              invoiceUrl
+            }
+            userErrors {
+              field
+              message
+            }
           }
+        }
+      `;
 
-          //find email settings respective to shop
-        const storeIdQuery = `{
-    shop {
-      id
-      name
-      myshopifyDomain
-    }
-  }`;
-
-        const storeIdQueryResponse = await admin.graphql(storeIdQuery);
-        const storeIdQueryResponseData = await storeIdQueryResponse.json();
-        const shopId = storeIdQueryResponseData.data.shop.id;
-
-        // get email template
-        const emailSettings = await prisma.emailSettings.findFirst({
-          where: { shopId },
-        });
-
-        const emailTemplate = generateEmailTemplate(emailSettings, products,formattedOrderId);
-
-        const transporter = nodemailer.createTransport({
-          service: "Gmail", 
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+        // Call Shopify Admin API
+        const emailResponse = await admin.graphql(emailMutation, {
+          variables: {
+            id: draftOrderId,
+            email: {
+              to: customerEmail,
+            },
           },
         });
 
-         await createOrder({
-          order_number,
-          order_id: orderId,
-          draft_order_id: uuid,
-          dueDate: new Date(),
-          balanceAmount: remaining,
-          paymentStatus: "pending",
-          storeId : shopId
+        const emailData = await emailResponse.json();
+        console.log(
+          "📧 Invoice send response:",
+          JSON.stringify(emailData, null, 2),
+        );
+
+        return new Response("OK", {
+          status: 200,
         });
-
-        const emailConfig = await prisma.emailConfig.findFirst({
-          where: { storeId: shopId },
-        })
-
-
-        try {
-          await transporter.sendMail({
-            from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
-            to: customerEmail,
-            subject: "Your Preorder is Confirmed!",
-            html: emailTemplate,
-          });
-        } catch (error) {
-          console.error("❌ Email send error:", error);
-        }
-      // }
-
- if (remaining > 0) {
-   console.log("🚀 Starting mandate creation process...");
-   // 1. Get customer's vaulted payment method
-   const QUERY = `
+      }
+        //if plus store and getDueByValt is true then create mandate
+       else if (remaining > 0 && vaultPayment) {
+        console.log("🚀 Starting mandate creation process...");
+        // 1. Get customer's vaulted payment method
+        const QUERY = `
     query getOrderVaultedMethods($id: ID!) {
       order(id: $id) {
         paymentCollectionDetails {
@@ -303,45 +333,50 @@ const uniqueTags = [...new Set(orderTags),...new Set(customerTags)];
     }
   `;
 
-   const response = await admin.graphql(QUERY, {
-     variables: { id: orderId },
-   });
+        const response = await admin.graphql(QUERY, {
+          variables: { id: orderId },
+        });
 
-   const { data } = await response.json();
+        const { data } = await response.json();
 
-   console.log(data);
+        console.log(data);
 
-   const methods = data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
-   console.log("Vaulted payment methods:", JSON.stringify(methods));
-   const mandateId = methods?.[0]?.id;
+        const methods =
+          data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
+        console.log("Vaulted payment methods:", JSON.stringify(methods));
+        const mandateId = methods?.[0]?.id;
 
+        const accessTokenRes = await prisma.session.findFirst({
+          where: {
+            shop: "us-preorder-store.myshopify.com",
+          },
+          select: {
+            accessToken: true,
+          },
+        });
 
-const accessTokenRes = await prisma.session.findFirst({
-  where: {
-    shop: 'us-preorder-store.myshopify.com',
-  },
-  select: {
-    accessToken: true,
-  },
-});
+        const accessToken = accessTokenRes?.accessToken || "";
 
-const accessToken = accessTokenRes?.accessToken || '';
+        const duePaymentCreation = await createDuePayment(
+          orderId,
+          crypto.randomUUID().replace(/-/g, "").slice(0, 32),
+          remaining.toString(),
+          "USD",
+          mandateId,
+          new Date(),
+          "pending",
+          accessToken,
+        );
 
-   const duePaymentCreation = await createDuePayment(
-     orderId,
-     crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-     remaining.toString(),
-     "USD",
-     mandateId,
-     new Date(),
-     "pending",
-     accessToken
-   );
+        console.log("Due payment created:", duePaymentCreation);
 
-   console.log("Due payment created:", duePaymentCreation);
-
-
- }
+        return new Response("OK", {
+          status: 200,
+        });
+      }      
+      return new Response("OK", {
+        status: 200,
+      });
     }
 
     if (topic === "DRAFT_ORDERS_UPDATE") {
