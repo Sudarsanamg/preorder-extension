@@ -220,12 +220,12 @@ export default function EmailPreorderConfirmationSettings() {
     <Page
       title="Preorder confirmation email"
       backAction={{ content: "Back", url: "/app/" }}
-      primaryAction={{
-        content: status === false ? "Turn On" : "Turn Off",
-        onAction: () => {
-          handleSwitch(status);
-        },
-      }}
+      // primaryAction={{
+      //   content: status === false ? "Turn On" : "Turn Off",
+      //   onAction: () => {
+      //     handleSwitch(status);
+      //   },
+      // }}
     >
        <SaveBar id="my-save-bar">
         <button variant="primary" onClick={handleSave}></button>
