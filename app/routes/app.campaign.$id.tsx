@@ -171,198 +171,161 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     await deleteCampaign(id);
     return redirect("/app");
   }
-  if (intent === "update-campaign") {
-    try {
-      const updatedCampaign = await updateCampaign({
-        id: params.id!,
-        name: formData.get("name") as string,
-        depositPercent: Number(formData.get("depositPercent")),
-        balanceDueDate: new Date(formData.get("balanceDueDate") as string),
-        refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-        releaseDate: formData.get("campaignEndDate")
-          ? new Date(formData.get("campaignEndDate") as string)
-          : undefined,
-        campaignType: Number(formData.get("campaignType")),
-      });
+ if (intent === "update-campaign") {
+  try {
+    // ------------------------
+    // Step 1: Update campaign basic data
+    // ------------------------
+    const updatedCampaign = await updateCampaign({
+      id: params.id!,
+      name: formData.get("name") as string,
+      depositPercent: Number(formData.get("depositPercent")),
+      balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+      refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
+      releaseDate: formData.get("campaignEndDate")
+        ? new Date(formData.get("campaignEndDate") as string)
+        : undefined,
+      campaignType: Number(formData.get("campaignType")),
+    });
 
-      console.log(updatedCampaign, "updated campaign");
-    } catch (error) {
-      console.error(error);
-    }
+    console.log("Updated campaign basic info:", updatedCampaign);
 
-    const updatedProducts = JSON.parse(
-      (formData.get("products") as string) || "[]",
-    );
+    // ------------------------
+    // Step 1b: Replace campaign products
+    // ------------------------
+    const updatedProducts = JSON.parse((formData.get("products") as string) || "[]");
+    const replace = await replaceProductsInCampaign(String(params.id!), updatedProducts);
+    console.log("Replaced products:", replace);
 
-    try {
-      const replace = await replaceProductsInCampaign(
-        String(params.id!),
-        updatedProducts,
-      );
-      console.log(replace);
-    } catch (error) {
-      console.error(error);
-    }
-
+    // ------------------------
+    // Step 2: Update campaign metaobject
+    // ------------------------
     const getIdQuery = `
-  query GetCampaignId($handle: MetaobjectHandleInput!) {
-    metaobjectByHandle(handle: $handle) {
-      id
-    }
-  }
-`;
+      query GetCampaignId($handle: MetaobjectHandleInput!) {
+        metaobjectByHandle(handle: $handle) {
+          id
+        }
+      }
+    `;
 
     const handleRes = await admin.graphql(getIdQuery, {
       variables: {
-        handle: {
-          type: "preordercampaign",
-          handle: params.id,
-        },
+        handle: { type: "preordercampaign", handle: params.id },
       },
     });
 
     const handleData = await handleRes.json();
-    const metaobjectId = handleData.data.metaobjectByHandle.id;
+    const metaobjectId = handleData?.data?.metaobjectByHandle?.id;
 
-    // Step 2: update metaobject
-    const updateCampaignMutation = `
-  mutation UpdateCampaign($id: ID!, $fields: [MetaobjectFieldInput!]!) {
-    metaobjectUpdate(
-      id: $id
-      metaobject: { fields: $fields }
-    ) {
-      metaobject {
-        id
-        handle
-        fields {
-          key
-          value
-        }
-      }
-      userErrors {
-        field
-        message
-      }
+    if (!metaobjectId) {
+      throw new Error("Campaign metaobject not found for handle: " + params.id);
     }
-  }
-`;
 
-    const updatedFields = [
+    const campaignFields = [
       {
-        key: "name",
-        value: (formData.get("name") as string) || "Untitled Campaign",
+        key: "object",
+        value: JSON.stringify({
+          campaign_id: String(params.id),
+          name: (formData.get("name") as string) || "Untitled Campaign",
+          status: "publish",
+          button_text: (formData.get("buttonText") as string) || "Preorder",
+          shipping_message: (formData.get("shippingMessage") as string) || "Ship as soon as possible",
+          payment_type: (formData.get("paymentMode") as string) || "Full",
+          ppercent: String(formData.get("depositPercent") || "0"),
+          paymentduedate: new Date((formData.get("balanceDueDate") as string) || Date.now()).toISOString(),
+          campaign_end_date: new Date((formData.get("campaignEndDate") as string) || Date.now()).toISOString(),
+          discount_type: (formData.get("discountType") as string) || "none",
+          discountpercent: (formData.get("discountPercentage") as string) || "0",
+          discountfixed: (formData.get("flatDiscount") as string) || "0",
+          campaigntags: JSON.parse((formData.get("orderTags") as string) || "[]").join(","),
+          campaigntype: String(formData.get("campaignType") as string),
+        }),
       },
-      {
-        key: "button_text",
-        value: (formData.get("buttonText") as string) || "Preorder",
-      },
-      {
-        key: "shipping_message",
-        value:
-          (formData.get("shippingMessage") as string) ||
-          "Ship as soon as possible",
-      },
-      {
-        key: "payment_type",
-        value: (formData.get("paymentMode") as string) || "Full",
-      },
-      { key: "ppercent", value: String(formData.get("depositPercent") || "0") },
-      {
-        key: "paymentduedate",
-        value: new Date(
-          (formData.get("balanceDueDate") as string) || Date.now(),
-        ).toISOString(),
-      },
-      {
-        key: "campaign_end_date",
-        value: new Date(
-          (formData.get("campaignEndDate") as string) || Date.now(),
-        ).toISOString(),
-      },
-      {
-        key: "campaigntype",
-        value: String(formData.get("campaignType") || "0"),
-      }
     ];
 
-    const campaignUpdateResponse = await admin.graphql(updateCampaignMutation, {
-      variables: {
-        id: metaobjectId,
-        fields: updatedFields,
-      },
-    });
-
-    const parsedResponse = await campaignUpdateResponse.json();
-    console.log(parsedResponse.data.metaobjectUpdate.userErrors);
-    console.log(parsedResponse.data.metaobjectUpdate.metaobject);
-
-    // Step 3: update metaobject design_fields
-
-    const designFields = JSON.parse(formData.get("designFields") as string);
-    console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
-    const fields = Object.entries(designFields).map(([key, value]) => ({
-      key: key.toLowerCase(),
-      value: String(value),
-    }));
-    fields.push({
-      key: "campaign_id",
-      value: String(params.id),
-    });
-    const query = `
-  query GetDesignSettings($handle: String!) {
-    metaobjectByHandle(handle: {handle: $handle, type: "design_settings"}) {
-      id
-      handle
-      type
-      fields {
-        key
-        value
-      }
-    }
-  }
-`;
-
-    const res = await admin.graphql(query, {
-      variables: { handle: params.id },
-    });
-
-    const data = await res.json();
-    const designmetaobjectId = data.data.metaobjectByHandle.id;
-
-    const mutation = `
-  mutation UpdateDesignSettings($id: ID!, $fields: [MetaobjectFieldInput!]!) {
-    metaobjectUpdate(
-      id: $id
-      metaobject: { fields: $fields }
-    ) {
-      metaobject {
-        id
-        handle
-        fields {
-          key
-          value
+    const updateCampaignMutation = `
+      mutation UpdateCampaign($id: ID!, $metaobject: MetaobjectInput!) {
+        metaobjectUpdate(id: $id, metaobject: $metaobject) {
+          metaobject {
+            id
+            handle
+            fields { key value }
+          }
+          userErrors { field message }
         }
       }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
+    `;
 
-    const response = await admin.graphql(mutation, {
-      variables: {
-        id: designmetaobjectId,
-        fields,
-      },
+    const campaignUpdateResponse = await admin.graphql(updateCampaignMutation, {
+      variables: { id: metaobjectId, metaobject: { fields: campaignFields } },
     });
 
-    const updated = await response.json();
-    console.log("Updated metaobject:", updated);
+    const parsedCampaign = await campaignUpdateResponse.json();
+
+    if (parsedCampaign?.data?.metaobjectUpdate?.userErrors?.length) {
+      console.error("Campaign Update Errors:", parsedCampaign.data.metaobjectUpdate.userErrors);
+    } else {
+      console.log("Updated Campaign Metaobject:", parsedCampaign.data.metaobjectUpdate.metaobject);
+    }
+
+    // ------------------------
+    // Step 3: Update design metaobject
+    // ------------------------
+    const designFieldsInput = JSON.parse(formData.get("designFields") as string);
+    const designFields = [
+      {
+        key: "object",
+        value: JSON.stringify({ ...designFieldsInput, campaign_id: params.id }),
+      },
+    ];
+
+    const getDesignQuery = `
+      query GetDesignSettings($handle: String!) {
+        metaobjectByHandle(handle: { handle: $handle, type: "design_settings" }) {
+          id handle type fields { key value }
+        }
+      }
+    `;
+
+    const designRes = await admin.graphql(getDesignQuery, { variables: { handle: params.id } });
+    const designData = await designRes.json();
+
+    const designMetaobjectId = designData?.data?.metaobjectByHandle?.id;
+    if (!designMetaobjectId) {
+      throw new Error("Design metaobject not found for handle: " + params.id);
+    }
+
+    const updateDesignMutation = `
+      mutation UpdateDesignSettings($id: ID!, $metaobject: MetaobjectInput!) {
+        metaobjectUpdate(id: $id, metaobject: $metaobject) {
+          metaobject { id handle fields { key value } }
+          userErrors { field message }
+        }
+      }
+    `;
+
+    const designUpdateRes = await admin.graphql(updateDesignMutation, {
+      variables: { id: designMetaobjectId, metaobject: { fields: designFields } },
+    });
+
+    const updatedDesign = await designUpdateRes.json();
+
+    if (updatedDesign?.data?.metaobjectUpdate?.userErrors?.length) {
+      console.error("Design Update Errors:", updatedDesign.data.metaobjectUpdate.userErrors);
+    } else {
+      console.log(
+        "Updated Design Metaobject:",
+        JSON.stringify(updatedDesign.data.metaobjectUpdate.metaobject, null, 2),
+      );
+    }
 
     return redirect(`/app/`);
+  } catch (err) {
+    console.error("Update Campaign Exception:", err);
+    throw err; // let Remix handle the error page
   }
+}
+
 
   if (intent === "publish-campaign") {
     const id = formData.get("id");
@@ -396,7 +359,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
     try {
       const res = await admin.graphql(publishMutation, {
         variables: {
-          handle: { type: "preordercampaign", handle: id }, // 👈 your campaign UUID
+          handle: { type: "preordercampaign", handle: id }, 
           status: "ACTIVE",
         },
       });
@@ -1306,14 +1269,15 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
         const designFields = JSON.parse(formData.get("designFields") as string);
         console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
-        const fields = Object.entries(designFields).map(([key, value]) => ({
-          key: key.toLowerCase(),
-          value: String(value),
-        }));
-        fields.push({
-          key: "campaign_id",
-          value: String(campaign.id),
-        });
+        const fields = [
+          {
+            key: "object",
+            value: JSON.stringify({
+              ...designFields, // all your design fields
+              campaign_id: campaign.id,
+            }),
+          },
+        ];
 
         console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
 
@@ -1379,79 +1343,71 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
         try {
           const response = await admin.graphql(mutation, {
-            variables: { fields },
+            
+            variables: {     
+              fields : [
+                {
+                  key:"campaign_id",
+                  value: String(campaign.id)
+                },
+                
+                  ...fields
+                
+              ]
+             },
           });
+          
 
-          const campaign_response = await admin.graphql(campaign_mutation, {
+        const campaignFields = [
+            {
+              
+              key: "object",
+              value: JSON.stringify({
+                campaign_id: String(campaign.id),
+                name: (formData.get("name") as string) || "Untitled Campaign",
+                status: "publish",
+                button_text:
+                  (formData.get("buttonText") as string) || "Preorder",
+                shipping_message:
+                  (formData.get("shippingMessage") as string) ||
+                  "Ship as soon as possible",
+                payment_type: (formData.get("paymentMode") as string) || "Full",
+                ppercent: String(formData.get("depositPercent") || "0"),
+                paymentduedate: new Date(
+                  (formData.get("balanceDueDate") as string) || Date.now(),
+                ).toISOString(),
+                campaign_end_date: new Date(
+                  (formData.get("campaignEndDate") as string) || Date.now(),
+                ).toISOString(),
+                discount_type:
+                  (formData.get("discountType") as string) || "none",
+                discountpercent:
+                  (formData.get("discountPercentage") as string) || "0",
+                discountfixed: (formData.get("flatDiscount") as string) || "0",
+                campaigntags: JSON.parse(
+                  (formData.get("orderTags") as string) || "[]",
+                ).join(","),
+                campaigntype: String(formData.get("campaignType") as string),
+              }),
+            },
+          ];
+
+           const campaign_response = await admin.graphql(campaign_mutation, {
             variables: {
               fields: [
                 { key: "campaign_id", value: String(campaign.id) },
-                {
-                  key: "name",
-                  value:
-                    (formData.get("name") as string) || "Untitled Campaign",
-                },
-                { key: "status", value: "publish" },
-                {
-                  key: "button_text",
-                  value: (formData.get("buttonText") as string) || "Preorder",
-                },
-                {
-                  key: "shipping_message",
-                  value:
-                    (formData.get("shippingMessage") as string) ||
-                    "Ship as soon as possible",
-                },
-                {
-                  key: "payment_type",
-                  value: (formData.get("paymentMode") as string) || "Full",
-                },
-                {
-                  key: "ppercent",
-                  value: String(formData.get("depositPercent") || "0"),
-                },
-                {
-                  key: "paymentduedate",
-                  value: new Date(
-                    (formData.get("balanceDueDate") as string) || Date.now(),
-                  ).toISOString(),
-                },
-                {
-                  key: "campaign_end_date",
-                  value: new Date(
-                    (formData.get("campaignEndDate") as string) || Date.now(),
-                  ).toISOString(),
-                },
-                {
-                  key: "discount_type",
-                  value: (formData.get("discountType") as string) || "none",
-                },
-                {
-                  key: "discountpercent",
-                  value: (formData.get("discountPercentage") as string) || "0",
-                },
-                {
-                  key: "discountfixed",
-                  value: (formData.get("flatDiscount") as string) || "0",
-                },
-                {
-                  key: "campaigntags",
-                  value: JSON.parse(
-                    (formData.get("orderTags") as string) || "[]",
-                  ).join(","),
-                },
-                {
-                  key: "campaigntype",
-                  value: formData.get("campaignType") as string,
-                },
+                ...campaignFields
               ],
             },
           });
-
           const parsedCampaignResponse = await campaign_response.json();
           console.log(
             parsedCampaignResponse,
             "parsedResponse >>>>>>>>>>>>>>>>>>>>>>",
+          );
+          console.log(
+            "store meta Metaobject //////:",
+            JSON.stringify(parsedCampaignResponse, null, 2),
           );
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
