@@ -63,7 +63,6 @@ function disableNormalButtons(){
   if (preorderBtn && sellingPlanData) {
     const variantId = preorderBtn.dataset.variantId;
     const sellingPlanId = sellingPlanData.dataset.sellingPlan; 
-
     preorderBtn.addEventListener("click", () => {
       fetch("/cart/add.js", {
         method: "POST",

@@ -60,6 +60,7 @@ import { useAppBridge } from "../components/AppBridgeProvider";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
+import prisma from "app/db.server";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -67,6 +68,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   // ✅ get campaign from your DB
   const campaign = await getCampaignById(params.id!);
   // ✅ product IDs from campaign
+  //get tags 
   const productIds = campaign?.products?.map((p) => p.productId) || [];
 
   if (productIds.length === 0) {
@@ -814,7 +816,18 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         }
       }
 
-      await updateCampaignStatus(params.id!, "UNPUBLISHED");
+      await updateCampaignStatus(params.id!, "UNPUBLISH");
+
+      // get totalorders of the campaign
+      const totalOrdersResponse = await prisma.preorderCampaign.findFirst({
+        where: {
+          id: params.id!,
+        },
+      });
+
+      const totalOrders = totalOrdersResponse?.totalOrders || 0;
+
+
 
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!);
@@ -852,6 +865,8 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
           storeId: storeId,
+          getDueByValt : false,
+          totalOrders : totalOrders
         });
 
         const products = JSON.parse(
@@ -1464,10 +1479,16 @@ export default function CampaignDetail() {
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
   } = useLoaderData<typeof loader>();
+  console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
+  console.log(parsedCampaignSettingsResponse, "parsedCampaignSettingsResponse");
+
+
   const designFieldsObj =
     parsedDesignSettingsResponse?.data?.metaobjectByHandle?.fields;
+
   const campaignSettingsObj =
     parsedCampaignSettingsResponse?.data?.metaobjectByHandle?.fields;
+
   const campaignSettingsMap = campaignSettingsObj?.reduce(
     (acc, field) => {
       acc[field.key] = field.value;
@@ -1476,7 +1497,26 @@ export default function CampaignDetail() {
     {} as Record<string, string>,
   );
 
+  const parsedCampaignData = JSON.parse(
+    campaignSettingsMap?.object || "{}",
+  )
+
+   const designFieldsMap = designFieldsObj?.reduce(
+    (acc, field) => {
+      acc[field.key] = field.value;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  const parsedDesignFields = JSON.parse(
+    designFieldsMap?.object || "{}",
+  )
+  
+  // console.log(parsedCampaignData, "parsedCampaignData");
+
   // console.log(campaignSettingsMap, "campaignSettingsMap");
+  console.log(parsedDesignFields, "parsedDesignFields");
 
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -1489,27 +1529,27 @@ export default function CampaignDetail() {
   const [productTagInput, setProductTagInput] = useState("");
   const [customerTagInput, setCustomerTagInput] = useState("");
   const [productTags, setProductTags] = useState<string[]>(
-    campaignSettingsMap?.campaigntags
-      ? campaignSettingsMap?.campaigntags.split(",")
+    parsedCampaignData?.campaigntags
+      ? parsedCampaignData?.campaigntags.split(",")
       : [],
   );
   const [customerTags, setCustomerTags] = useState<string[]>([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
   const [selectedOption, setSelectedOption] = useState(
-    Number(campaignSettingsMap?.campaigntype),
+    Number(parsedCampaignData?.campaigntype),
   );
   const [buttonText, setButtonText] = useState(
-    campaignSettingsMap?.button_text,
+    parsedCampaignData?.button_text,
   );
   const [shippingMessage, setShippingMessage] = useState(
-    campaignSettingsMap?.shipping_message,
+    parsedCampaignData?.shipping_message,
   );
   const [partialPaymentPercentage, setPartialPaymentPercentage] = useState(
     campaign?.depositPercent,
   );
   const [paymentMode, setPaymentMode] = useState(
-    campaignSettingsMap?.payment_type === "full" ? "full" : "partial",
+    parsedCampaignData?.payment_type === "full" ? "full" : "partial",
   );
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
@@ -1531,8 +1571,8 @@ export default function CampaignDetail() {
   const [selectedProducts, setSelectedProducts] = useState(products || []);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndDate, setCampaignEndDate] = useState<Date | null>(
-    campaignSettingsMap?.campaign_end_date
-      ? new Date(campaignSettingsMap?.campaign_end_date)
+    parsedCampaignData?.campaign_end_date
+      ? new Date(parsedCampaignData?.campaign_end_date)
       : null,
   );
   const [campaignEndPicker, setCampaignEndPicker] = useState({
@@ -1552,41 +1592,43 @@ export default function CampaignDetail() {
     "not_published",
   );
   const [criticalChange, setCriticalChange] = useState(false);
+  const [partialPaymentText, setPartialPaymentText] =
+      useState("Partial payment");
+    const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
+      "Pay {payment} now and {remaining} will be charged on {date}",
+    );
 
   // console.log(designFieldsObj);
 
-  const designFieldsMap = designFieldsObj?.reduce(
-    (acc, field) => {
-      acc[field.key] = field.value;
-      return acc;
-    },
-    {} as Record<string, string>,
-  );
+ 
 
-  const [designFields, setDesignFields] = useState<DesignFields>({
-    messageFontSize: designFieldsMap?.messagefontsize,
-    messageColor: designFieldsMap?.messagecolor,
-    fontFamily: designFieldsMap?.fontfamily,
-    buttonStyle: designFieldsMap?.buttonstyle,
-    buttonBackgroundColor: designFieldsMap?.buttonbackgroundcolor,
-    gradientDegree: designFieldsMap?.gradientdegree,
-    gradientColor1: designFieldsMap?.gradientcolor1,
-    gradientColor2: designFieldsMap?.gradientcolor2,
-    borderSize: designFieldsMap?.bordersize,
-    borderColor: designFieldsMap?.bordercolor,
-    spacingIT: designFieldsMap?.spacingit,
-    spacingIB: designFieldsMap?.spacingib,
-    spacingOT: designFieldsMap?.spacingot,
-    spacingOB: designFieldsMap?.spacingob,
-    borderRadius: designFieldsMap?.borderradius,
-    preorderMessageColor: designFieldsMap?.preordermessagecolor,
-    buttonFontSize: designFieldsMap?.buttonfontsize,
-    buttonTextColor: designFieldsMap?.buttontextcolor,
-  });
+ const [designFields, setDesignFields] = useState<DesignFields>({
+  messageFontSize: parsedDesignFields?.messageFontSize,
+  messageColor: parsedDesignFields?.messageColor,
+  fontFamily: parsedDesignFields?.fontFamily,
+  buttonStyle: parsedDesignFields?.buttonStyle,
+  buttonBackgroundColor: parsedDesignFields?.buttonBackgroundColor,
+  gradientDegree: parsedDesignFields?.gradientDegree,
+  gradientColor1: parsedDesignFields?.gradientColor1,
+  gradientColor2: parsedDesignFields?.gradientColor2,
+  borderSize: parsedDesignFields?.borderSize,
+  borderColor: parsedDesignFields?.borderColor,
+  spacingIT: parsedDesignFields?.spacingIT,
+  spacingIB: parsedDesignFields?.spacingIB,
+  spacingOT: parsedDesignFields?.spacingOT,
+  spacingOB: parsedDesignFields?.spacingOB,
+  borderRadius: parsedDesignFields?.borderRadius,
+  preorderMessageColor: parsedDesignFields?.preorderMessageColor,
+  buttonFontSize: parsedDesignFields?.buttonFontSize,
+  buttonTextColor: parsedDesignFields?.buttonTextColor,
+});
+
+
+  console.log(designFields,'&&&&&&&&&&&')
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
   const [discountType, setDiscountType] = useState(
-    campaignSettingsMap?.discount_type,
+    parsedCampaignData?.discount_type,
   );
   useEffect(() => {
     if (discountType === "percentage") {
@@ -1597,10 +1639,10 @@ export default function CampaignDetail() {
   }, [discountType]);
 
   const [discountPercentage, setDiscountPercentage] = useState(
-    Number(campaignSettingsMap?.discountpercent),
+    Number(parsedCampaignData?.discountpercent),
   );
   const [flatDiscount, setFlatDiscount] = useState(
-    Number(campaignSettingsMap?.discountfixed),
+    Number(parsedCampaignData?.discountfixed),
   );
   const handleCampaignEndDateChange = useCallback((range) => {
     setCampaignEndPicker((prev) => ({
@@ -1641,7 +1683,7 @@ export default function CampaignDetail() {
   const openResourcePicker = () => {
     shopify.modal.hide("my-modal");
 
-    async function fetchProductsInCollection(collectionId: string) {
+ async function fetchProductsInCollection(collectionId: string) {
       const res = await fetch("/api/products-in-collection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2060,7 +2102,7 @@ export default function CampaignDetail() {
                 <Card>
                   <BlockStack>
                     <Text as="h1" variant="headingLg">
-                      New Campaign
+                      {/* New Campaign */}
                     </Text>
                   </BlockStack>
                   <TextField
@@ -2371,12 +2413,15 @@ export default function CampaignDetail() {
                             <TextField
                               autoComplete="off"
                               label="Partial payment text"
+                              onChange={setPartialPaymentText}
+                              value={partialPaymentText}
                             />
                             <Text as="p" variant="bodyMd">
                               Visible in cart, checkout, transactional emails
                             </Text>
                             <div>
-                              <TextField autoComplete="off" label="Text" />
+                              <TextField autoComplete="off" label="Text"
+                                value={partialPaymentInfoText} />
                               <Text as="p" variant="bodyMd">
                                 Use {"{payment}"} and {"{remaining}"} to display
                                 partial payment amounts and {"{date}"} for full

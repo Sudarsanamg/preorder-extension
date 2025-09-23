@@ -8,10 +8,10 @@
 {% assign price = selected_selling_plan_allocation.price %}
 {%  assign campaignid  = product.metafields.custom.campaign_id %} 
 {% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
-{%  assign campaignType = campaignprops.campaigntype  %}
-{% comment %} <p>{{campaignType}}</p> {% endcomment %}
+{%  assign campaignType = campaignprops.object.value.campaigntype  %}
+{% assign parsedCampaignData =  campaignprops.object.value %}
 
-{% if deposit_percent > 0  and product.metafields.custom.preorder == true and campaignprops.payment_type.value == 'partial'%}
+{% if deposit_percent > 0  and product.metafields.custom.preorder == true and parsedCampaignData.payment_type == 'partial'%}
   {% assign initial_payment = price | times: deposit_percent | divided_by: 100 %}
   {% assign balance_payment = price | minus: initial_payment %}
   {% assign balance_due_date = product.metafields.custom.balance_due_date.value %}

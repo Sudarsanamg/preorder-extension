@@ -170,7 +170,7 @@ export default function SettingsEmail() {
                 )
             }
           </Card>
-          <Card>
+          {/* <Card>
             <RadioButton
               label="Custom"
               checked={value === "custom"}
@@ -207,7 +207,7 @@ export default function SettingsEmail() {
                     </div>
                 )
             }
-          </Card>
+          </Card> */}
         </BlockStack>
       </Card>
     </Page>

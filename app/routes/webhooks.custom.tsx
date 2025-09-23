@@ -221,6 +221,7 @@ export const action = async ({ request }: { request: Request }) => {
       }
 
       // // Draft order mutation
+      // the only way to match og order with draft order is note key 
       if (remaining > 0 && vaultPayment === false) {
         const mutation = `
         mutation draftOrderCreate($input: DraftOrderInput!) {

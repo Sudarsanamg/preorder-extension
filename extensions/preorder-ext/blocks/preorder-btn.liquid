@@ -1,14 +1,14 @@
-{% comment %} {% assign settings = shop.metaobjects.design_settings["5-1"] %} {% endcomment %}
-{% comment %} {% assign settings = shop.metaobjects.design_settings.values | reverse | first %} {% endcomment %}
-
-{%  assign campaignid  = product.metafields.custom.campaign_id %} 
+{% assign campaignid = product.metafields.custom.campaign_id %} 
 {% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
 {% assign settings = shop.metaobjects.design_settings[campaignid] %}
+{% assign designSettings = settings.object.value %}
+{% assign json_string = settings.object.value | replace: '=>', ':' %}
+{% assign campaignSettings = campaignprops.object.value %}
 
 <div id="product-data" data-preorder="{{ product.metafields.custom.preorder.value }}"></div>
 <div id="selling-plan-data" data-selling-plan="{{ product.selling_plan_groups.first.selling_plans.first.id }}"></div>
 <div id="campaign-data" 
-     data-campaign-type="{{ campaignprops.campaigntype }}">
+     data-campaign-type="{{ campaignSettings.campaigntype }}">
 </div>
 
 <div 
@@ -16,7 +16,7 @@
   data-in-stock="{{ product.selected_or_first_available_variant.available }}">
 </div>
 
-<script src="{{ 'preorder-btn.js' | asset_url }}" defer="defer"></script>
+<script src="{{ 'preorder-btn.js' | asset_url }}" defer="async"></script>
 
 <link rel="stylesheet" href="{{ 'preorder-btn.css' | asset_url }}">
 
@@ -25,46 +25,36 @@
   
 <div 
   style="
-    
-    border: {{ settings.bordersize }}px solid {{ settings.bordercolor }};
-    border-radius: {{ settings.borderradius }}px;
-    padding-top : {{ settings.spacingit}}px;
-    padding-bottom: {{ settings.spacingib }}px;
-    margin-top: {{ settings.spacingot }}px;
-    margin-bottom : {{ settings.spacinob }}px;
-    display:flex;
+    border: {{ designSettings.borderSize }}px solid {{ designSettings.borderColor }};
+    border-radius: {{ designSettings.borderRadius }}px;
+    padding-top: {{ designSettings.spacingIT }}px;
+    padding-bottom: {{ designSettings.spacingIB }}px;
+    margin-top: {{ designSettings.spacingOT }}px;
+    margin-bottom: {{ designSettings.spacingOB }}px;
+    display: flex;
     cursor: pointer;
-    justify-content:center;
-    background: {% if settings.buttonstyle == 'single' %}
-                  {{ settings.buttonbackgroundcolor }}
-                {% else %}
-                  linear-gradient({{ settings.gradientdegree }}deg,
-                                  {{ settings.gradientcolor1 }},
-                                  {{ settings.gradientcolor2 }})
-                {% endif %}
-                ;
-                
-               
+    justify-content: center;
+    background:
+      {% if designSettings.buttonStyle == 'single' %}
+        {{ designSettings.buttonBackgroundColor }}
+      {% else %}
+        linear-gradient({{ designSettings.gradientDegree }}deg, {{ designSettings.gradientColor1 }}, {{ designSettings.gradientColor2 }})
+      {% endif %}
+    ;
   "
-  class="preorder-button" data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+  class="preorder-button"
+  data-variant-id="{{ product.selected_or_first_available_variant.id }}"
 >
- <p style="color: {{settings.buttontextcolor}}; 
- font-size: {{ settings.messagefontsize }}px;
-  font-family: {{ settings.fontfamily }};
-
- "> {{campaignprops.button_text}}</p>
+  <p style="
+    color: {{ designSettings.buttonTextColor }};
+    font-size: {{ designSettings.messageFontSize }}px;
+    font-family: {{ designSettings.fontFamily }};
+  ">
+    {{ campaignSettings.button_text }}
+  </p>
 </div>
 
 {% endif %}
-
-
-
-{% comment %} <pre>{{ settings | json }}</pre> {% endcomment %}
-
-
-
-
-
 {% schema %}
 {
   "name": "preorder button",

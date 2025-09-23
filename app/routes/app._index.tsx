@@ -29,11 +29,12 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useState } from "react";
-import { getAllCampaign, getEmailSettingsStatus } from "app/models/campaign.server";
+import { createStore, getAccessToken, getAllCampaign, getEmailSettingsStatus } from "app/models/campaign.server";
 import { FileIcon } from '@shopify/polaris-icons';
 import preorderCampaignDef from "app/utils/preorderCampaignDef";
 import designSettingsDef from "app/utils/designSettingsDef";
 import productMetafieldDefinitions from "app/utils/productMetafieldDefinitions";
+import {confrimOrderTemplate, ShippingEmailTemplate} from '../utils/templates/emailTemplate'
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -61,6 +62,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 // ---------------- Action ----------------
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
+
+    const storeDataQuery = `{
+      shop {
+        id
+        name
+        myshopifyDomain
+      }
+    }`;
+  
+    const storeDataQueryresponse = await admin.graphql(storeDataQuery);
+    const storeDataQuerydata = await storeDataQueryresponse.json();
+    const storeId = storeDataQuerydata.data.shop.id; 
+
+const storeDomain = storeDataQuerydata.data.shop.myshopifyDomain;
+
+const accessTokenResponse = await getAccessToken(storeDomain);
+const accessToken = accessTokenResponse?.accessToken as string;
+ 
+  await createStore(
+    {
+      storeID: storeId,
+      offlineToken: accessToken,
+      webhookRegistered: true,
+      metaobjectsCreated: true,
+      metaFieldsCreated: true,
+      shopifyDomain: storeDomain,
+      ConfrimOrderEmailSettings: JSON.stringify(confrimOrderTemplate),
+      ShippingEmailSettings: JSON.stringify(ShippingEmailTemplate),
+      GeneralSettings: "",
+      EmailConfig: ""
+    }
+
+  )
 
   const response = await admin.graphql(
     `#graphql
@@ -93,7 +127,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://karma-alt-pension-missions.trycloudflare.com/webhooks/custom",
+            "https://browsers-something-rica-peace.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },
@@ -135,7 +169,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic: "ORDERS_PAID",
         webhookSubscription: {
           callbackUrl:
-            "https://karma-alt-pension-missions.trycloudflare.com/webhooks/order_paid",
+            "https://browsers-something-rica-peace.trycloudflare.com/webhooks/order_paid",
           format: "JSON",
         },
       },
@@ -220,7 +254,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
    } catch (err) {
      console.error("Failed to create metaobject definition:", err);
    }
-  
 
   return json({
     success: true,

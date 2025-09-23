@@ -65,7 +65,7 @@ export default function PreviewDesign({
   };
 
   return (
-    <div>
+    <BlockStack gap="400">
       <Card>
         <BlockStack gap="400">
           <Text variant="headingMd" as="h2" fontWeight="bold">
@@ -364,6 +364,6 @@ export default function PreviewDesign({
       <Card>
         <Button fullWidth onClick={()=>setTabSelected(2)}>Continue to products</Button>
       </Card>
-    </div>
+    </BlockStack>
   );
 }
