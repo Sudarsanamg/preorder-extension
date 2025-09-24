@@ -46,7 +46,7 @@ export async function loader({ request }: { request: Request }) {
   const data = await response.json();
 
   const shopId = data.data.shop.id; 
-  const status  = await getShippingEmailSettingsStatus(shopId); 
+  // const status  = await getShippingEmailSettingsStatus(shopId); 
   return {shopId ,status };
 }
 
@@ -62,7 +62,7 @@ export const action = async ({ request }: { request: Request }) => {
       const designFields = formData.get("designFields");
   
       try {
-        await createOrUpdateShippingEmailSettings(String(shopId), JSON.parse(designFields as string));
+        // await createOrUpdateShippingEmailSettings(String(shopId), JSON.parse(designFields as string));
       } catch (error) {
         console.error("Error saving email settings:", error);
         return { success: false, error: "Failed to save email settings." };
@@ -73,7 +73,7 @@ export const action = async ({ request }: { request: Request }) => {
       const status = formData.get("status");
       const shopId = formData.get("shopId");
       try {
-          await shippingEmailSettingsStatusUpdate(String(shopId), status == "true" ? "true" : "false");
+          // await shippingEmailSettingsStatusUpdate(String(shopId), status == "true" ? "true" : "false");
         return { success: true, status: status === "true" };
       } catch (error) {
         console.error("Error changing email settings status:", error);

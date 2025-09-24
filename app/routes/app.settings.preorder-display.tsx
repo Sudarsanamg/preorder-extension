@@ -29,7 +29,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const response = await admin.graphql(query);
   const data = await response.json();
   const shopId = data.data.shop.id;
-  const settings = await getPreorderDisplaySettings(shopId);    
+  // const settings = await getPreorderDisplaySettings(shopId); 
+  const settings = {};   
 
   return {shopId  ,settings};
 };
@@ -43,7 +44,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const settings = formData.get("settings");
       const shopId = formData.get("shopId");
       try {
-        const response = await savePreorderDisplay(String(shopId), JSON.parse(settings as string));
+        // const response = await savePreorderDisplay(String(shopId), JSON.parse(settings as string));
         redirect('/app');
       } catch (error) {
         console.error("Error saving email settings:", error);

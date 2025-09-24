@@ -221,9 +221,10 @@ export const action = async ({ request }: { request: Request }) => {
           },
         });
 
-        const emailConfig = await prisma.emailConfig.findFirst({
-          where: { storeId: shopId },
-        });
+        const emailConfig = {
+          fromName :'Preorder',
+          replyName: 'Preorder@noreply.com',
+        };
 
         try {
           await transporter.sendMail({

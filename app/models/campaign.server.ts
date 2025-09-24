@@ -323,63 +323,63 @@ export async function orderStatusUpdateByOrderId(orderId: string) {
 //   });
 // }
 
-export async function createOrUpdateEmailSettings(
-  shopId: string,
-  settings: any,
-) {
-  const existing = await prisma.emailSettings.findUnique({
-    where: { shopId },
-  });
+// export async function createOrUpdateEmailSettings(
+//   shopId: string,
+//   settings: any,
+// ) {
+//   const existing = await prisma.emailSettings.findUnique({
+//     where: { shopId },
+//   });
 
-  if (existing) {
-    return prisma.emailSettings.update({
-      where: { shopId },
-      data: settings,
-    });
-  } else {
-    return prisma.emailSettings.create({
-      data: {
-        shopId,
-        ...settings,
-      },
-    });
-  }
-}
+//   if (existing) {
+//     return prisma.emailSettings.update({
+//       where: { shopId },
+//       data: settings,
+//     });
+//   } else {
+//     return prisma.emailSettings.create({
+//       data: {
+//         shopId,
+//         ...settings,
+//       },
+//     });
+//   }
+// }
 
-export async function createOrUpdateShippingEmailSettings(
-  shopId: string,
-  settings: any,
-) {
-  const existing = await prisma.shippingEmailSettings.findUnique({
-    where: { shopId },
-  });
+// export async function createOrUpdateShippingEmailSettings(
+//   shopId: string,
+//   settings: any,
+// ) {
+//   const existing = await prisma.shippingEmailSettings.findUnique({
+//     where: { shopId },
+//   });
 
-  if (existing) {
-    return prisma.shippingEmailSettings.update({
-      where: { shopId },
-      data: settings,
-    });
-  } else {
-    return prisma.shippingEmailSettings.create({
-      data: {
-        shopId,
-        ...settings,
-      },
-    });
-  }
-}
+//   if (existing) {
+//     return prisma.shippingEmailSettings.update({
+//       where: { shopId },
+//       data: settings,
+//     });
+//   } else {
+//     return prisma.shippingEmailSettings.create({
+//       data: {
+//         shopId,
+//         ...settings,
+//       },
+//     });
+//   }
+// }
 
-export async function getEmailSettings(shopId: string) {
-  return prisma.emailSettings.findUnique({
-    where: { shopId },
-  });
-}
+// export async function getEmailSettings(shopId: string) {
+//   return prisma.emailSettings.findUnique({
+//     where: { shopId },
+//   });
+// }
 
-export async function getShippingEmailSettings(shopId: string) {
-  return prisma.shippingEmailSettings.findUnique({
-    where: { shopId },
-  });
-}
+// export async function getShippingEmailSettings(shopId: string) {
+//   return prisma.shippingEmailSettings.findUnique({
+//     where: { shopId },
+//   });
+// }
 
 export async function getEmailSettingsStatus(shopId: string) {
   const settings = await prisma.store.findUnique({
@@ -414,29 +414,29 @@ export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
   });
 }
 
-export async function getShippingEmailSettingsStatus(shopId: string) {
-  const settings = await prisma.shippingEmailSettings.findUnique({
-    where: { shopId },
-  });
-  return settings?.enabled ?? false;
-}
+// export async function getShippingEmailSettingsStatus(shopId: string) {
+//   const settings = await prisma.shippingEmailSettings.findUnique({
+//     where: { shopId },
+//   });
+//   return settings?.enabled ?? false;
+// }
 
-export async function emailSettingStatusUpdate(shopId: string, enable: string) {
-  return prisma.emailSettings.updateMany({
-    where: { shopId },
-    data: { enabled: enable == "true" ? false : true },
-  });
-}
+// export async function emailSettingStatusUpdate(shopId: string, enable: string) {
+//   return prisma.emailSettings.updateMany({
+//     where: { shopId },
+//     data: { enabled: enable == "true" ? false : true },
+//   });
+// }
 
-export async function shippingEmailSettingsStatusUpdate(
-  shopId: string,
-  enable: string,
-) {
-  return prisma.shippingEmailSettings.updateMany({
-    where: { shopId },
-    data: { enabled: enable == "true" ? false : true },
-  });
-}
+// export async function shippingEmailSettingsStatusUpdate(
+//   shopId: string,
+//   enable: string,
+// ) {
+//   return prisma.shippingEmailSettings.updateMany({
+//     where: { shopId },
+//     data: { enabled: enable == "true" ? false : true },
+//   });
+// }
 
 export async function createDuePayment(
   orderId: string,
@@ -462,25 +462,25 @@ export async function createDuePayment(
   });
 }
 
-export async function getPreorderDisplaySettings(storeId: string) {
-  return prisma.generalSettings.findFirst({
-    where: { storeId },
-  });
-}
+// export async function getPreorderDisplaySettings(storeId: string) {
+//   return prisma.generalSettings.findFirst({
+//     where: { storeId },
+//   });
+// }
 
-export async function savePreorderDisplay(
-  storeId: string,
-  settings: Prisma.JsonValue,
-) {
-  return prisma.generalSettings.upsert({
-    where: { storeId },
-    update: { settings: settings as Prisma.InputJsonValue },
-    create: {
-      storeId,
-      settings: settings as Prisma.InputJsonValue,
-    },
-  });
-}
+// export async function savePreorderDisplay(
+//   storeId: string,
+//   settings: Prisma.JsonValue,
+// ) {
+//   return prisma.generalSettings.upsert({
+//     where: { storeId },
+//     update: { settings: settings as Prisma.InputJsonValue },
+//     create: {
+//       storeId,
+//       settings: settings as Prisma.InputJsonValue,
+//     },
+//   });
+// }
 
 export async function EmailConfig(
   storeId: string,
