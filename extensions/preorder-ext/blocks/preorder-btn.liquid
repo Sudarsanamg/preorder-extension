@@ -6,6 +6,11 @@
 {% assign campaignSettings = campaignprops.object.value %}
 
 <div id="product-data" data-preorder="{{ product.metafields.custom.preorder.value }}"></div>
+<div 
+  id="product-metafields" 
+  data-max-units="{{ product.metafields.custom.preorder_max_units.value }}" 
+  data-units-sold="{{ product.metafields.custom.preorder_units_sold.value }}">
+</div>
 <div id="selling-plan-data" data-selling-plan="{{ product.selling_plan_groups.first.selling_plans.first.id }}"></div>
 <div id="campaign-data" 
      data-campaign-type="{{ campaignSettings.campaigntype }}">
@@ -24,6 +29,7 @@
 {% if product.metafields.custom.preorder == true %}
   
 <div 
+  id="preorder-button-{{ product.selected_or_first_available_variant.id }}"
   style="
     border: {{ designSettings.borderSize }}px solid {{ designSettings.borderColor }};
     border-radius: {{ designSettings.borderRadius }}px;
@@ -34,6 +40,7 @@
     display: flex;
     cursor: pointer;
     justify-content: center;
+    align-items: center;
     background:
       {% if designSettings.buttonStyle == 'single' %}
         {{ designSettings.buttonBackgroundColor }}
@@ -45,7 +52,7 @@
   class="preorder-button"
   data-variant-id="{{ product.selected_or_first_available_variant.id }}"
 >
-  <p style="
+  <p class="button-text" style="
     color: {{ designSettings.buttonTextColor }};
     font-size: {{ designSettings.messageFontSize }}px;
     font-family: {{ designSettings.fontFamily }};
@@ -53,6 +60,7 @@
     {{ campaignSettings.button_text }}
   </p>
 </div>
+
 
 {% endif %}
 {% schema %}

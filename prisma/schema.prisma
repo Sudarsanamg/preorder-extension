@@ -39,6 +39,7 @@ model Store {
   metaobjectsCreated        Boolean  @default(false)
   metaFieldsCreated         Boolean  @default(false)
   shopifyDomain             String   @unique
+  sendCustomEmail           Boolean  @default(false)
   ConfrimOrderEmailSettings Json?
   ShippingEmailSettings     Json?
   GeneralSettings           Json?
@@ -51,6 +52,7 @@ enum PaymentStatus {
   PENDING
   PAID
   FAILED
+  CANCELLED
 }
 
 model VaultedPayment {
@@ -114,16 +116,16 @@ model PreorderCampaignProduct {
   updatedAt    DateTime         @updatedAt
 }
 
-
+//if payment mode is partial payment the only way to match original order with draft order is draft_order_id
 model CampaignOrders {
   id             String   @id @default(cuid())
   storeId        String?
   order_number   Int      @unique
   order_id       String   @unique
-  draft_order_id String   @unique
+  draft_order_id String   @unique 
   dueDate        DateTime
   balanceAmount  Int?
-  paymentStatus  String
+  paymentStatus  PaymentStatus
 }
 
 model EmailSettings {

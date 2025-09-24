@@ -1,11 +1,17 @@
-{% if true %}
+{% assign productData = product.metafields.custom %}
+{% assign preorder_units_sold = productData.preorder_units_sold %}
+{% assign preorder_max_units = productData.preorder_max_units %}
+{% comment %} <p>preorder_units_sold:{{preorder_units_sold}}</p>
+<p>preorder_max_units:{{preorder_max_units}}</p> {% endcomment %}
+
+{% comment %} {% if true %}
   <div>
     <p>We're sorry, but this item is currently sold out for preorders.</p>
   </div>
   <script>
    .product-form { display: none; }
   </script>
-{% endif %}
+{% endif %} {% endcomment %}
 
 {% schema %}
 {
