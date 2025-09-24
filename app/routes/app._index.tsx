@@ -24,250 +24,117 @@ import {
   Divider,
   InlineStack,
   Icon,
-  SkeletonBodyText,
-  SkeletonPage,
-  SkeletonDisplayText,
   Spinner,
 } from "@shopify/polaris";
 
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useState } from "react";
-import { createStore, getAccessToken, getAllCampaign, getEmailSettingsStatus } from "app/models/campaign.server";
-import { FileIcon } from '@shopify/polaris-icons';
+import {
+  createStore,
+  getAccessToken,
+  getAllCampaign,
+  getEmailSettingsStatus,
+} from "app/models/campaign.server";
+import { FileIcon } from "@shopify/polaris-icons";
 import preorderCampaignDef from "app/utils/preorderCampaignDef";
 import designSettingsDef from "app/utils/designSettingsDef";
 import productMetafieldDefinitions from "app/utils/productMetafieldDefinitions";
-import {confrimOrderTemplate, ShippingEmailTemplate} from '../utils/templates/emailTemplate'
+import {
+  confrimOrderTemplate,
+  ShippingEmailTemplate,
+} from "../utils/templates/emailTemplate";
+import { GET_SHOP } from "app/graphql/queries/shop";
+import { createWebhook } from "app/services/webhook.server";
+import { createMetaobjectDefinition } from "app/services/metaobject.server";
+import { createMetafieldDefinition } from "app/services/metafield.server";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
- const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
+  const response = await admin.graphql(GET_SHOP);
+  const data = await response.json();
+  const shopId = data.data.shop.id;
+  const status = await getEmailSettingsStatus(shopId);
+  const emailCampaignStatus = status;
+  const campaigns = await getAllCampaign(shopId);
 
-// get store id
-  const query = `{
-      shop {
-        id
-        name
-        myshopifyDomain
-      }
-    }`;
-  
-    const response = await admin.graphql(query);
-    const data = await response.json();
-    const shopId = data.data.shop.id; 
-    const status  = await getEmailSettingsStatus(shopId);
-    const emailCampaignStatus = status; 
-    const campaigns = await getAllCampaign(shopId);
-  
-  return json({ success: true, campaigns,shopId, emailCampaignStatus });
+  return json({ success: true, campaigns, shopId, emailCampaignStatus });
 };
 
 // ---------------- Action ----------------
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
 
-    const storeDataQuery = `{
-      shop {
-        id
-        name
-        myshopifyDomain
-      }
-    }`;
+  //Getting Data to create store
+  const storeDataQueryresponse = await admin.graphql(GET_SHOP);
+  const storeDataQuerydata = await storeDataQueryresponse.json();
+  const storeId = storeDataQuerydata.data.shop.id;
+  const storeDomain = storeDataQuerydata.data.shop.myshopifyDomain;
+  const accessTokenResponse = await getAccessToken(storeDomain);
+  const accessToken = accessTokenResponse?.accessToken as string;
+  //block
+  try {
+    await createStore({
+      storeID: storeId,
+      offlineToken: accessToken,
+      webhookRegistered: true,
+      metaobjectsCreated: true,
+      metaFieldsCreated: true,
+      shopifyDomain: storeDomain,
+      ConfrimOrderEmailSettings: JSON.stringify(confrimOrderTemplate),
+      ShippingEmailSettings: JSON.stringify(ShippingEmailTemplate),
+      GeneralSettings: "",
+      EmailConfig: "",
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
+  try {
   
-    const storeDataQueryresponse = await admin.graphql(storeDataQuery);
-    const storeDataQuerydata = await storeDataQueryresponse.json();
-    const storeId = storeDataQuerydata.data.shop.id; 
-
-const storeDomain = storeDataQuerydata.data.shop.myshopifyDomain;
-
-const accessTokenResponse = await getAccessToken(storeDomain);
-const accessToken = accessTokenResponse?.accessToken as string;
- 
-  // await createStore(
-  //   {
-  //     storeID: storeId,
-  //     offlineToken: accessToken,
-  //     webhookRegistered: true,
-  //     metaobjectsCreated: true,
-  //     metaFieldsCreated: true,
-  //     shopifyDomain: storeDomain,
-  //     ConfrimOrderEmailSettings: JSON.stringify(confrimOrderTemplate),
-  //     ShippingEmailSettings: JSON.stringify(ShippingEmailTemplate),
-  //     GeneralSettings: "",
-  //     EmailConfig: ""
-  //   }
-
-  // )
-
-  const response = await admin.graphql(
-    `#graphql
-    mutation webhookSubscriptionCreate(
-      $topic: WebhookSubscriptionTopic!
-      $webhookSubscription: WebhookSubscriptionInput!
-    ) {
-      webhookSubscriptionCreate(
-        topic: $topic
-        webhookSubscription: $webhookSubscription
-      ) {
-        webhookSubscription {
-          id
-          topic
-          endpoint {
-            __typename
-            ... on WebhookHttpEndpoint {
-              callbackUrl
-            }
-          }
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }`,
-    {
-      variables: {
-        topic: "ORDERS_CREATE",
-        webhookSubscription: {
-          callbackUrl:
-            "https://major-viewing-farmers-cancer.trycloudflare.com/webhooks/custom",
-          format: "JSON",
-        },
-      },
-    }
+  await createWebhook(
+    admin,
+    "ORDERS_CREATE",
+    `https://harvard-perry-derek-carpet.trycloudflare.com/webhooks/custom`,
+  );
+  const orderPaidRes = await createWebhook(
+    admin,
+    "ORDERS_PAID",
+    `https://harvard-perry-derek-carpet.trycloudflare.com/webhooks/order_paid`,
   );
 
-  const data = await response.json();
-  console.log("Webhook response", JSON.stringify(data, null, 2));
-
-
-    const OrdersPaidMutation = await admin.graphql(
-    `#graphql
-    mutation webhookSubscriptionCreate(
-      $topic: WebhookSubscriptionTopic!
-      $webhookSubscription: WebhookSubscriptionInput!
-    ) {
-      webhookSubscriptionCreate(
-        topic: $topic
-        webhookSubscription: $webhookSubscription
-      ) {
-        webhookSubscription {
-          id
-          topic
-          endpoint {
-            __typename
-            ... on WebhookHttpEndpoint {
-              callbackUrl
-            }
-          }
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }`,
-    {
-      variables: {
-        topic: "ORDERS_PAID",
-        webhookSubscription: {
-          callbackUrl:
-            "https://major-viewing-farmers-cancer.trycloudflare.com/webhooks/order_paid",
-          format: "JSON",
-        },
-      },
-    }
-  );
-
-  const draftOrderUpdateRes = await OrdersPaidMutation.json();
-  console.log("Webhook response", JSON.stringify(draftOrderUpdateRes, null, 2));
-
-
-
-  if (draftOrderUpdateRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
+  if (orderPaidRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
     return json(
-      { success: false, errors: draftOrderUpdateRes.data.webhookSubscriptionCreate.userErrors },
-      { status: 400 }
+      {
+        success: false,
+        errors: orderPaidRes.data.webhookSubscriptionCreate.userErrors,
+      },
+      { status: 400 },
     );
   }
 
-   const mutation = `
-      mutation CreateMetaobjectDefinition($definition: MetaobjectDefinitionCreateInput!) {
-        metaobjectDefinitionCreate(definition: $definition) {
-          metaobjectDefinition {
-            id
-            name
-            type
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
+  await createMetaobjectDefinition(admin, preorderCampaignDef);
+  await createMetaobjectDefinition(admin, designSettingsDef);
 
-   try {
-     const response = await admin.graphql(mutation, {
-       variables: { definition: preorderCampaignDef },
-     });
-     const result = await response.json();
-     console.log("Metaobject definition result:", result);
-     console.log("Response:", JSON.stringify(result, null, 2));
-
-     const designSettingsResponse = await admin.graphql(mutation, {
-       variables: { definition: designSettingsDef },
-     });
-     const designSettingsResponseResult = await designSettingsResponse.json();
-
-     console.log(
-       "Design Response:",
-       JSON.stringify(designSettingsResponseResult, null, 2),
-     );
-     console.log("Metaobject definition result:", designSettingsResponseResult);
-
-     for (const def of productMetafieldDefinitions) {
-       const mutation = `
-    mutation MetafieldDefinitionCreate($definition: MetafieldDefinitionInput!) {
-  metafieldDefinitionCreate(definition: $definition) {
-    createdDefinition {
-      id
-      name
-      key
-      type {
-        name
-        category
-      }
-      ownerType
-    }
-    userErrors {
-      field
-      message
-    }
+  for (const def of productMetafieldDefinitions) {
+    await createMetafieldDefinition(admin, def);
   }
-}
-
-  `;
-
-       const response = await admin.graphql(mutation, {
-         variables: { definition: def },
-       });
-       console.log("Metafield definition result:", response);
-     }
-   } catch (err) {
-     console.error("Failed to create metaobject definition:", err);
-   }
+  
 
   return json({
     success: true,
-    webhook: draftOrderUpdateRes.data?.webhookSubscriptionCreate?.webhookSubscription,
+    webhook: orderPaidRes.data?.webhookSubscriptionCreate?.webhookSubscription,
   });
+    
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 // ---------------- Component ----------------
 export default function Index() {
-  const { campaigns ,emailCampaignStatus } = useLoaderData<typeof loader>();
+  const { campaigns, emailCampaignStatus } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -286,20 +153,19 @@ export default function Index() {
 
   const filteredRows = rows.filter((row) =>
     row.data.some((col) =>
-      String(col).toLowerCase().includes(search.toLowerCase())
-    )
+      String(col).toLowerCase().includes(search.toLowerCase()),
+    ),
   );
 
   const uniqueRows = Array.from(
-    new Map(filteredRows.map((row) => [JSON.stringify(row.data), row])).values()
+    new Map(
+      filteredRows.map((row) => [JSON.stringify(row.data), row]),
+    ).values(),
   );
 
   return (
-    <Page
-    
-    >
-      <TitleBar title="Preorder Extension" 
-      />
+    <Page>
+      <TitleBar title="Preorder Extension" />
 
       {/* Header */}
       <div
@@ -309,29 +175,27 @@ export default function Index() {
           justifyContent: "space-between",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center" , gap: "10px"}}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <p style={{ fontSize: "26px" }}>Preorder Settings</p>
           {navigation.state !== "idle" && (
-  <div style={{ display: "flex", alignItems: "center" }}>
-    <Spinner size="small" />
-    {/* <Text>Loading...</Text> */}
-  </div>
-)}
-
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <Spinner size="small" />
+              {/* <Text>Loading...</Text> */}
+            </div>
+          )}
         </div>
         <Link
           to={{ pathname: "campaign/new", search: location.search }}
           prefetch="intent"
         >
-          <Button 
-           variant="primary" 
-           onClick={() => setLoading(true)}
-           >Create Campaign</Button>
+          <Button variant="primary" onClick={() => setLoading(true)}>
+            Create Campaign
+          </Button>
         </Link>
       </div>
 
       {/* Register Webhook Button */}
-       <Form method="post">
+      <Form method="post">
         <Button
           submit
           variant="primary"
@@ -339,7 +203,7 @@ export default function Index() {
         >
           Register Webhook
         </Button>
-      </Form> 
+      </Form>
 
       {actionData?.success && (
         <p style={{ color: "green", marginTop: "10px" }}>
@@ -413,62 +277,89 @@ export default function Index() {
         </Card>
       </div>
 
-      <div style={{marginTop:20, marginBottom:20}}>
+      <div style={{ marginTop: 20, marginBottom: 20 }}>
         <Card>
-          <Text as="h4" variant="headingMd"> General settings </Text>
+          <Text as="h4" variant="headingMd">
+            {" "}
+            General settings{" "}
+          </Text>
           <Text as="p" variant="bodyMd">
             Manage settings that will apply to all preorder campaigns
           </Text>
-          <div style={{marginTop:20}}>
-          <Card >
-            <InlineStack blockAlign="center" gap={"100"} align="space-between">
-              <InlineStack gap={"100"}>
-              <div>
-              <Icon source={FileIcon} />
-              </div>
-              <BlockStack gap={"100"}>
-                <Text as="h3" variant="bodyMd" fontWeight="medium">
-                  Preorder widget
-                </Text>
-                <Text as="p" tone="subdued" variant="bodySm">
-                  Customize the appearance of the preorder widget
-                </Text>
-              </BlockStack>
+          <div style={{ marginTop: 20 }}>
+            <Card>
+              <InlineStack
+                blockAlign="center"
+                gap={"100"}
+                align="space-between"
+              >
+                <InlineStack gap={"100"}>
+                  <div>
+                    <Icon source={FileIcon} />
+                  </div>
+                  <BlockStack gap={"100"}>
+                    <Text as="h3" variant="bodyMd" fontWeight="medium">
+                      Preorder widget
+                    </Text>
+                    <Text as="p" tone="subdued" variant="bodySm">
+                      Customize the appearance of the preorder widget
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
+                <Button
+                  onClick={() => {
+                    navigate("/app/settings/preorder-display");
+                  }}
+                >
+                  Manage
+                </Button>
               </InlineStack>
-              <Button
-                onClick={() => {
-                  navigate("/app/settings/preorder-display");
-                }}
-              >Manage</Button>
-            </InlineStack>
-          </Card>
+            </Card>
           </div>
         </Card>
       </div>
 
-      <div style={{marginTop:20, marginBottom:20}}>
+      <div style={{ marginTop: 20, marginBottom: 20 }}>
         <Card>
-          <Text as="h4" variant="headingMd"> Notifications </Text>
-        <Card >
+          <Text as="h4" variant="headingMd">
+            {" "}
+            Notifications{" "}
+          </Text>
+          <Card>
             <BlockStack gap="500">
               {/* Preorder Confirmation Email */}
               <div>
-                <div style={{display:'flex',alignSelf:'center', justifyContent:'space-between'}}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignSelf: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <div>
                     <Text as="h3" variant="bodyMd" fontWeight="medium">
-                      Preorder confirmation email {
-                        emailCampaignStatus == true ?
-                        <Badge tone="success">On</Badge> :
+                      Preorder confirmation email{" "}
+                      {emailCampaignStatus == true ? (
+                        <Badge tone="success">On</Badge>
+                      ) : (
                         <Badge tone="critical">Off</Badge>
-                        }
+                      )}
                     </Text>
                     <Text as="p" tone="subdued" variant="bodySm">
-                      This notification is sent after an order is placed for preorder
-                      items. It has a link for customers to cancel the order.
+                      This notification is sent after an order is placed for
+                      preorder items. It has a link for customers to cancel the
+                      order.
                     </Text>
                   </div>
                   <div>
-                    <Button size="slim"  onClick={() => {navigate('/app/settings/email-preorder-confirmation')}}>Customize</Button>
+                    <Button
+                      size="slim"
+                      onClick={() => {
+                        navigate("/app/settings/email-preorder-confirmation");
+                      }}
+                    >
+                      Customize
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -477,7 +368,13 @@ export default function Index() {
 
               {/* Preorder Shipping Update Email */}
               <div>
-                <div style={{display:'flex',alignSelf:'center', justifyContent:'space-between'}}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignSelf: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <div>
                     <Text as="h3" variant="bodyMd" fontWeight="medium">
                       Preorder shipping update email <Badge>Default</Badge>
@@ -487,7 +384,16 @@ export default function Index() {
                     </Text>
                   </div>
                   <div>
-                    <Button size="slim" onClick={() => {navigate('/app/settings/email-preorder-shipping-update')}}>Customize</Button>
+                    <Button
+                      size="slim"
+                      onClick={() => {
+                        navigate(
+                          "/app/settings/email-preorder-shipping-update",
+                        );
+                      }}
+                    >
+                      Customize
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -496,25 +402,37 @@ export default function Index() {
 
               {/* Customize sender email */}
               <div>
-                <div style={{display:'flex',alignSelf:'center', justifyContent:'space-between'}}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignSelf: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <div>
                     <Text as="h3" variant="bodyMd" fontWeight="medium">
                       Customize sender email
                     </Text>
                     <Text as="p" tone="subdued" variant="bodySm">
-                      Emails are sent from info@essentialpreorder.com. You can add
-                      your own email to use.
+                      Emails are sent from info@essentialpreorder.com. You can
+                      add your own email to use.
                     </Text>
                   </div>
                   <div>
-                    <Button size="slim"
-                      onClick={() => {navigate('/app/settings/email')}}>Manage</Button>
+                    <Button
+                      size="slim"
+                      onClick={() => {
+                        navigate("/app/settings/email");
+                      }}
+                    >
+                      Manage
+                    </Button>
                   </div>
                 </div>
               </div>
             </BlockStack>
           </Card>
-          </Card>
+        </Card>
       </div>
     </Page>
   );
