@@ -1,9 +1,11 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
+
 import {
   addProductsToCampaign,
   createPreorderCampaign,
   deleteCampaign,
   getCampaignById,
+  getCampaignStatus,
   replaceProductsInCampaign,
   updateCampaign,
   updateCampaignStatus,
@@ -43,6 +45,7 @@ import {
   useActionData,
   useLoaderData,
   Link,
+  useNavigation
 } from "@remix-run/react";
 import {
   DiscountIcon,
@@ -61,6 +64,7 @@ import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
 import prisma from "app/db.server";
+import { CampaignStatus } from "@prisma/client";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -162,10 +166,12 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
-
+ 
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const secondaryIntent = formData.get("secondaryIntent") as string;
+  const campaignCurrentStatusResponse = await getCampaignStatus(params.id!);
+  const campaignCurrentStatus = campaignCurrentStatusResponse?.status;
   if (intent === "delete-campaign") {
     const id = formData.get("id");
     await deleteCampaign(id);
@@ -186,16 +192,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         ? new Date(formData.get("campaignEndDate") as string)
         : undefined,
       campaignType: Number(formData.get("campaignType")),
+      orderTags: JSON.parse((formData.get("orderTags") as string) || "{}"),
+      customerTags: JSON.parse((formData.get("customerTags") as string) || "{}"),
+      status: campaignCurrentStatus,
     });
 
-    console.log("Updated campaign basic info:", updatedCampaign);
+    // console.log("Updated campaign basic info:", updatedCampaign);
 
     // ------------------------
     // Step 1b: Replace campaign products
     // ------------------------
     const updatedProducts = JSON.parse((formData.get("products") as string) || "[]");
     const replace = await replaceProductsInCampaign(String(params.id!), updatedProducts);
-    console.log("Replaced products:", replace);
+    // console.log("Replaced products:", replace);
 
     // ------------------------
     // Step 2: Update campaign metaobject
@@ -572,11 +581,11 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
       const productIds = products.map((p) => p.id);
 
-      console.log(
-        productIds,
-        Number(formData.get("depositPercent")),
-        "formData >>>>>>>>>>>>>>>>>>>>>>",
-      );
+      // console.log(
+      //   productIds,
+      //   Number(formData.get("depositPercent")),
+      //   "formData >>>>>>>>>>>>>>>>>>>>>>",
+      // );
 
       try {
         let res;
@@ -809,7 +818,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           const storeId = data.data.shop.id; 
 
 
-
       if (secondaryIntent === "delete-campaign-create-new") {
         const campaign = await createPreorderCampaign({
           name: formData.get("name") as string,
@@ -829,7 +837,8 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           campaignType: Number(formData.get("campaignType")),
           storeId: storeId,
           getDueByValt : false,
-          totalOrders : totalOrders
+          totalOrders : totalOrders,
+          status : campaignCurrentStatus 
         });
 
         const products = JSON.parse(
@@ -1438,6 +1447,7 @@ export default function CampaignDetail() {
   console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
   console.log(parsedCampaignSettingsResponse, "parsedCampaignSettingsResponse");
 
+const navigation = useNavigation();
 
   const designFieldsObj =
     parsedDesignSettingsResponse?.data?.metaobjectByHandle?.fields;
@@ -1555,6 +1565,7 @@ export default function CampaignDetail() {
     );
 
   // console.log(designFieldsObj);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
  
 
@@ -1753,6 +1764,7 @@ export default function CampaignDetail() {
     // }
 
     console.log("function hit");
+    setIsSubmitting(true);
     const formData = new FormData();
     formData.append("intent", "update-campaign");
     formData.append("name", campaignName!);
@@ -1770,9 +1782,6 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   };
 
-  useEffect(() => {
-    console.log(selectedProducts);
-  }, [selectedProducts]);
 
   const handleMaxUnitChange = (id: string, value: number) => {
     setSelectedProducts((prev: any) =>
@@ -1784,9 +1793,7 @@ export default function CampaignDetail() {
     );
   };
 
-  useEffect(() => {
-    console.log(selectedProducts);
-  }, [selectedProducts]);
+
 
   const appBridge = useAppBridge();
 
@@ -1802,11 +1809,9 @@ export default function CampaignDetail() {
 
   const [active, setActive] = useState(false);
 
-  const handleOpen = () => setActive(true);
-  const handleClose = () => setActive(false);
-
   function handleUnpublish(id: string): void {
     const formData = new FormData();
+    setIsSubmitting(true);
     formData.append("intent", "unpublish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("id", id);
@@ -1820,7 +1825,7 @@ export default function CampaignDetail() {
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("secondaryIntent", "delete-campaign-create-new");
     formData.append("id", id);
-    formData.append("name", String(campaign?.name));
+    formData.append("name", String(campaignName));
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
@@ -1868,6 +1873,7 @@ export default function CampaignDetail() {
 
   function handlePublish(id: string): void {
     const formData = new FormData();
+    setIsSubmitting(true);
     formData.append("intent", "publish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("paymentMode", String(paymentMode));
@@ -1894,6 +1900,8 @@ export default function CampaignDetail() {
     selectedOption,
     buttonText,
     shippingMessage,
+    productTags,
+    customerTags
   ]);
 
   const handleButtonClick = useCallback(
@@ -1943,7 +1951,7 @@ export default function CampaignDetail() {
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title={`Update ${campaign?.name}`}
+        title={`Update ${campaign?.name}`  }
         titleMetadata={
           campaign?.status === "PUBLISHED" ? (
             <Badge tone="success">Published</Badge>
@@ -1962,6 +1970,7 @@ export default function CampaignDetail() {
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
           varient: "primary",
+          loading: navigation.state !== "idle",
           onAction: () =>
             campaign?.status === "PUBLISHED"
               ? handleUnpublish(String(campaign?.id))
@@ -1988,12 +1997,16 @@ export default function CampaignDetail() {
             <button
               variant="primary"
               tone="critical"
-              onClick={() => handleDelete(String(campaign?.id))}
+              onClick={() => {
+                handleDelete(String(campaign?.id))
+                shopify.modal.hide("delete-modal")
+              }}
+              loading={navigation.state !== "idle"}
             >
               Delete
             </button>
             <button onClick={() => shopify.modal.hide("delete-modal")}>
-              Label
+              Cancel
             </button>
           </TitleBar>
         </Modal>
@@ -2029,21 +2042,6 @@ export default function CampaignDetail() {
             value={JSON.stringify(designFields)}
           />
 
-          <div
-            style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
-          >
-            {/* <button
-              type="submit"
-              style={{
-                backgroundColor: "black",
-                color: "white",
-                padding: 5,
-                borderRadius: 5,
-              }}
-            >
-              Publish
-            </button> */}
-          </div>
           <div
             style={{
               display: "flex",

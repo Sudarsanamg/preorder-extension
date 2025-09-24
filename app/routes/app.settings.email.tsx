@@ -45,7 +45,6 @@ export const action = async ({ request }: { request: Request }) => {
   const replyName = formData.get('replyName') as string;
   const storeId = formData.get('storeId') as string;
 
-  console.log(fromName,fromEmail,replyName,storeId,'???????????????????????/');
 
   await prisma.emailConfig.upsert({
     where: { storeId },

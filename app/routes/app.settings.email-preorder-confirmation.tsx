@@ -27,7 +27,7 @@ import {
   // useFetcher,
   // useActionData,
 } from "@remix-run/react";
-import { createOrUpdateEmailSettings, emailSettingStatusUpdate, getEmailSettingsStatus } from "app/models/campaign.server";
+import { createOrUpdateEmailSettings, emailSettingStatusUpdate, getEmailSettingsStatus, getPreorderConfirmationEmailSettings, updateConfrimOrderEmailSettings, updateCustomEmailStatus } from "app/models/campaign.server";
 import { authenticate } from "app/shopify.server";
 
 
@@ -47,7 +47,13 @@ export async function loader({ request }: { request: Request }) {
 
   const shopId = data.data.shop.id; 
   const status  = await getEmailSettingsStatus(shopId); 
-  return {shopId, status};
+  const confrimOrderEmailSettingsData = await getPreorderConfirmationEmailSettings(shopId);
+let parsedConfrimOrderEmailSettingsData: any;
+if (typeof confrimOrderEmailSettingsData === "string") {
+  parsedConfrimOrderEmailSettingsData = JSON.parse(confrimOrderEmailSettingsData || "{}");
+} else {
+  parsedConfrimOrderEmailSettingsData = confrimOrderEmailSettingsData || {};
+}  return {shopId, status ,parsedConfrimOrderEmailSettingsData};
 }
 
 export const action = async ({ request }: { request: Request }) => {
@@ -60,9 +66,8 @@ export const action = async ({ request }: { request: Request }) => {
     const subject = formData.get("subject");
     const shopId = formData.get("shopId");
     const designFields = formData.get("designFields");
-
     try {
-      await createOrUpdateEmailSettings(String(shopId), JSON.parse(designFields as string));
+      await updateConfrimOrderEmailSettings(String(shopId), JSON.parse(designFields as string));
     } catch (error) {
       console.error("Error saving email settings:", error);
       return { success: false, error: "Failed to save email settings." };
@@ -70,16 +75,19 @@ export const action = async ({ request }: { request: Request }) => {
    
   }
   if (intent === "change-status") {
-    const status = formData.get("status");
-    const shopId = formData.get("shopId");
-    try {
-        await emailSettingStatusUpdate(String(shopId), status == "true" ? "true" : "false");
-      return { success: true, status: status === "true" };
-    } catch (error) {
-      console.error("Error changing email settings status:", error);
-      redirect("/app");
-    }
+  const status = formData.get("status"); 
+  const shopId = formData.get("shopId");  
+  // Convert status to boolean
+  const statusBool = status === "true";
+
+  try {
+    await updateCustomEmailStatus(String(shopId),statusBool);
+    return redirect("/app");
+  } catch (error) {
+    console.error("Error changing email settings status:", error);
+    return redirect("/app");
   }
+}
   return { success: false };
 };
 
@@ -89,11 +97,8 @@ export const action = async ({ request }: { request: Request }) => {
 export default function EmailPreorderConfirmationSettings() {
 
   const shopify = useAppBridge();
-  // const navigate = useNavigate();
-  // const fetcher = useFetcher();
-  // const actionData = useActionData();
-  const {shopId ,status }= useLoaderData<typeof loader>();
-
+  const {shopId ,status ,parsedConfrimOrderEmailSettingsData }= useLoaderData<typeof loader>();
+  const parsedSettings = parsedConfrimOrderEmailSettingsData
   const submit = useSubmit();
   const options = [
     { label: "Use your theme fonts", value: "inherit" },
@@ -102,56 +107,52 @@ export default function EmailPreorderConfirmationSettings() {
     { label: "Courier New", value: "Courier New" },
   ];
   const [subject, setSubject] = useState("Delivery update for order {order}");
-  const [emailSettings, setEmailSettings] = useState<EmailSettings>({
-    subject: "Delivery update for order {order}",
-    font: "inherit",
+ const [emailSettings, setEmailSettings] = useState<EmailSettings>({
+  subject: parsedSettings.subject,
+  font: parsedSettings.font,
 
-    storeName: "preorderstore",
-    storeNameBold: true,
-    storeNameColor: "#333333",
-    storeNameFontSize: "28",
+  storeName: parsedSettings.storeName,
+  storeNameBold: parsedSettings.storeNameBold,
+  storeNameColor: parsedSettings.storeNameColor,
+  storeNameFontSize: parsedSettings.storeNameFontSize,
 
-    subheading: "WE’VE GOT YOUR PREORDER",
-    subheadingFontSize: "18",
-    subheadingColor: "#333333",
-    subheadingBold: true,
+  subheading: parsedSettings.subheading,
+  subheadingFontSize: parsedSettings.subheadingFontSize,
+  subheadingColor: parsedSettings.subheadingColor,
+  subheadingBold: parsedSettings.subheadingBold,
 
-    description:
-      "Your order {order} contains preorder items. We will deliver them as soon as they become available and will notify you once your order has been shipped.",
-    descriptionFontSize: "14",
-    descriptionColor: "#333333",
-    descriptionBold: false,
+  description: parsedSettings.description,
+  descriptionFontSize: parsedSettings.descriptionFontSize,
+  descriptionColor: parsedSettings.descriptionColor,
+  descriptionBold: parsedSettings.descriptionBold,
 
-    productTitleFontSize: "16",
-    productTitleColor: "#333333",
-    productTitleBold: true,
+  productTitleFontSize: parsedSettings.productTitleFontSize,
+  productTitleColor: parsedSettings.productTitleColor,
+  productTitleBold: parsedSettings.productTitleBold,
 
-    preorderText: "Preorder",
-    fullPaymentText: "Full Payment",
-    partialPaymentText: "Partial Payment",
-    paymentTextFontSize: "14",
-    paymentTextColor: "#333333",
-    paymentTextBold: false,
+  preorderText: parsedSettings.preorderText,
+  fullPaymentText: parsedSettings.fullPaymentText,
+  partialPaymentText: parsedSettings.partialPaymentText,
+  paymentTextFontSize: parsedSettings.paymentTextFontSize,
+  paymentTextColor: parsedSettings.paymentTextColor,
+  paymentTextBold: parsedSettings.paymentTextBold,
 
-    showCancelButton: true,
-    cancelButtonText: "Cancel order {order}",
-    cancelButtonFontSize: "14",
-    cancelButtonTextColor: "#ffffff",
-    cancelButtonBold: false,
-    cancelButtonBackgroundColor: "#757575",
-    cancelButtonBorderSize: "1",
-    cancelButtonBorderColor: "#3d3d3d",
-    cancelButtonStyle: "gradient",
-    cancelButtonGradientDegree: "90",
-    cancelButtonGradientColor1: "#757575",
-    cancelButtonGradientColor2: "#757575",
-    cancelButtonBorderRadius: "8",
-  });
-
+  showCancelButton: parsedSettings.showCancelButton,
+  cancelButtonText: parsedSettings.cancelButtonText,
+  cancelButtonFontSize: parsedSettings.cancelButtonFontSize,
+  cancelButtonTextColor: parsedSettings.cancelButtonTextColor,
+  cancelButtonBold: parsedSettings.cancelButtonBold,
+  cancelButtonBackgroundColor: parsedSettings.cancelButtonBackgroundColor,
+  cancelButtonBorderSize: parsedSettings.cancelButtonBorderSize,
+  cancelButtonBorderColor: parsedSettings.cancelButtonBorderColor,
+  cancelButtonStyle: parsedSettings.cancelButtonStyle,
+  cancelButtonGradientDegree: parsedSettings.cancelButtonGradientDegree,
+  cancelButtonGradientColor1: parsedSettings.cancelButtonGradientColor1,
+  cancelButtonGradientColor2: parsedSettings.cancelButtonGradientColor2,
+  cancelButtonBorderRadius: parsedSettings.cancelButtonBorderRadius,
+});
   const [activePopover, setActivePopover] = useState<null | string>(null);
 
-
-  
   const handleSave = () => {
     console.log('Saving');
     const formdata = new FormData();
@@ -206,14 +207,14 @@ export default function EmailPreorderConfirmationSettings() {
   }, [emailSettings, subject]);
 
   function handleSwitch(status: boolean) {
-    console.log("Toggling status to:", status);
-    const formData = new FormData();
-    formData.append("intent", "change-status");
-    formData.append("status", (status).toString());
-    formData.append("shopId", shopId);
-    submit(formData, { method: "post" });
-    // navigate(0);
-  }
+  console.log("Toggling status to:", status);
+  const formData = new FormData();
+  formData.append("intent", "change-status");
+  formData.append("status", status.toString()); 
+  formData.append("shopId", shopId);
+  submit(formData, { method: "post" });
+}
+
 
   return (
     <Page
@@ -222,7 +223,7 @@ export default function EmailPreorderConfirmationSettings() {
       primaryAction={{
         content: status === false ? "Turn On" : "Turn Off",
         onAction: () => {
-          handleSwitch(status);
+          handleSwitch(!status);
         },
       }}
     >
@@ -591,9 +592,9 @@ export default function EmailPreorderConfirmationSettings() {
                 <RadioButton
                   label="Single Colour Background" // checked={value === 'disabled'}
                   onChange={() => {
-                    handleEmailSettingsChange("cancelButtonStyle", "single");
+                    handleEmailSettingsChange("cancelButtonStyle", "solid");
                   }}
-                  checked={emailSettings.cancelButtonStyle === "single"}
+                  checked={emailSettings.cancelButtonStyle === "solid"}
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Popover
@@ -955,10 +956,10 @@ export default function EmailPreorderConfirmationSettings() {
                   border: `${emailSettings.cancelButtonBorderSize}px solid ${emailSettings.cancelButtonBorderColor}`,
                   padding: 3,
                   borderRadius: `${emailSettings.cancelButtonBorderRadius}px`,
-                  backgroundColor: emailSettings.cancelButtonStyle === "single"
+                  backgroundColor: emailSettings.cancelButtonStyle === "solid"
                     ? emailSettings.cancelButtonBackgroundColor
                     : ``,
-                  background : emailSettings.cancelButtonStyle === "gradient" ? `linear-gradient(${emailSettings.cancelButtonGradientDegree}deg, ${emailSettings.cancelButtonGradientColor1}, ${emailSettings.cancelButtonGradientColor2})` : ``,
+                  background : emailSettings.cancelButtonStyle === "gradient" ? `linear-gradient(${emailSettings.cancelButtonGradientDegree}deg, ${emailSettings.cancelButtonGradientColor1}, ${emailSettings.cancelButtonGradientColor2})` : emailSettings.cancelButtonBackgroundColor,
                   cursor: "pointer",
                 }}
               >

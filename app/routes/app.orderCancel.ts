@@ -24,14 +24,14 @@ export const loader = async () => {
   reason: "DECLINED",
       });
 
-      await prisma.duePayment.update({
-        where: { orderID: payment.orderID },
-        data: { paymentStatus: "cancelled" },
+      await prisma.vaultedPayment.update({
+        where: { orderId: payment.orderID },
+        data: { paymentStatus: "CANCELLED" },
       });
 
       await prisma.campaignOrders.update({
         where: { order_id: payment.orderID },
-        data: { paymentStatus: "cancelled" },
+        data: { paymentStatus: "CANCELLED" },
       })
     } catch (err) {
       console.error("❌ Payment failed:", err);

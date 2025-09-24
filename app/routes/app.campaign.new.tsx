@@ -270,10 +270,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             {
               ownerId: product.id,
               namespace: "custom",
-              key: "preorder_units",
+              key: "preorder_max_units",
               type: "number_integer",
               value: String(product?.maxUnit || "0"),
             },
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "preorder_units_sold",
+              type: "number_integer",
+              value: "0"
+            }
           ]);
 
           try {
@@ -478,188 +485,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
           }
         }
-        //         else if(formData.get("paymentMode") === "full"){
-        //             const discountType = formData.get("discountType");
-
-        //           let CREATE_SELLING_PLAN =``;
-        //           if(discountType=='none'){
-        //              CREATE_SELLING_PLAN = `
-        //   mutation CreateSellingPlan($productIds: [ID!]!) {
-        //     sellingPlanGroupCreate(
-        //       input: {
-        //         name: "Full Payment Pre-order"
-        //         merchantCode: "pre-order-deposit"
-        //         options: ["Pre-order"]
-        //         sellingPlansToCreate: [
-        //           {
-        //             name: "Pay full upfront"
-        //             category: PRE_ORDER
-        //             options: ["Full payment"]
-        //             billingPolicy: {
-        //               fixed: {
-        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-
-        //               }
-        //             }
-        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
-        //           }
-        //         ]
-        //       }
-        //       resources: { productIds: $productIds }
-        //     ) {
-        //       sellingPlanGroup {
-        //         id
-        //         sellingPlans(first: 1) {
-        //           edges {
-        //             node { id }
-        //           }
-        //         }
-        //       }
-        //       userErrors {
-        //         field
-        //         message
-        //       }
-        //     }
-        //   }
-        // `;
-        //           }
-        //           else if(discountType=='percentage'){
-        //                  CREATE_SELLING_PLAN = `
-        //   mutation CreateSellingPlan($productIds: [ID!]!, $discountPercentage: Float!) {
-        //     sellingPlanGroupCreate(
-        //       input: {
-        //         name: "Full Payment Pre-order"
-        //         merchantCode: "pre-order-full"
-        //         options: ["Pre-order"]
-        //         sellingPlansToCreate: [
-        //           {
-        //             name: "Pay full upfront"
-        //             category: PRE_ORDER
-        //             options: ["Full payment"]
-        //             billingPolicy: {
-        //               fixed: {
-        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-        //               }
-        //             }
-        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
-        //             pricingPolicies: [
-        //             {
-        //               fixed: {
-        //                 adjustmentType: PERCENTAGE
-        //                 adjustmentValue: { percentage: $discountPercentage }
-        //               }
-        //             }
-        //           ]
-        //           }
-        //         ]
-        //       }
-        //       resources: { productIds: $productIds }
-        //     ) {
-        //       sellingPlanGroup {
-        //         id
-        //         sellingPlans(first: 1) {
-        //           edges {
-        //             node { id }
-        //           }
-        //         }
-        //       }
-        //       userErrors {
-        //         field
-        //         message
-        //       }
-        //     }
-        //   }
-        // `;
-        //           }
-        //           else if(discountType=='flat'){
-        //                   CREATE_SELLING_PLAN = `
-        //   mutation CreateSellingPlan($productIds: [ID!]!,$fixedValue: Decimal!) {
-        //     sellingPlanGroupCreate(
-        //       input: {
-        //         name: "Full Payment Pre-order"
-        //         merchantCode: "pre-order-deposit"
-        //         options: ["Pre-order"]
-        //         sellingPlansToCreate: [
-        //           {
-        //             name: "Pay full upfront"
-        //             category: PRE_ORDER
-        //             options: ["Full payment"]
-        //             billingPolicy: {
-        //               fixed: {
-        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-        //               }
-        //             }
-        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
-        //             pricingPolicies: [
-        //             {
-        //               fixed: {
-        //                 adjustmentType: FIXED_AMOUNT
-        //                 adjustmentValue: { fixedValue: $fixedValue }
-        //               }
-        //             }
-        //           ]
-
-        //           }
-        //         ]
-        //       }
-        //       resources: { productIds: $productIds }
-        //     ) {
-        //       sellingPlanGroup {
-        //         id
-        //         sellingPlans(first: 1) {
-        //           edges {
-        //             node { id }
-        //           }
-        //         }
-        //       }
-        //       userErrors {
-        //         field
-        //         message
-        //       }
-        //     }
-        //   }
-        // `;
-        //           }
-
-        //           const productIds = products.map((p) => p.id);
-
-        //           try {
-        //             let res ;
-        //             if(discountType=='none'){
-        //             res = await admin.graphql(CREATE_SELLING_PLAN, {
-        //               variables: {
-        //                 productIds,
-        //               },
-        //             });
-        //           }
-
-        //           else if(discountType=='percentage'){
-        //             res = await admin.graphql(CREATE_SELLING_PLAN, {
-        //               variables: {
-        //                 productIds,
-        //                 discountPercentage: Number(formData.get("discountPercentage")),
-        //               },
-        //             });
-        //             }
-        //             else if(discountType=='flat'){
-        //               res = await admin.graphql(CREATE_SELLING_PLAN, {
-        //                 variables: {
-        //                   productIds,
-        //                   fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
-        //                 },
-        //               }
-        //               )
-        //             }
-
-        //             res = await res.json();
-        //             console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP in full payment");
-        //           } catch (error) {
-        //             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-        //           }
-        //         }
         else {
           const discountType = formData.get("discountType");
           let CREATE_SELLING_PLAN = ``;
@@ -822,13 +647,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           {
             key: "object",
             value: JSON.stringify({
-              ...designFields, // all your design fields
+              ...designFields, 
               campaign_id: campaign.id,
             }),
           },
         ];
 
-        console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
 
         const mutation = `
   mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
@@ -1035,7 +859,7 @@ export default function Newcampaign() {
   const [shippingMessage, setShippingMessage] = useState(
     "Ship as soon as possible",
   );
-  const [partialPaymentPercentage, setPartialPaymentPercentage] = useState("");
+  const [partialPaymentPercentage, setPartialPaymentPercentage] = useState("10");
   const [paymentMode, setPaymentMode] = useState("partial");
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
@@ -1099,6 +923,7 @@ export default function Newcampaign() {
     useState(plusStore);
   const payment = 3.92;
   const remaining = 35.28;
+  const [loading, setLoading] = useState(false);
 
   const formattedText = partialPaymentInfoText
     .replace("{payment}", `$${payment}`)
@@ -1257,6 +1082,7 @@ export default function Newcampaign() {
     // }
 
     console.log("function hit");
+    setLoading(true);
     const formData = new FormData();
     formData.append("intent", "create-campaign");
     formData.append("name", campaignName);
@@ -1379,6 +1205,7 @@ export default function Newcampaign() {
         primaryAction={{
           content: "Publish",
           onAction: handleSubmit,
+          loading: loading,
         }}
       >
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
@@ -2307,7 +2134,7 @@ export default function Newcampaign() {
                           >
                             Product
                           </th>
-                          <th
+                         <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
@@ -2315,7 +2142,7 @@ export default function Newcampaign() {
                           >
                             Inventory
                           </th>
-                          <th
+                          {selectedOption !== 3 && <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
@@ -2323,6 +2150,7 @@ export default function Newcampaign() {
                           >
                             Inventory limit
                           </th>
+                          }
                           <th
                             style={{
                               padding: "8px",
@@ -2336,7 +2164,9 @@ export default function Newcampaign() {
                               padding: "8px",
                               borderBottom: "1px solid #eee",
                             }}
-                          ></th>
+                          >
+                            Action
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2353,6 +2183,7 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               <img
@@ -2372,6 +2203,7 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               {product.title}
@@ -2380,12 +2212,14 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               {product.totalInventory
                                 ? product.totalInventory
                                 : product.inventory}
                             </td>
+                           { selectedOption !== 3 &&
                             <td
                               style={{
                                 padding: "8px",
@@ -2396,16 +2230,23 @@ export default function Newcampaign() {
                               <TextField
                                 type="number"
                                 min={0}
-                                value={product?.maxUnit?.toString() || "0"} // Polaris expects string
+                                
+                                value={product?.maxUnit?.toString() || 
+                                  selectedOption==3? 
+                                  product.totalInventory
+                                ? product.totalInventory
+                                : product.inventory: "0"} 
                                 onChange={(value) =>
                                   handleMaxUnitChange(product.id, Number(value))
                                 }
                               />
                             </td>
+                            }
                             <td
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               {product.variants?.[0]?.price || product.price}

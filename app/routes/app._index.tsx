@@ -24,6 +24,10 @@ import {
   Divider,
   InlineStack,
   Icon,
+  SkeletonBodyText,
+  SkeletonPage,
+  SkeletonDisplayText,
+  Spinner,
 } from "@shopify/polaris";
 
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -80,21 +84,21 @@ const storeDomain = storeDataQuerydata.data.shop.myshopifyDomain;
 const accessTokenResponse = await getAccessToken(storeDomain);
 const accessToken = accessTokenResponse?.accessToken as string;
  
-  await createStore(
-    {
-      storeID: storeId,
-      offlineToken: accessToken,
-      webhookRegistered: true,
-      metaobjectsCreated: true,
-      metaFieldsCreated: true,
-      shopifyDomain: storeDomain,
-      ConfrimOrderEmailSettings: JSON.stringify(confrimOrderTemplate),
-      ShippingEmailSettings: JSON.stringify(ShippingEmailTemplate),
-      GeneralSettings: "",
-      EmailConfig: ""
-    }
+  // await createStore(
+  //   {
+  //     storeID: storeId,
+  //     offlineToken: accessToken,
+  //     webhookRegistered: true,
+  //     metaobjectsCreated: true,
+  //     metaFieldsCreated: true,
+  //     shopifyDomain: storeDomain,
+  //     ConfrimOrderEmailSettings: JSON.stringify(confrimOrderTemplate),
+  //     ShippingEmailSettings: JSON.stringify(ShippingEmailTemplate),
+  //     GeneralSettings: "",
+  //     EmailConfig: ""
+  //   }
 
-  )
+  // )
 
   const response = await admin.graphql(
     `#graphql
@@ -127,7 +131,7 @@ const accessToken = accessTokenResponse?.accessToken as string;
         topic: "ORDERS_CREATE",
         webhookSubscription: {
           callbackUrl:
-            "https://browsers-something-rica-peace.trycloudflare.com/webhooks/custom",
+            "https://major-viewing-farmers-cancer.trycloudflare.com/webhooks/custom",
           format: "JSON",
         },
       },
@@ -169,7 +173,7 @@ const accessToken = accessTokenResponse?.accessToken as string;
         topic: "ORDERS_PAID",
         webhookSubscription: {
           callbackUrl:
-            "https://browsers-something-rica-peace.trycloudflare.com/webhooks/order_paid",
+            "https://major-viewing-farmers-cancer.trycloudflare.com/webhooks/order_paid",
           format: "JSON",
         },
       },
@@ -266,6 +270,7 @@ export default function Index() {
   const { campaigns ,emailCampaignStatus } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   const [search, setSearch] = useState("");
   const actionData = useActionData<typeof action>();
@@ -290,8 +295,11 @@ export default function Index() {
   );
 
   return (
-    <Page>
-      <TitleBar title="Preorder Extension" />
+    <Page
+    
+    >
+      <TitleBar title="Preorder Extension" 
+      />
 
       {/* Header */}
       <div
@@ -301,14 +309,24 @@ export default function Index() {
           justifyContent: "space-between",
         }}
       >
-        <div>
+        <div style={{ display: "flex", alignItems: "center" , gap: "10px"}}>
           <p style={{ fontSize: "26px" }}>Preorder Settings</p>
+          {navigation.state !== "idle" && (
+  <div style={{ display: "flex", alignItems: "center" }}>
+    <Spinner size="small" />
+    {/* <Text>Loading...</Text> */}
+  </div>
+)}
+
         </div>
         <Link
           to={{ pathname: "campaign/new", search: location.search }}
           prefetch="intent"
         >
-          <Button variant="primary">Create Campaign</Button>
+          <Button 
+           variant="primary" 
+           onClick={() => setLoading(true)}
+           >Create Campaign</Button>
         </Link>
       </div>
 
@@ -317,7 +335,7 @@ export default function Index() {
         <Button
           submit
           variant="primary"
-          loading={navigation.state !== "idle"}
+          // loading={navigation.state !== "idle"}
         >
           Register Webhook
         </Button>
