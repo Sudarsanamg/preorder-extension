@@ -91,6 +91,7 @@ const formattedIds = productIds.map(id => id.replace(/"/g, "")).join('","');
     image: product.featuredImage?.url,
     price: product.variants.edges[0]?.node.price ?? null,
     inventory: product.variants.edges[0]?.node.inventoryQuantity ?? null,
+    maxUnit: product.metafield?.value,
   }));
 
   let designSettingsResponse = await fetchMetaobject(admin, params.id!, "design_settings");
@@ -881,7 +882,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
             {
               ownerId: product.id,
               namespace: "custom",
-              key: "preorder_units",
+              key: "preorder_max_units",
               type: "number_integer",
               value: String(product?.maxUnit || "0"),
             },
