@@ -6,3 +6,23 @@ export async function createMetaobjectDefinition(admin: any, definition: any) {
   });
   return res.json();
 }
+
+export async function fetchMetaobject(admin: any, handle: string, type: string) {
+  const query = `
+    query GetMetaobject($handle: String!) {
+      metaobjectByHandle(handle: { handle: $handle, type: "${type}" }) {
+        id
+        handle
+        type
+        fields {
+          key
+          value
+          type
+        }
+      }
+    }
+  `;
+
+  const response = await admin.graphql(query, { variables: { handle } }); 
+  return response;
+}

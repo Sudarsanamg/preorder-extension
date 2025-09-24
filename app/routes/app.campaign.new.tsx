@@ -243,7 +243,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           | "percentage"
           | "flat";
 
-        // const products = JSON.parse(formData.get("products") as string);
         const res = await createSellingPlan(
           admin,
           paymentMode,
