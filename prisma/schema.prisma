@@ -31,15 +31,54 @@ model Session {
   emailVerified Boolean?  @default(false)
 }
 
-model DuePayment {
-  orderID        String   @unique
+model Store {
+  id                        String   @id @default(uuid())
+  storeID                   String   @unique
+  offlineToken              String?
+  webhookRegistered         Boolean  @default(false)
+  metaobjectsCreated        Boolean  @default(false)
+  metaFieldsCreated         Boolean  @default(false)
+  shopifyDomain             String   @unique
+  sendCustomEmail           Boolean  @default(false)
+  ConfrimOrderEmailSettings Json?
+  ShippingEmailSettings     Json?
+  GeneralSettings           Json?
+  EmailConfig               Json?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model VaultedPayment {
+  id             String        @id @default(uuid())
+  orderId        String        @unique
   idempotencyKey String
-  amount         String
+  amount         Decimal
   currencyCode   String
   mandateId      String
-  dueDate        DateTime @default(now())
-  paymentStatus  String
+  dueDate        DateTime
+  paymentStatus  PaymentStatus
   accessToken    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum DiscountType {
+  NONE
+  FIXED
+  PERCENTAGE
+}
+
+enum CampaignStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISH
 }
 
 model PreorderCampaign {
@@ -51,17 +90,16 @@ model PreorderCampaign {
   balanceDueDate     DateTime
   refundDeadlineDays Int?
   releaseDate        DateTime?
-  status             String                    @default("draft")
+  status             CampaignStatus            @default(DRAFT)
   products           PreorderCampaignProduct[]
-  preorders          Preorder[]
   campaignEndDate    DateTime
   totalOrders        Int                       @default(0)
   orderTags          Json?
   customerTags       Json?
-  discountType       String?                   @default("none") // none, fixed, percentage
+  discountType       DiscountType              @default(NONE)
   discountPercent    Int?
   discountFixed      Int?
-  getDueByValt       Boolean                  @default(false)
+  getDueByValt       Boolean                   @default(false)
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
 }
@@ -78,33 +116,16 @@ model PreorderCampaignProduct {
   updatedAt    DateTime         @updatedAt
 }
 
-model Preorder {
-  id                   String           @id @default(cuid())
-  campaignId           String
-  campaign             PreorderCampaign @relation(fields: [campaignId], references: [id])
-  productId            String
-  variantId            String?
-  customerId           String
-  orderId              String
-  depositTransactionId String
-  depositPaidAt        DateTime
-  dueInvoiceSentAt     DateTime?
-  balanceDueDays       Int
-  refundDeadlineDays   Int
-  status               String
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
-}
-
+//if payment mode is partial payment the only way to match original order with draft order is draft_order_id
 model CampaignOrders {
   id             String   @id @default(cuid())
   storeId        String?
   order_number   Int      @unique
   order_id       String   @unique
-  draft_order_id String   @unique
+  draft_order_id String   @unique 
   dueDate        DateTime
   balanceAmount  Int?
-  paymentStatus  String
+  paymentStatus  PaymentStatus
 }
 
 model EmailSettings {
@@ -151,49 +172,6 @@ model EmailSettings {
   updatedAt                   DateTime @updatedAt
 }
 
-model ShippingEmailSettings {
-  id                          String   @id @default(uuid())
-  shopId                      String   @unique
-  enabled                     Boolean  @default(false)
-  subject                     String   @default("Delivery update for order {order}")
-  font                        String   @default("inherit")
-  storeName                   String   @default("preorderstore")
-  storeNameBold               Boolean  @default(true)
-  storeNameColor              String   @default("#333333")
-  storeNameFontSize           String   @default("28")
-  subheading                  String   @default("WE’VE GOT YOUR PREORDER")
-  subheadingFontSize          String   @default("18")
-  subheadingColor             String   @default("#333333")
-  subheadingBold              Boolean  @default(true)
-  description                 String   @default("Your order {order} contains preorder items. We will deliver them as soon as they become available and will notify you once your order has been shipped.")
-  descriptionFontSize         String   @default("14")
-  descriptionColor            String   @default("#333333")
-  descriptionBold             Boolean  @default(false)
-  productTitleFontSize        String   @default("16")
-  productTitleColor           String   @default("#333333")
-  productTitleBold            Boolean  @default(true)
-  preorderText                String   @default("Preorder")
-  fullPaymentText             String   @default("Full Payment")
-  partialPaymentText          String   @default("Partial Payment")
-  paymentTextFontSize         String   @default("14")
-  paymentTextColor            String   @default("#333333")
-  paymentTextBold             Boolean  @default(false)
-  showCancelButton            Boolean  @default(true)
-  cancelButtonStyle           String   @default("solid")
-  cancelButtonText            String   @default("Cancel order {order}")
-  cancelButtonFontSize        String   @default("14")
-  cancelButtonTextColor       String   @default("#ffffff")
-  cancelButtonBold            Boolean  @default(false)
-  cancelButtonBackgroundColor String   @default("#757575")
-  cancelButtonBorderSize      String   @default("1")
-  cancelButtonBorderColor     String   @default("#3d3d3d")
-  cancelButtonGradientDegree  String   @default("90")
-  cancelButtonGradientColor1  String   @default("#757575")
-  cancelButtonGradientColor2  String   @default("#a0a0a0")
-  cancelButtonBorderRadius    String   @default("8")
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
-}
 
 model GeneralSettings {
   id       String @id @unique @default(cuid())

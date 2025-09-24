@@ -1,15 +1,10 @@
-import {
-  createDuePayment,
-  createOrder,
-  findOrder,
-  orderStatusUpdateByOrderId,
-  updateOrderPaymentStatus,
-} from "app/models/campaign.server";
+import { createDuePayment, createOrder } from "app/models/campaign.server";
 import { authenticate } from "../shopify.server";
 import prisma from "app/db.server";
 import { v4 as uuidv4 } from "uuid";
 import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
 import nodemailer from "nodemailer";
+import { incrementUnitsSold } from "app/models/preorder.server";
 
 export const action = async ({ request }: { request: Request }) => {
   console.log("Webhook hitted");
@@ -24,6 +19,18 @@ export const action = async ({ request }: { request: Request }) => {
     const formattedProductIds = productIds.map((id: number) => {
       return `gid://shopify/Product/${id}`;
     });
+    console.log("formattedProductIds", formattedProductIds);
+
+    //update preorder_units_sold
+    for (const productId of formattedProductIds) {
+      try {
+       
+      await incrementUnitsSold(shop, productId);
+       
+      } catch (error) {
+        console.log(error);
+      }
+    }
 
     const GetCampaignIdsQuery = `
   query GetCampaignIds($ids: [ID!]!) {
@@ -155,9 +162,6 @@ export const action = async ({ request }: { request: Request }) => {
       const storeIdQueryResponseData = await storeIdQueryResponse.json();
       const shopId = storeIdQueryResponseData.data.shop.id;
       const plusStore = storeIdQueryResponseData.data.shop.plan.shopifyPlus;
-
-      console.log('plusStore>>>>>>>>>>>>>>>>>>.', plusStore);
-
       // getDueByValt is true
       // this should be in whole store
       let vaultPayment = false;
@@ -167,7 +171,6 @@ export const action = async ({ request }: { request: Request }) => {
             id: campaignIds[0],
           },
         });
-        console.log('campaign>>>>>>>>>>>>>>>>>>.', campaign);
 
         if (campaign?.getDueByValt) {
           vaultPayment = true;
@@ -177,21 +180,19 @@ export const action = async ({ request }: { request: Request }) => {
       //find email settings respective to shop
 
       // get email template
-      const emailSettings = await prisma.emailSettings.findFirst({
-        where: { shopId },
+      const emailSettings = await prisma.store.findFirst({
+        where: { storeID: shopId },
+        select: {
+          ConfrimOrderEmailSettings: true,
+        },
       });
 
-      const emailTemplate = generateEmailTemplate(
-        emailSettings,
-        products,
-        formattedOrderId,
-      );
+      const ParsedemailSettings = emailSettings?.ConfrimOrderEmailSettings;
 
-      const transporter = nodemailer.createTransport({
-        service: "Gmail",
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
+      const emailConsent = await prisma.store.findFirst({
+        where: { storeID: shopId },
+        select: {
+          sendCustomEmail: true,
         },
       });
 
@@ -201,26 +202,43 @@ export const action = async ({ request }: { request: Request }) => {
         draft_order_id: uuid,
         dueDate: new Date(),
         balanceAmount: remaining,
-        paymentStatus: "pending",
+        paymentStatus: "PENDING",
         storeId: shopId,
       });
 
-      const emailConfig = await prisma.emailConfig.findFirst({
-        where: { storeId: shopId },
-      });
+      if (emailConsent?.sendCustomEmail) {
+        const emailTemplate = generateEmailTemplate(
+          ParsedemailSettings,
+          products,
+          formattedOrderId,
+        );
 
-      try {
-        await transporter.sendMail({
-          from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
-          to: customerEmail,
-          subject: "Your Preorder is Confirmed!",
-          html: emailTemplate,
+        const transporter = nodemailer.createTransport({
+          service: "Gmail",
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
         });
-      } catch (error) {
-        console.error("❌ Email send error:", error);
+
+        const emailConfig = await prisma.emailConfig.findFirst({
+          where: { storeId: shopId },
+        });
+
+        try {
+          await transporter.sendMail({
+            from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
+            to: customerEmail,
+            subject: "Your Preorder is Confirmed!",
+            html: emailTemplate,
+          });
+        } catch (error) {
+          console.error("❌ Email send error:", error);
+        }
       }
 
       // // Draft order mutation
+      // the only way to match og order with draft order is note key
       if (remaining > 0 && vaultPayment === false) {
         const mutation = `
         mutation draftOrderCreate($input: DraftOrderInput!) {
@@ -316,8 +334,8 @@ export const action = async ({ request }: { request: Request }) => {
           status: 200,
         });
       }
-        //if plus store and getDueByValt is true then create mandate
-       else if (remaining > 0 && vaultPayment) {
+      //if plus store and getDueByValt is true then create mandate
+      else if (remaining > 0 && vaultPayment) {
         console.log("🚀 Starting mandate creation process...");
         // 1. Get customer's vaulted payment method
         const QUERY = `
@@ -364,7 +382,7 @@ export const action = async ({ request }: { request: Request }) => {
           "USD",
           mandateId,
           new Date(),
-          "pending",
+          "PENDING",
           accessToken,
         );
 
@@ -373,7 +391,7 @@ export const action = async ({ request }: { request: Request }) => {
         return new Response("OK", {
           status: 200,
         });
-      }      
+      }
       return new Response("OK", {
         status: 200,
       });

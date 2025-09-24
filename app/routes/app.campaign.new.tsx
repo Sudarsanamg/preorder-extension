@@ -142,7 +142,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true, storeId , plusStore});
+  return json({ success: true, storeId, plusStore });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -188,7 +188,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
-          getDueByValt : formData.get("getDueByValt") === "true"
+          getDueByValt: formData.get("getDueByValt") === "true",
+          totalOrders: 0,
         });
 
         const products = JSON.parse(
@@ -269,10 +270,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             {
               ownerId: product.id,
               namespace: "custom",
-              key: "preorder_units",
+              key: "preorder_max_units",
               type: "number_integer",
               value: String(product?.maxUnit || "0"),
             },
+            {
+              ownerId: product.id,
+              namespace: "custom",
+              key: "preorder_units_sold",
+              type: "number_integer",
+              value: "0"
+            }
           ]);
 
           try {
@@ -477,188 +485,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
           }
         }
-        //         else if(formData.get("paymentMode") === "full"){
-        //             const discountType = formData.get("discountType");
-
-        //           let CREATE_SELLING_PLAN =``;
-        //           if(discountType=='none'){
-        //              CREATE_SELLING_PLAN = `
-        //   mutation CreateSellingPlan($productIds: [ID!]!) {
-        //     sellingPlanGroupCreate(
-        //       input: {
-        //         name: "Full Payment Pre-order"
-        //         merchantCode: "pre-order-deposit"
-        //         options: ["Pre-order"]
-        //         sellingPlansToCreate: [
-        //           {
-        //             name: "Pay full upfront"
-        //             category: PRE_ORDER
-        //             options: ["Full payment"]
-        //             billingPolicy: {
-        //               fixed: {
-        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-
-        //               }
-        //             }
-        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
-        //           }
-        //         ]
-        //       }
-        //       resources: { productIds: $productIds }
-        //     ) {
-        //       sellingPlanGroup {
-        //         id
-        //         sellingPlans(first: 1) {
-        //           edges {
-        //             node { id }
-        //           }
-        //         }
-        //       }
-        //       userErrors {
-        //         field
-        //         message
-        //       }
-        //     }
-        //   }
-        // `;
-        //           }
-        //           else if(discountType=='percentage'){
-        //                  CREATE_SELLING_PLAN = `
-        //   mutation CreateSellingPlan($productIds: [ID!]!, $discountPercentage: Float!) {
-        //     sellingPlanGroupCreate(
-        //       input: {
-        //         name: "Full Payment Pre-order"
-        //         merchantCode: "pre-order-full"
-        //         options: ["Pre-order"]
-        //         sellingPlansToCreate: [
-        //           {
-        //             name: "Pay full upfront"
-        //             category: PRE_ORDER
-        //             options: ["Full payment"]
-        //             billingPolicy: {
-        //               fixed: {
-        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-        //               }
-        //             }
-        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
-        //             pricingPolicies: [
-        //             {
-        //               fixed: {
-        //                 adjustmentType: PERCENTAGE
-        //                 adjustmentValue: { percentage: $discountPercentage }
-        //               }
-        //             }
-        //           ]
-        //           }
-        //         ]
-        //       }
-        //       resources: { productIds: $productIds }
-        //     ) {
-        //       sellingPlanGroup {
-        //         id
-        //         sellingPlans(first: 1) {
-        //           edges {
-        //             node { id }
-        //           }
-        //         }
-        //       }
-        //       userErrors {
-        //         field
-        //         message
-        //       }
-        //     }
-        //   }
-        // `;
-        //           }
-        //           else if(discountType=='flat'){
-        //                   CREATE_SELLING_PLAN = `
-        //   mutation CreateSellingPlan($productIds: [ID!]!,$fixedValue: Decimal!) {
-        //     sellingPlanGroupCreate(
-        //       input: {
-        //         name: "Full Payment Pre-order"
-        //         merchantCode: "pre-order-deposit"
-        //         options: ["Pre-order"]
-        //         sellingPlansToCreate: [
-        //           {
-        //             name: "Pay full upfront"
-        //             category: PRE_ORDER
-        //             options: ["Full payment"]
-        //             billingPolicy: {
-        //               fixed: {
-        //                 checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-        //               }
-        //             }
-        //             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-        //             inventoryPolicy: { reserve: ON_FULFILLMENT }
-        //             pricingPolicies: [
-        //             {
-        //               fixed: {
-        //                 adjustmentType: FIXED_AMOUNT
-        //                 adjustmentValue: { fixedValue: $fixedValue }
-        //               }
-        //             }
-        //           ]
-
-        //           }
-        //         ]
-        //       }
-        //       resources: { productIds: $productIds }
-        //     ) {
-        //       sellingPlanGroup {
-        //         id
-        //         sellingPlans(first: 1) {
-        //           edges {
-        //             node { id }
-        //           }
-        //         }
-        //       }
-        //       userErrors {
-        //         field
-        //         message
-        //       }
-        //     }
-        //   }
-        // `;
-        //           }
-
-        //           const productIds = products.map((p) => p.id);
-
-        //           try {
-        //             let res ;
-        //             if(discountType=='none'){
-        //             res = await admin.graphql(CREATE_SELLING_PLAN, {
-        //               variables: {
-        //                 productIds,
-        //               },
-        //             });
-        //           }
-
-        //           else if(discountType=='percentage'){
-        //             res = await admin.graphql(CREATE_SELLING_PLAN, {
-        //               variables: {
-        //                 productIds,
-        //                 discountPercentage: Number(formData.get("discountPercentage")),
-        //               },
-        //             });
-        //             }
-        //             else if(discountType=='flat'){
-        //               res = await admin.graphql(CREATE_SELLING_PLAN, {
-        //                 variables: {
-        //                   productIds,
-        //                   fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
-        //                 },
-        //               }
-        //               )
-        //             }
-
-        //             res = await res.json();
-        //             console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP in full payment");
-        //           } catch (error) {
-        //             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-        //           }
-        //         }
         else {
           const discountType = formData.get("discountType");
           let CREATE_SELLING_PLAN = ``;
@@ -808,46 +634,57 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         const designFields = JSON.parse(formData.get("designFields") as string);
         console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
-        const fields = Object.entries(designFields).map(([key, value]) => ({
-          key: key.toLowerCase(),
-          value: String(value),
-        }));
-        fields.push({
-          key: "campaign_id",
-          value: String(campaign.id),
-        });
+        // const fields = Object.entries(designFields).map(([key, value]) => ({
+        //   key: key.toLowerCase(),
+        //   value: String(value),
+        // }));
+        // fields.push({
+        //   key: "campaign_id",
+        //   value: String(campaign.id),
+        // });
 
-        console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
+        const fields = [
+          {
+            key: "object",
+            value: JSON.stringify({
+              ...designFields, 
+              campaign_id: campaign.id,
+            }),
+          },
+        ];
+
 
         const mutation = `
   mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
-  metaobjectCreate(
-    metaobject: {
-      type: "design_settings",
-      fields: $fields,
-      capabilities: {
-        publishable: {
-          status: ACTIVE
+    metaobjectCreate(
+      metaobject: {
+        type: "design_settings",
+        fields: $fields,
+        capabilities: {
+          publishable: { status: ACTIVE }
         }
       }
-    }
-  ) {
-    metaobject {
-      id
-      handle
-      capabilities {
-        publishable {
-          status
+    ) {
+      metaobject {
+        id
+        handle
+        fields {
+          key
+          value
+        }
+        capabilities {
+          publishable {
+            status
+          }
         }
       }
-    }
-    userErrors {
-      field
-      message
+      userErrors {
+        field
+        message
+      }
     }
   }
-}
-  `;
+`;
 
         const campaign_mutation = `
   mutation CreateCampaign($fields: [MetaobjectFieldInput!]!) {
@@ -882,74 +719,62 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         try {
           const response = await admin.graphql(mutation, {
-            variables: { fields },
+            
+            variables: {     
+              fields : [
+                {
+                  key:"campaign_id",
+                  value: String(campaign.id)
+                },
+                
+                  ...fields
+                
+              ]
+             },
           });
 
           const result = await response.json();
           console.log("design Metaobject:", JSON.stringify(result, null, 2));
 
+          const campaignFields = [
+            {
+              
+              key: "object",
+              value: JSON.stringify({
+                campaign_id: String(campaign.id),
+                name: (formData.get("name") as string) || "Untitled Campaign",
+                status: "publish",
+                button_text:
+                  (formData.get("buttonText") as string) || "Preorder",
+                shipping_message:
+                  (formData.get("shippingMessage") as string) ||
+                  "Ship as soon as possible",
+                payment_type: (formData.get("paymentMode") as string) || "Full",
+                ppercent: String(formData.get("depositPercent") || "0"),
+                paymentduedate: new Date(
+                  (formData.get("balanceDueDate") as string) || Date.now(),
+                ).toISOString(),
+                campaign_end_date: new Date(
+                  (formData.get("campaignEndDate") as string) || Date.now(),
+                ).toISOString(),
+                discount_type:
+                  (formData.get("discountType") as string) || "none",
+                discountpercent:
+                  (formData.get("discountPercentage") as string) || "0",
+                discountfixed: (formData.get("flatDiscount") as string) || "0",
+                campaigntags: JSON.parse(
+                  (formData.get("orderTags") as string) || "[]",
+                ).join(","),
+                campaigntype: String(formData.get("campaignType") as string),
+              }),
+            },
+          ];
+
           const campaign_response = await admin.graphql(campaign_mutation, {
             variables: {
               fields: [
                 { key: "campaign_id", value: String(campaign.id) },
-                {
-                  key: "name",
-                  value:
-                    (formData.get("name") as string) || "Untitled Campaign",
-                },
-                { key: "status", value: "publish" },
-                {
-                  key: "button_text",
-                  value: (formData.get("buttonText") as string) || "Preorder",
-                },
-                {
-                  key: "shipping_message",
-                  value:
-                    (formData.get("shippingMessage") as string) ||
-                    "Ship as soon as possible",
-                },
-                {
-                  key: "payment_type",
-                  value: (formData.get("paymentMode") as string) || "Full",
-                },
-                {
-                  key: "ppercent",
-                  value: String(formData.get("depositPercent") || "0"),
-                },
-                {
-                  key: "paymentduedate",
-                  value: new Date(
-                    (formData.get("balanceDueDate") as string) || Date.now(),
-                  ).toISOString(),
-                },
-                {
-                  key: "campaign_end_date",
-                  value: new Date(
-                    (formData.get("campaignEndDate") as string) || Date.now(),
-                  ).toISOString(),
-                },
-                {
-                  key: "discount_type",
-                  value: (formData.get("discountType") as string) || "none",
-                },
-                {
-                  key: "discountpercent",
-                  value: (formData.get("discountPercentage") as string) || "0",
-                },
-                {
-                  key: "discountfixed",
-                  value: (formData.get("flatDiscount") as string) || "0",
-                },
-                {
-                  key: "campaigntags",
-                  value: JSON.parse(
-                    (formData.get("orderTags") as string) || "[]",
-                  ).join(","),
-                },
-                {
-                  key: "campaigntype",
-                  value: String(formData.get("campaignType") as string),
-                },
+                ...campaignFields
               ],
             },
           });
@@ -1015,7 +840,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  const { prod, storeId  ,plusStore} = useLoaderData<typeof loader>();
+  const { prod, storeId, plusStore } = useLoaderData<typeof loader>();
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
@@ -1034,7 +859,7 @@ export default function Newcampaign() {
   const [shippingMessage, setShippingMessage] = useState(
     "Ship as soon as possible",
   );
-  const [partialPaymentPercentage, setPartialPaymentPercentage] = useState("");
+  const [partialPaymentPercentage, setPartialPaymentPercentage] = useState("10");
   const [paymentMode, setPaymentMode] = useState("partial");
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
@@ -1094,9 +919,11 @@ export default function Newcampaign() {
   const [discountType, setDiscountType] = useState("none");
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [flatDiscount, setFlatDiscount] = useState(0);
-  const [getPaymentsViaValtedPayments , setGetPaymentsViaValtedPayments] = useState(plusStore);
+  const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
+    useState(plusStore);
   const payment = 3.92;
   const remaining = 35.28;
+  const [loading, setLoading] = useState(false);
 
   const formattedText = partialPaymentInfoText
     .replace("{payment}", `$${payment}`)
@@ -1255,6 +1082,7 @@ export default function Newcampaign() {
     // }
 
     console.log("function hit");
+    setLoading(true);
     const formData = new FormData();
     formData.append("intent", "create-campaign");
     formData.append("name", campaignName);
@@ -1275,7 +1103,7 @@ export default function Newcampaign() {
     formData.append("orderTags", JSON.stringify(productTags));
     formData.append("customerTags", JSON.stringify(customerTags));
     formData.append("campaignType", String(selectedOption));
-    formData.append("getDueByValt", String(getPaymentsViaValtedPayments))
+    formData.append("getDueByValt", String(getPaymentsViaValtedPayments));
 
     submit(formData, { method: "post" });
   };
@@ -1377,6 +1205,7 @@ export default function Newcampaign() {
         primaryAction={{
           content: "Publish",
           onAction: handleSubmit,
+          loading: loading,
         }}
       >
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
@@ -1591,11 +1420,11 @@ export default function Newcampaign() {
                         <TextField
                           suffix={activeButtonIndex === 0 ? "%" : "$"}
                           id="discount"
-                          type="number"
+                          type="text"
                           value={
                             activeButtonIndex === 0
-                              ? discountPercentage
-                              : flatDiscount
+                              ? discountPercentage.toString()
+                              : flatDiscount.toString()
                           }
                           onChange={(val) => {
                             if (activeButtonIndex === 0) {
@@ -1747,18 +1576,18 @@ export default function Newcampaign() {
                                   />
                                 )}
                                 {duePaymentType === 2 && (
-                                  <div >
+                                  <div>
                                     <Popover
                                       active={popoverActive}
                                       activator={
                                         // <div style={{ flex: 1 }}>
-                                          <TextField
-                                            label="Select date for due payment"
-                                            value={DueDateinputValue}
-                                            onFocus={togglePopover}
-                                            onChange={() => {}}
-                                            autoComplete="off"
-                                          />
+                                        <TextField
+                                          label="Select date for due payment"
+                                          value={DueDateinputValue}
+                                          onFocus={togglePopover}
+                                          onChange={() => {}}
+                                          autoComplete="off"
+                                        />
                                         // </div>
                                       }
                                       onClose={() => setPopoverActive(false)}
@@ -1773,16 +1602,21 @@ export default function Newcampaign() {
                                     </Popover>
                                   </div>
                                 )}
-                              </div>                              
+                              </div>
                             </div>
                             <div>
-                               { plusStore && <Checkbox 
-                                label = 'Get Due payments via Valted credit cards Note:Works only with Shopify Payments'
-                               
-                                checked={getPaymentsViaValtedPayments}
-                                onChange={() => setGetPaymentsViaValtedPayments(!getPaymentsViaValtedPayments)}
-                                /> }
-                              </div>
+                              {plusStore && (
+                                <Checkbox
+                                  label="Get Due payments via Valted credit cards Note:Works only with Shopify Payments"
+                                  checked={getPaymentsViaValtedPayments}
+                                  onChange={() =>
+                                    setGetPaymentsViaValtedPayments(
+                                      !getPaymentsViaValtedPayments,
+                                    )
+                                  }
+                                />
+                              )}
+                            </div>
                             <TextField
                               autoComplete="off"
                               label="Partial payment text"
@@ -1980,9 +1814,9 @@ export default function Newcampaign() {
 
             {/* right */}
             {(selected === 0 || selected === 1) && (
-              <div style={{ flex: 1, marginLeft: 20 }}>
+              <div style={{ flex: 1, marginLeft: 20, gap: 20 }}>
                 {/* preview */}
-                <div style={{ position: "sticky", top: 20 }}>
+                <div style={{ position: "sticky", top: 20, gap: 20 }}>
                   <Card>
                     <div style={{ display: "flex", justifyContent: "center" }}>
                       <Text as="h4" variant="headingSm">
@@ -2136,7 +1970,7 @@ export default function Newcampaign() {
                       </div>
                     )}
                   </Card>
-                  <div>
+                  <div style={{ marginTop: 10 }}>
                     <Card>
                       <div style={{ padding: 3, textAlign: "center" }}>
                         <Text as="p" variant="headingSm">
@@ -2300,7 +2134,7 @@ export default function Newcampaign() {
                           >
                             Product
                           </th>
-                          <th
+                         <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
@@ -2308,7 +2142,7 @@ export default function Newcampaign() {
                           >
                             Inventory
                           </th>
-                          <th
+                          {selectedOption !== 3 && <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
@@ -2316,6 +2150,7 @@ export default function Newcampaign() {
                           >
                             Inventory limit
                           </th>
+                          }
                           <th
                             style={{
                               padding: "8px",
@@ -2329,7 +2164,9 @@ export default function Newcampaign() {
                               padding: "8px",
                               borderBottom: "1px solid #eee",
                             }}
-                          ></th>
+                          >
+                            Action
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2346,6 +2183,7 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               <img
@@ -2365,6 +2203,7 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               {product.title}
@@ -2373,12 +2212,14 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               {product.totalInventory
                                 ? product.totalInventory
                                 : product.inventory}
                             </td>
+                           { selectedOption !== 3 &&
                             <td
                               style={{
                                 padding: "8px",
@@ -2389,16 +2230,23 @@ export default function Newcampaign() {
                               <TextField
                                 type="number"
                                 min={0}
-                                value={product?.maxUnit?.toString() || "0"} // Polaris expects string
+                                
+                                value={product?.maxUnit?.toString() || 
+                                  selectedOption==3? 
+                                  product.totalInventory
+                                ? product.totalInventory
+                                : product.inventory: "0"} 
                                 onChange={(value) =>
                                   handleMaxUnitChange(product.id, Number(value))
                                 }
                               />
                             </td>
+                            }
                             <td
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
                               {product.variants?.[0]?.price || product.price}

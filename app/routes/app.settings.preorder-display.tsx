@@ -44,7 +44,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const shopId = formData.get("shopId");
       try {
         const response = await savePreorderDisplay(String(shopId), JSON.parse(settings as string));
-        console.log(response,'????????????');
         redirect('/app');
       } catch (error) {
         console.error("Error saving email settings:", error);

@@ -45,7 +45,6 @@ export const action = async ({ request }: { request: Request }) => {
   const replyName = formData.get('replyName') as string;
   const storeId = formData.get('storeId') as string;
 
-  console.log(fromName,fromEmail,replyName,storeId,'???????????????????????/');
 
   await prisma.emailConfig.upsert({
     where: { storeId },
@@ -170,7 +169,7 @@ export default function SettingsEmail() {
                 )
             }
           </Card>
-          <Card>
+          {/* <Card>
             <RadioButton
               label="Custom"
               checked={value === "custom"}
@@ -207,7 +206,7 @@ export default function SettingsEmail() {
                     </div>
                 )
             }
-          </Card>
+          </Card> */}
         </BlockStack>
       </Card>
     </Page>

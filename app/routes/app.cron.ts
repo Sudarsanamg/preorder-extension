@@ -8,8 +8,8 @@ import { runPayment} from "./runPayment";
 export const loader = async () => {
   console.log("⏰ Cron endpoint hit...");
 
-  const duePayments = await prisma.duePayment.findMany({
-    where: { paymentStatus: "pending", 
+  const duePayments = await prisma.vaultedPayment.findMany({
+    where: { paymentStatus: "PENDING", 
       accessToken: { not: null }
      },
   });
@@ -19,19 +19,19 @@ export const loader = async () => {
       await runPayment({
         shop: "us-preorder-store.myshopify.com",
         accessToken: payment.accessToken ?? "",
-        orderId: payment.orderID,
+        orderId: payment.orderId,
         mandateId: payment.mandateId,
-        amount: payment.amount,
+        amount: Number(payment.amount),
         currency: payment.currencyCode,
       });
 
-      await prisma.duePayment.update({
-        where: { orderID: payment.orderID },
-        data: { paymentStatus: "paid" },
+      await prisma.vaultedPayment.update({
+        where: { orderId: payment.orderId },
+        data: { paymentStatus: "PAID" },
       });
       await prisma.campaignOrders.update({
-        where: { order_id: payment.orderID },
-        data: { paymentStatus: "paid" },
+        where: { order_id: payment.orderId },
+        data: { paymentStatus: "PAID" },
       })
     } catch (err) {
       console.error("❌ Payment failed:", err);

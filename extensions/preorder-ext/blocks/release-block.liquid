@@ -1,8 +1,10 @@
 {% assign campaignid   = product.metafields.custom.campaign_id %}
 {% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
 {% assign designprops  = shop.metaobjects.design_settings[campaignid] %}
-{% assign campaignType = campaignprops.campaigntype %}
+{% assign parsedDesignData = designprops.object.value %}
+{% assign campaignType = campaignprops.object.value.campaigntype %}
 {% assign variant      = product.selected_or_first_available_variant %}
+{% assign parsedCampaignData = campaignprops.object.value %}
 
 {% if product.metafields.custom.preorder == true %}
   {% if campaignType == 1 %}
@@ -11,7 +13,7 @@
         color: {{ designprops.preordermessagecolor }};
         text-align: center;
       ">
-        {{ campaignprops.shipping_message }}
+        {{ parsedCampaignData.shipping_message }}
       </p>
     {% endunless %}
 
@@ -21,16 +23,16 @@
         color: {{ designprops.preordermessagecolor }};
         text-align: center;
       ">
-        {{ campaignprops.shipping_message }}
+        {{ parsedCampaignData.shipping_message }}
       </p>
     {% endif %}
 
   {% else %}
     <p style="
-      color: {{ designprops.preordermessagecolor }};
+      color: {{ parsedDesignData.preorderMessageColor }};
       text-align: center;
     ">
-      {{ campaignprops.shipping_message }}
+      {{ parsedCampaignData.shipping_message }}
     </p>
   {% endif %}
 {% endif %}

@@ -1,9 +1,11 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
+
 import {
   addProductsToCampaign,
   createPreorderCampaign,
   deleteCampaign,
   getCampaignById,
+  getCampaignStatus,
   replaceProductsInCampaign,
   updateCampaign,
   updateCampaignStatus,
@@ -43,6 +45,7 @@ import {
   useActionData,
   useLoaderData,
   Link,
+  useNavigation
 } from "@remix-run/react";
 import {
   DiscountIcon,
@@ -60,6 +63,8 @@ import { useAppBridge } from "../components/AppBridgeProvider";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
+import prisma from "app/db.server";
+import { CampaignStatus } from "@prisma/client";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -67,6 +72,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   // ✅ get campaign from your DB
   const campaign = await getCampaignById(params.id!);
   // ✅ product IDs from campaign
+  //get tags 
   const productIds = campaign?.products?.map((p) => p.productId) || [];
 
   if (productIds.length === 0) {
@@ -160,207 +166,175 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
-
+ 
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const secondaryIntent = formData.get("secondaryIntent") as string;
+  const campaignCurrentStatusResponse = await getCampaignStatus(params.id!);
+  const campaignCurrentStatus = campaignCurrentStatusResponse?.status;
   if (intent === "delete-campaign") {
     const id = formData.get("id");
     await deleteCampaign(id);
     return redirect("/app");
   }
-  if (intent === "update-campaign") {
-    try {
-      const updatedCampaign = await updateCampaign({
-        id: params.id!,
-        name: formData.get("name") as string,
-        depositPercent: Number(formData.get("depositPercent")),
-        balanceDueDate: new Date(formData.get("balanceDueDate") as string),
-        refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-        releaseDate: formData.get("campaignEndDate")
-          ? new Date(formData.get("campaignEndDate") as string)
-          : undefined,
-        campaignType: Number(formData.get("campaignType")),
-      });
+ if (intent === "update-campaign") {
+  try {
+    // ------------------------
+    // Step 1: Update campaign basic data
+    // ------------------------
+    const updatedCampaign = await updateCampaign({
+      id: params.id!,
+      name: formData.get("name") as string,
+      depositPercent: Number(formData.get("depositPercent")),
+      balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+      refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
+      releaseDate: formData.get("campaignEndDate")
+        ? new Date(formData.get("campaignEndDate") as string)
+        : undefined,
+      campaignType: Number(formData.get("campaignType")),
+      orderTags: JSON.parse((formData.get("orderTags") as string) || "{}"),
+      customerTags: JSON.parse((formData.get("customerTags") as string) || "{}"),
+      status: campaignCurrentStatus,
+    });
 
-      console.log(updatedCampaign, "updated campaign");
-    } catch (error) {
-      console.error(error);
-    }
+    // console.log("Updated campaign basic info:", updatedCampaign);
 
-    const updatedProducts = JSON.parse(
-      (formData.get("products") as string) || "[]",
-    );
+    // ------------------------
+    // Step 1b: Replace campaign products
+    // ------------------------
+    const updatedProducts = JSON.parse((formData.get("products") as string) || "[]");
+    const replace = await replaceProductsInCampaign(String(params.id!), updatedProducts);
+    // console.log("Replaced products:", replace);
 
-    try {
-      const replace = await replaceProductsInCampaign(
-        String(params.id!),
-        updatedProducts,
-      );
-      console.log(replace);
-    } catch (error) {
-      console.error(error);
-    }
-
+    // ------------------------
+    // Step 2: Update campaign metaobject
+    // ------------------------
     const getIdQuery = `
-  query GetCampaignId($handle: MetaobjectHandleInput!) {
-    metaobjectByHandle(handle: $handle) {
-      id
-    }
-  }
-`;
+      query GetCampaignId($handle: MetaobjectHandleInput!) {
+        metaobjectByHandle(handle: $handle) {
+          id
+        }
+      }
+    `;
 
     const handleRes = await admin.graphql(getIdQuery, {
       variables: {
-        handle: {
-          type: "preordercampaign",
-          handle: params.id,
-        },
+        handle: { type: "preordercampaign", handle: params.id },
       },
     });
 
     const handleData = await handleRes.json();
-    const metaobjectId = handleData.data.metaobjectByHandle.id;
+    const metaobjectId = handleData?.data?.metaobjectByHandle?.id;
 
-    // Step 2: update metaobject
-    const updateCampaignMutation = `
-  mutation UpdateCampaign($id: ID!, $fields: [MetaobjectFieldInput!]!) {
-    metaobjectUpdate(
-      id: $id
-      metaobject: { fields: $fields }
-    ) {
-      metaobject {
-        id
-        handle
-        fields {
-          key
-          value
-        }
-      }
-      userErrors {
-        field
-        message
-      }
+    if (!metaobjectId) {
+      throw new Error("Campaign metaobject not found for handle: " + params.id);
     }
-  }
-`;
 
-    const updatedFields = [
+    const campaignFields = [
       {
-        key: "name",
-        value: (formData.get("name") as string) || "Untitled Campaign",
+        key: "object",
+        value: JSON.stringify({
+          campaign_id: String(params.id),
+          name: (formData.get("name") as string) || "Untitled Campaign",
+          status: "publish",
+          button_text: (formData.get("buttonText") as string) || "Preorder",
+          shipping_message: (formData.get("shippingMessage") as string) || "Ship as soon as possible",
+          payment_type: (formData.get("paymentMode") as string) || "Full",
+          ppercent: String(formData.get("depositPercent") || "0"),
+          paymentduedate: new Date((formData.get("balanceDueDate") as string) || Date.now()).toISOString(),
+          campaign_end_date: new Date((formData.get("campaignEndDate") as string) || Date.now()).toISOString(),
+          discount_type: (formData.get("discountType") as string) || "none",
+          discountpercent: (formData.get("discountPercentage") as string) || "0",
+          discountfixed: (formData.get("flatDiscount") as string) || "0",
+          campaigntags: JSON.parse((formData.get("orderTags") as string) || "[]").join(","),
+          campaigntype: String(formData.get("campaignType") as string),
+        }),
       },
-      {
-        key: "button_text",
-        value: (formData.get("buttonText") as string) || "Preorder",
-      },
-      {
-        key: "shipping_message",
-        value:
-          (formData.get("shippingMessage") as string) ||
-          "Ship as soon as possible",
-      },
-      {
-        key: "payment_type",
-        value: (formData.get("paymentMode") as string) || "Full",
-      },
-      { key: "ppercent", value: String(formData.get("depositPercent") || "0") },
-      {
-        key: "paymentduedate",
-        value: new Date(
-          (formData.get("balanceDueDate") as string) || Date.now(),
-        ).toISOString(),
-      },
-      {
-        key: "campaign_end_date",
-        value: new Date(
-          (formData.get("campaignEndDate") as string) || Date.now(),
-        ).toISOString(),
-      },
-      {
-        key: "campaigntype",
-        value: String(formData.get("campaignType") || "0"),
-      }
     ];
 
-    const campaignUpdateResponse = await admin.graphql(updateCampaignMutation, {
-      variables: {
-        id: metaobjectId,
-        fields: updatedFields,
-      },
-    });
-
-    const parsedResponse = await campaignUpdateResponse.json();
-    console.log(parsedResponse.data.metaobjectUpdate.userErrors);
-    console.log(parsedResponse.data.metaobjectUpdate.metaobject);
-
-    // Step 3: update metaobject design_fields
-
-    const designFields = JSON.parse(formData.get("designFields") as string);
-    console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
-    const fields = Object.entries(designFields).map(([key, value]) => ({
-      key: key.toLowerCase(),
-      value: String(value),
-    }));
-    fields.push({
-      key: "campaign_id",
-      value: String(params.id),
-    });
-    const query = `
-  query GetDesignSettings($handle: String!) {
-    metaobjectByHandle(handle: {handle: $handle, type: "design_settings"}) {
-      id
-      handle
-      type
-      fields {
-        key
-        value
-      }
-    }
-  }
-`;
-
-    const res = await admin.graphql(query, {
-      variables: { handle: params.id },
-    });
-
-    const data = await res.json();
-    const designmetaobjectId = data.data.metaobjectByHandle.id;
-
-    const mutation = `
-  mutation UpdateDesignSettings($id: ID!, $fields: [MetaobjectFieldInput!]!) {
-    metaobjectUpdate(
-      id: $id
-      metaobject: { fields: $fields }
-    ) {
-      metaobject {
-        id
-        handle
-        fields {
-          key
-          value
+    const updateCampaignMutation = `
+      mutation UpdateCampaign($id: ID!, $metaobject: MetaobjectInput!) {
+        metaobjectUpdate(id: $id, metaobject: $metaobject) {
+          metaobject {
+            id
+            handle
+            fields { key value }
+          }
+          userErrors { field message }
         }
       }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
+    `;
 
-    const response = await admin.graphql(mutation, {
-      variables: {
-        id: designmetaobjectId,
-        fields,
-      },
+    const campaignUpdateResponse = await admin.graphql(updateCampaignMutation, {
+      variables: { id: metaobjectId, metaobject: { fields: campaignFields } },
     });
 
-    const updated = await response.json();
-    console.log("Updated metaobject:", updated);
+    const parsedCampaign = await campaignUpdateResponse.json();
+
+    if (parsedCampaign?.data?.metaobjectUpdate?.userErrors?.length) {
+      console.error("Campaign Update Errors:", parsedCampaign.data.metaobjectUpdate.userErrors);
+    } else {
+      console.log("Updated Campaign Metaobject:", parsedCampaign.data.metaobjectUpdate.metaobject);
+    }
+
+    // ------------------------
+    // Step 3: Update design metaobject
+    // ------------------------
+    const designFieldsInput = JSON.parse(formData.get("designFields") as string);
+    const designFields = [
+      {
+        key: "object",
+        value: JSON.stringify({ ...designFieldsInput, campaign_id: params.id }),
+      },
+    ];
+
+    const getDesignQuery = `
+      query GetDesignSettings($handle: String!) {
+        metaobjectByHandle(handle: { handle: $handle, type: "design_settings" }) {
+          id handle type fields { key value }
+        }
+      }
+    `;
+
+    const designRes = await admin.graphql(getDesignQuery, { variables: { handle: params.id } });
+    const designData = await designRes.json();
+
+    const designMetaobjectId = designData?.data?.metaobjectByHandle?.id;
+    if (!designMetaobjectId) {
+      throw new Error("Design metaobject not found for handle: " + params.id);
+    }
+
+    const updateDesignMutation = `
+      mutation UpdateDesignSettings($id: ID!, $metaobject: MetaobjectInput!) {
+        metaobjectUpdate(id: $id, metaobject: $metaobject) {
+          metaobject { id handle fields { key value } }
+          userErrors { field message }
+        }
+      }
+    `;
+
+    const designUpdateRes = await admin.graphql(updateDesignMutation, {
+      variables: { id: designMetaobjectId, metaobject: { fields: designFields } },
+    });
+
+    const updatedDesign = await designUpdateRes.json();
+
+    if (updatedDesign?.data?.metaobjectUpdate?.userErrors?.length) {
+      console.error("Design Update Errors:", updatedDesign.data.metaobjectUpdate.userErrors);
+    } else {
+      console.log(
+        "Updated Design Metaobject:",
+        JSON.stringify(updatedDesign.data.metaobjectUpdate.metaobject, null, 2),
+      );
+    }
 
     return redirect(`/app/`);
+  } catch (err) {
+    console.error("Update Campaign Exception:", err);
+    throw err; // let Remix handle the error page
   }
+}
+
 
   if (intent === "publish-campaign") {
     const id = formData.get("id");
@@ -394,7 +368,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
     try {
       const res = await admin.graphql(publishMutation, {
         variables: {
-          handle: { type: "preordercampaign", handle: id }, // 👈 your campaign UUID
+          handle: { type: "preordercampaign", handle: id }, 
           status: "ACTIVE",
         },
       });
@@ -607,11 +581,11 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
       const productIds = products.map((p) => p.id);
 
-      console.log(
-        productIds,
-        Number(formData.get("depositPercent")),
-        "formData >>>>>>>>>>>>>>>>>>>>>>",
-      );
+      // console.log(
+      //   productIds,
+      //   Number(formData.get("depositPercent")),
+      //   "formData >>>>>>>>>>>>>>>>>>>>>>",
+      // );
 
       try {
         let res;
@@ -814,7 +788,18 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         }
       }
 
-      await updateCampaignStatus(params.id!, "UNPUBLISHED");
+      await updateCampaignStatus(params.id!, "UNPUBLISH");
+
+      // get totalorders of the campaign
+      const totalOrdersResponse = await prisma.preorderCampaign.findFirst({
+        where: {
+          id: params.id!,
+        },
+      });
+
+      const totalOrders = totalOrdersResponse?.totalOrders || 0;
+
+
 
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!);
@@ -831,7 +816,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           const response = await admin.graphql(query);
           const data = await response.json();
           const storeId = data.data.shop.id; 
-
 
 
       if (secondaryIntent === "delete-campaign-create-new") {
@@ -852,6 +836,9 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
           storeId: storeId,
+          getDueByValt : false,
+          totalOrders : totalOrders,
+          status : campaignCurrentStatus 
         });
 
         const products = JSON.parse(
@@ -1291,14 +1278,15 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
         const designFields = JSON.parse(formData.get("designFields") as string);
         console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
-        const fields = Object.entries(designFields).map(([key, value]) => ({
-          key: key.toLowerCase(),
-          value: String(value),
-        }));
-        fields.push({
-          key: "campaign_id",
-          value: String(campaign.id),
-        });
+        const fields = [
+          {
+            key: "object",
+            value: JSON.stringify({
+              ...designFields, // all your design fields
+              campaign_id: campaign.id,
+            }),
+          },
+        ];
 
         console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
 
@@ -1364,79 +1352,71 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
         try {
           const response = await admin.graphql(mutation, {
-            variables: { fields },
+            
+            variables: {     
+              fields : [
+                {
+                  key:"campaign_id",
+                  value: String(campaign.id)
+                },
+                
+                  ...fields
+                
+              ]
+             },
           });
+          
 
-          const campaign_response = await admin.graphql(campaign_mutation, {
+        const campaignFields = [
+            {
+              
+              key: "object",
+              value: JSON.stringify({
+                campaign_id: String(campaign.id),
+                name: (formData.get("name") as string) || "Untitled Campaign",
+                status: "publish",
+                button_text:
+                  (formData.get("buttonText") as string) || "Preorder",
+                shipping_message:
+                  (formData.get("shippingMessage") as string) ||
+                  "Ship as soon as possible",
+                payment_type: (formData.get("paymentMode") as string) || "Full",
+                ppercent: String(formData.get("depositPercent") || "0"),
+                paymentduedate: new Date(
+                  (formData.get("balanceDueDate") as string) || Date.now(),
+                ).toISOString(),
+                campaign_end_date: new Date(
+                  (formData.get("campaignEndDate") as string) || Date.now(),
+                ).toISOString(),
+                discount_type:
+                  (formData.get("discountType") as string) || "none",
+                discountpercent:
+                  (formData.get("discountPercentage") as string) || "0",
+                discountfixed: (formData.get("flatDiscount") as string) || "0",
+                campaigntags: JSON.parse(
+                  (formData.get("orderTags") as string) || "[]",
+                ).join(","),
+                campaigntype: String(formData.get("campaignType") as string),
+              }),
+            },
+          ];
+
+           const campaign_response = await admin.graphql(campaign_mutation, {
             variables: {
               fields: [
                 { key: "campaign_id", value: String(campaign.id) },
-                {
-                  key: "name",
-                  value:
-                    (formData.get("name") as string) || "Untitled Campaign",
-                },
-                { key: "status", value: "publish" },
-                {
-                  key: "button_text",
-                  value: (formData.get("buttonText") as string) || "Preorder",
-                },
-                {
-                  key: "shipping_message",
-                  value:
-                    (formData.get("shippingMessage") as string) ||
-                    "Ship as soon as possible",
-                },
-                {
-                  key: "payment_type",
-                  value: (formData.get("paymentMode") as string) || "Full",
-                },
-                {
-                  key: "ppercent",
-                  value: String(formData.get("depositPercent") || "0"),
-                },
-                {
-                  key: "paymentduedate",
-                  value: new Date(
-                    (formData.get("balanceDueDate") as string) || Date.now(),
-                  ).toISOString(),
-                },
-                {
-                  key: "campaign_end_date",
-                  value: new Date(
-                    (formData.get("campaignEndDate") as string) || Date.now(),
-                  ).toISOString(),
-                },
-                {
-                  key: "discount_type",
-                  value: (formData.get("discountType") as string) || "none",
-                },
-                {
-                  key: "discountpercent",
-                  value: (formData.get("discountPercentage") as string) || "0",
-                },
-                {
-                  key: "discountfixed",
-                  value: (formData.get("flatDiscount") as string) || "0",
-                },
-                {
-                  key: "campaigntags",
-                  value: JSON.parse(
-                    (formData.get("orderTags") as string) || "[]",
-                  ).join(","),
-                },
-                {
-                  key: "campaigntype",
-                  value: formData.get("campaignType") as string,
-                },
+                ...campaignFields
               ],
             },
           });
-
           const parsedCampaignResponse = await campaign_response.json();
           console.log(
             parsedCampaignResponse,
             "parsedResponse >>>>>>>>>>>>>>>>>>>>>>",
+          );
+          console.log(
+            "store meta Metaobject //////:",
+            JSON.stringify(parsedCampaignResponse, null, 2),
           );
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
@@ -1464,10 +1444,17 @@ export default function CampaignDetail() {
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
   } = useLoaderData<typeof loader>();
+  console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
+  console.log(parsedCampaignSettingsResponse, "parsedCampaignSettingsResponse");
+
+const navigation = useNavigation();
+
   const designFieldsObj =
     parsedDesignSettingsResponse?.data?.metaobjectByHandle?.fields;
+
   const campaignSettingsObj =
     parsedCampaignSettingsResponse?.data?.metaobjectByHandle?.fields;
+
   const campaignSettingsMap = campaignSettingsObj?.reduce(
     (acc, field) => {
       acc[field.key] = field.value;
@@ -1476,7 +1463,26 @@ export default function CampaignDetail() {
     {} as Record<string, string>,
   );
 
+  const parsedCampaignData = JSON.parse(
+    campaignSettingsMap?.object || "{}",
+  )
+
+   const designFieldsMap = designFieldsObj?.reduce(
+    (acc, field) => {
+      acc[field.key] = field.value;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  const parsedDesignFields = JSON.parse(
+    designFieldsMap?.object || "{}",
+  )
+  
+  // console.log(parsedCampaignData, "parsedCampaignData");
+
   // console.log(campaignSettingsMap, "campaignSettingsMap");
+  console.log(parsedDesignFields, "parsedDesignFields");
 
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -1489,27 +1495,27 @@ export default function CampaignDetail() {
   const [productTagInput, setProductTagInput] = useState("");
   const [customerTagInput, setCustomerTagInput] = useState("");
   const [productTags, setProductTags] = useState<string[]>(
-    campaignSettingsMap?.campaigntags
-      ? campaignSettingsMap?.campaigntags.split(",")
+    parsedCampaignData?.campaigntags
+      ? parsedCampaignData?.campaigntags.split(",")
       : [],
   );
   const [customerTags, setCustomerTags] = useState<string[]>([]);
   const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
   const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
   const [selectedOption, setSelectedOption] = useState(
-    Number(campaignSettingsMap?.campaigntype),
+    Number(parsedCampaignData?.campaigntype),
   );
   const [buttonText, setButtonText] = useState(
-    campaignSettingsMap?.button_text,
+    parsedCampaignData?.button_text,
   );
   const [shippingMessage, setShippingMessage] = useState(
-    campaignSettingsMap?.shipping_message,
+    parsedCampaignData?.shipping_message,
   );
   const [partialPaymentPercentage, setPartialPaymentPercentage] = useState(
     campaign?.depositPercent,
   );
   const [paymentMode, setPaymentMode] = useState(
-    campaignSettingsMap?.payment_type === "full" ? "full" : "partial",
+    parsedCampaignData?.payment_type === "full" ? "full" : "partial",
   );
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
@@ -1531,8 +1537,8 @@ export default function CampaignDetail() {
   const [selectedProducts, setSelectedProducts] = useState(products || []);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndDate, setCampaignEndDate] = useState<Date | null>(
-    campaignSettingsMap?.campaign_end_date
-      ? new Date(campaignSettingsMap?.campaign_end_date)
+    parsedCampaignData?.campaign_end_date
+      ? new Date(parsedCampaignData?.campaign_end_date)
       : null,
   );
   const [campaignEndPicker, setCampaignEndPicker] = useState({
@@ -1552,41 +1558,44 @@ export default function CampaignDetail() {
     "not_published",
   );
   const [criticalChange, setCriticalChange] = useState(false);
+  const [partialPaymentText, setPartialPaymentText] =
+      useState("Partial payment");
+    const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
+      "Pay {payment} now and {remaining} will be charged on {date}",
+    );
 
   // console.log(designFieldsObj);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const designFieldsMap = designFieldsObj?.reduce(
-    (acc, field) => {
-      acc[field.key] = field.value;
-      return acc;
-    },
-    {} as Record<string, string>,
-  );
+ 
 
-  const [designFields, setDesignFields] = useState<DesignFields>({
-    messageFontSize: designFieldsMap?.messagefontsize,
-    messageColor: designFieldsMap?.messagecolor,
-    fontFamily: designFieldsMap?.fontfamily,
-    buttonStyle: designFieldsMap?.buttonstyle,
-    buttonBackgroundColor: designFieldsMap?.buttonbackgroundcolor,
-    gradientDegree: designFieldsMap?.gradientdegree,
-    gradientColor1: designFieldsMap?.gradientcolor1,
-    gradientColor2: designFieldsMap?.gradientcolor2,
-    borderSize: designFieldsMap?.bordersize,
-    borderColor: designFieldsMap?.bordercolor,
-    spacingIT: designFieldsMap?.spacingit,
-    spacingIB: designFieldsMap?.spacingib,
-    spacingOT: designFieldsMap?.spacingot,
-    spacingOB: designFieldsMap?.spacingob,
-    borderRadius: designFieldsMap?.borderradius,
-    preorderMessageColor: designFieldsMap?.preordermessagecolor,
-    buttonFontSize: designFieldsMap?.buttonfontsize,
-    buttonTextColor: designFieldsMap?.buttontextcolor,
-  });
+ const [designFields, setDesignFields] = useState<DesignFields>({
+  messageFontSize: parsedDesignFields?.messageFontSize,
+  messageColor: parsedDesignFields?.messageColor,
+  fontFamily: parsedDesignFields?.fontFamily,
+  buttonStyle: parsedDesignFields?.buttonStyle,
+  buttonBackgroundColor: parsedDesignFields?.buttonBackgroundColor,
+  gradientDegree: parsedDesignFields?.gradientDegree,
+  gradientColor1: parsedDesignFields?.gradientColor1,
+  gradientColor2: parsedDesignFields?.gradientColor2,
+  borderSize: parsedDesignFields?.borderSize,
+  borderColor: parsedDesignFields?.borderColor,
+  spacingIT: parsedDesignFields?.spacingIT,
+  spacingIB: parsedDesignFields?.spacingIB,
+  spacingOT: parsedDesignFields?.spacingOT,
+  spacingOB: parsedDesignFields?.spacingOB,
+  borderRadius: parsedDesignFields?.borderRadius,
+  preorderMessageColor: parsedDesignFields?.preorderMessageColor,
+  buttonFontSize: parsedDesignFields?.buttonFontSize,
+  buttonTextColor: parsedDesignFields?.buttonTextColor,
+});
+
+
+  console.log(designFields,'&&&&&&&&&&&')
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
   const [discountType, setDiscountType] = useState(
-    campaignSettingsMap?.discount_type,
+    parsedCampaignData?.discount_type,
   );
   useEffect(() => {
     if (discountType === "percentage") {
@@ -1597,10 +1606,10 @@ export default function CampaignDetail() {
   }, [discountType]);
 
   const [discountPercentage, setDiscountPercentage] = useState(
-    Number(campaignSettingsMap?.discountpercent),
+    Number(parsedCampaignData?.discountpercent),
   );
   const [flatDiscount, setFlatDiscount] = useState(
-    Number(campaignSettingsMap?.discountfixed),
+    Number(parsedCampaignData?.discountfixed),
   );
   const handleCampaignEndDateChange = useCallback((range) => {
     setCampaignEndPicker((prev) => ({
@@ -1641,7 +1650,7 @@ export default function CampaignDetail() {
   const openResourcePicker = () => {
     shopify.modal.hide("my-modal");
 
-    async function fetchProductsInCollection(collectionId: string) {
+ async function fetchProductsInCollection(collectionId: string) {
       const res = await fetch("/api/products-in-collection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1755,6 +1764,7 @@ export default function CampaignDetail() {
     // }
 
     console.log("function hit");
+    setIsSubmitting(true);
     const formData = new FormData();
     formData.append("intent", "update-campaign");
     formData.append("name", campaignName!);
@@ -1772,9 +1782,6 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   };
 
-  useEffect(() => {
-    console.log(selectedProducts);
-  }, [selectedProducts]);
 
   const handleMaxUnitChange = (id: string, value: number) => {
     setSelectedProducts((prev: any) =>
@@ -1786,9 +1793,7 @@ export default function CampaignDetail() {
     );
   };
 
-  useEffect(() => {
-    console.log(selectedProducts);
-  }, [selectedProducts]);
+
 
   const appBridge = useAppBridge();
 
@@ -1804,11 +1809,9 @@ export default function CampaignDetail() {
 
   const [active, setActive] = useState(false);
 
-  const handleOpen = () => setActive(true);
-  const handleClose = () => setActive(false);
-
   function handleUnpublish(id: string): void {
     const formData = new FormData();
+    setIsSubmitting(true);
     formData.append("intent", "unpublish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("id", id);
@@ -1822,7 +1825,7 @@ export default function CampaignDetail() {
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("secondaryIntent", "delete-campaign-create-new");
     formData.append("id", id);
-    formData.append("name", String(campaign?.name));
+    formData.append("name", String(campaignName));
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
@@ -1870,6 +1873,7 @@ export default function CampaignDetail() {
 
   function handlePublish(id: string): void {
     const formData = new FormData();
+    setIsSubmitting(true);
     formData.append("intent", "publish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("paymentMode", String(paymentMode));
@@ -1896,6 +1900,8 @@ export default function CampaignDetail() {
     selectedOption,
     buttonText,
     shippingMessage,
+    productTags,
+    customerTags
   ]);
 
   const handleButtonClick = useCallback(
@@ -1945,7 +1951,7 @@ export default function CampaignDetail() {
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title={`Update ${campaign?.name}`}
+        title={`Update ${campaign?.name}`  }
         titleMetadata={
           campaign?.status === "PUBLISHED" ? (
             <Badge tone="success">Published</Badge>
@@ -1964,6 +1970,7 @@ export default function CampaignDetail() {
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
           varient: "primary",
+          loading: navigation.state !== "idle",
           onAction: () =>
             campaign?.status === "PUBLISHED"
               ? handleUnpublish(String(campaign?.id))
@@ -1990,12 +1997,16 @@ export default function CampaignDetail() {
             <button
               variant="primary"
               tone="critical"
-              onClick={() => handleDelete(String(campaign?.id))}
+              onClick={() => {
+                handleDelete(String(campaign?.id))
+                shopify.modal.hide("delete-modal")
+              }}
+              loading={navigation.state !== "idle"}
             >
               Delete
             </button>
             <button onClick={() => shopify.modal.hide("delete-modal")}>
-              Label
+              Cancel
             </button>
           </TitleBar>
         </Modal>
@@ -2032,21 +2043,6 @@ export default function CampaignDetail() {
           />
 
           <div
-            style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
-          >
-            {/* <button
-              type="submit"
-              style={{
-                backgroundColor: "black",
-                color: "white",
-                padding: 5,
-                borderRadius: 5,
-              }}
-            >
-              Publish
-            </button> */}
-          </div>
-          <div
             style={{
               display: "flex",
               position: "relative",
@@ -2060,7 +2056,7 @@ export default function CampaignDetail() {
                 <Card>
                   <BlockStack>
                     <Text as="h1" variant="headingLg">
-                      New Campaign
+                      {/* New Campaign */}
                     </Text>
                   </BlockStack>
                   <TextField
@@ -2371,12 +2367,15 @@ export default function CampaignDetail() {
                             <TextField
                               autoComplete="off"
                               label="Partial payment text"
+                              onChange={setPartialPaymentText}
+                              value={partialPaymentText}
                             />
                             <Text as="p" variant="bodyMd">
                               Visible in cart, checkout, transactional emails
                             </Text>
                             <div>
-                              <TextField autoComplete="off" label="Text" />
+                              <TextField autoComplete="off" label="Text"
+                                value={partialPaymentInfoText} />
                               <Text as="p" variant="bodyMd">
                                 Use {"{payment}"} and {"{remaining}"} to display
                                 partial payment amounts and {"{date}"} for full
