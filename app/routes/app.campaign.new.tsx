@@ -52,28 +52,17 @@ import {
 import { useAppBridge } from "../components/AppBridgeProvider";
 import PreviewDesign from "app/components/PreviewDesign";
 import type { DesignFields } from "../types/type";
+import {
+  GET_COLLECTION_PRODUCTS,
+  GET_SHOP_WITH_PLAN,
+} from "app/graphql/queries/shop";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-
-  const query = `{
-      shop {
-        id
-        name
-        myshopifyDomain
-        plan {
-          displayName
-          partnerDevelopment
-          shopifyPlus
-        }
-      }
-    }`;
-
-  const response = await admin.graphql(query);
+  const response = await admin.graphql(GET_SHOP_WITH_PLAN);
   const data = await response.json();
   const storeId = data.data.shop.id;
   const plusStore = data.data.shop.plan.shopifyPlus;
-
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
 
@@ -82,37 +71,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const collectionId = url.searchParams.get("collectionId");
 
       try {
-        const query = `
-    query getCollectionProducts($id: ID!) {
-      collection(id: $id) {
-        products(first: 50) {
-          edges {
-            node {
-              id
-              title
-              handle
-              images(first: 1) {
-                edges {
-                  node { src }
-                }
-              }
-              variants(first: 1) {
-                edges {
-                  node { 
-                    price
-                    inventoryQuantity
-
-                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-
-        const response = await admin.graphql(query, {
+        const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
           variables: { id: collectionId },
         });
 
@@ -279,8 +238,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder_units_sold",
               type: "number_integer",
-              value: "0"
-            }
+              value: "0",
+            },
           ]);
 
           try {
@@ -484,8 +443,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           } catch (error) {
             console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
           }
-        }
-        else {
+        } else {
           const discountType = formData.get("discountType");
           let CREATE_SELLING_PLAN = ``;
 
@@ -634,25 +592,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         const designFields = JSON.parse(formData.get("designFields") as string);
         console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
-        // const fields = Object.entries(designFields).map(([key, value]) => ({
-        //   key: key.toLowerCase(),
-        //   value: String(value),
-        // }));
-        // fields.push({
-        //   key: "campaign_id",
-        //   value: String(campaign.id),
-        // });
 
         const fields = [
           {
             key: "object",
             value: JSON.stringify({
-              ...designFields, 
+              ...designFields,
               campaign_id: campaign.id,
             }),
           },
         ];
-
 
         const mutation = `
   mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
@@ -719,18 +668,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         try {
           const response = await admin.graphql(mutation, {
-            
-            variables: {     
-              fields : [
+            variables: {
+              fields: [
                 {
-                  key:"campaign_id",
-                  value: String(campaign.id)
+                  key: "campaign_id",
+                  value: String(campaign.id),
                 },
-                
-                  ...fields
-                
-              ]
-             },
+
+                ...fields,
+              ],
+            },
           });
 
           const result = await response.json();
@@ -738,7 +685,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
           const campaignFields = [
             {
-              
               key: "object",
               value: JSON.stringify({
                 campaign_id: String(campaign.id),
@@ -774,7 +720,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             variables: {
               fields: [
                 { key: "campaign_id", value: String(campaign.id) },
-                ...campaignFields
+                ...campaignFields,
               ],
             },
           });
@@ -859,7 +805,8 @@ export default function Newcampaign() {
   const [shippingMessage, setShippingMessage] = useState(
     "Ship as soon as possible",
   );
-  const [partialPaymentPercentage, setPartialPaymentPercentage] = useState("10");
+  const [partialPaymentPercentage, setPartialPaymentPercentage] =
+    useState("10");
   const [paymentMode, setPaymentMode] = useState("partial");
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(2);
@@ -2134,7 +2081,7 @@ export default function Newcampaign() {
                           >
                             Product
                           </th>
-                         <th
+                          <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
@@ -2142,15 +2089,16 @@ export default function Newcampaign() {
                           >
                             Inventory
                           </th>
-                          {selectedOption !== 3 && <th
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            Inventory limit
-                          </th>
-                          }
+                          {selectedOption !== 3 && (
+                            <th
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                              }}
+                            >
+                              Inventory limit
+                            </th>
+                          )}
                           <th
                             style={{
                               padding: "8px",
@@ -2219,29 +2167,34 @@ export default function Newcampaign() {
                                 ? product.totalInventory
                                 : product.inventory}
                             </td>
-                           { selectedOption !== 3 &&
-                            <td
-                              style={{
-                                padding: "8px",
-                                borderBottom: "1px solid #eee",
-                                width: "100px",
-                              }}
-                            >
-                              <TextField
-                                type="number"
-                                min={0}
-                                
-                                value={product?.maxUnit?.toString() || 
-                                  selectedOption==3? 
-                                  product.totalInventory
-                                ? product.totalInventory
-                                : product.inventory: "0"} 
-                                onChange={(value) =>
-                                  handleMaxUnitChange(product.id, Number(value))
-                                }
-                              />
-                            </td>
-                            }
+                            {selectedOption !== 3 && (
+                              <td
+                                style={{
+                                  padding: "8px",
+                                  borderBottom: "1px solid #eee",
+                                  width: "100px",
+                                }}
+                              >
+                                <TextField
+                                  type="number"
+                                  min={0}
+                                  value={
+                                    product?.maxUnit?.toString() ||
+                                    selectedOption == 3
+                                      ? product.totalInventory
+                                        ? product.totalInventory
+                                        : product.inventory
+                                      : "0"
+                                  }
+                                  onChange={(value) =>
+                                    handleMaxUnitChange(
+                                      product.id,
+                                      Number(value),
+                                    )
+                                  }
+                                />
+                              </td>
+                            )}
                             <td
                               style={{
                                 padding: "8px",
