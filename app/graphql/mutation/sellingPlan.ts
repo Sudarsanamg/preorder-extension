@@ -1,4 +1,7 @@
-export const CREATE_SELLING_PLAN_BASE = (paymentMode: "partial" | "full", discountType: "none" | "percentage" | "flat") => {
+export const CREATE_SELLING_PLAN_BASE = (
+  paymentMode: "partial" | "full",
+  discountType: "none" | "percentage" | "flat"
+) => {
   const isPartial = paymentMode === "partial";
 
   // Billing policy differs slightly
@@ -27,7 +30,7 @@ export const CREATE_SELLING_PLAN_BASE = (paymentMode: "partial" | "full", discou
         {
           fixed: {
             adjustmentType: FIXED_AMOUNT
-            adjustmentValue: { ${isPartial ? "fixedValue: $fixedValue" : "amount: $fixedValue"} }
+            adjustmentValue: { amount: $fixedValue }
           }
         }
       ]`;

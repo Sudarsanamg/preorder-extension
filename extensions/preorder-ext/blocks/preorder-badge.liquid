@@ -1,8 +1,26 @@
 {{ 'badge.css' | asset_url | stylesheet_tag }}
 
- {% if product.metafields.custom.preorder == true %}
+
+
+<script src="{{ 'badge.js' | asset_url }}" defer="defer"></script>
+
+
+<div id="variant-data"
+  {% for variant in product.variants %}
+    data-variant-{{ variant.id }}="{% if variant.metafields.custom.preorder.value == true %}true{% else %}false{% endif %}"
+  {% endfor %}>
+</div>
+
+
+<!-- Badge placeholder -->
+<!-- Badge placeholder -->
+<span id="preorder-badge" style="display:none;" class="preorder-badge">
+  Pre-order
+</span>
+
+{% comment %} {% if product.metafields.custom.preorder == true %}
   <span class="badge badge-preorder">Preorder</span>
-{% endif %} 
+{% endif %}   {% endcomment %}
 
 {% comment %} <p>{{ product.metafields.custom.campaign_id }}</p>
 

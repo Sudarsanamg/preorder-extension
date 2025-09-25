@@ -226,11 +226,79 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             },
           ]);
 
+          const productMetafields = products.flatMap((product: any) => [
+             {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: String(campaign.id),
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "true",
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "release_date",
+              type: "date",
+              value: "2025-08-30",
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "preorder_end_date",
+              type: "date_time",
+              value: new Date(
+                formData.get("campaignEndDate") as string,
+              ).toISOString(),
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "deposit_percent",
+              type: "number_integer",
+              value: String(formData.get("depositPercent") || "0"),
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "balance_due_date",
+              type: "date",
+              value: new Date(
+                formData.get("balanceDueDate") as string,
+              ).toISOString(),
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "preorder_max_units",
+              type: "number_integer",
+              value: String(product?.maxUnit || "0"),
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "preorder_units_sold",
+              type: "number_integer",
+              value: "0",
+            },
+          ])
+
           try {
             const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
               variables: { metafields },
             });
+            
+            const response2 = await admin.graphql(SET_PREORDER_METAFIELDS, {
+              variables: { metafields: productMetafields },
+            })
             console.log("GraphQL response:", response);
+            console.log("GraphQL response2:", response2);
           } catch (err) {
             console.error("GraphQL mutation failed:", err);
             throw err;
