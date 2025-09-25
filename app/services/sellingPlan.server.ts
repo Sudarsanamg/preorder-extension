@@ -1,10 +1,10 @@
 import { CREATE_SELLING_PLAN_BASE} from "../graphql/mutation/sellingPlan";
 
 export async function createSellingPlan(admin: any, paymentMode: "partial" | "full", discountType: "none" | "percentage" | "flat", products: any[], formData: FormData) {
-  const productIds = products.map((p) => p.id);
+  const variantIds = products.map((p) => p.variantId);
   const mutation = CREATE_SELLING_PLAN_BASE(paymentMode, discountType);
 
-  let variables: Record<string, any> = { productIds };
+  let variables: Record<string, any> = { variantIds };
 
   if (paymentMode === "partial") {
     variables.percentage = Number(formData.get("depositPercent"));

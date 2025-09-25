@@ -141,14 +141,17 @@ export async function updateCampaign(data: {
 // Add product(s) to a campaign
 export async function addProductsToCampaign(
   campaignId: string,
-  products: { id: string; variantId?: string; totalInventory: number }[],
+  products: { productId: string; productImage?: string,variantTitle?: string; variantId?: string; variantInventory: number ;variantPrice?: number ;maxUnit?: number}[],
 ) {
   return prisma.preorderCampaignProduct.createMany({
     data: products.map((p) => ({
       campaignId,
-      productId: p.id,
+      productId: p.productId,
       variantId: p.variantId,
-      maxQuantity: p.totalInventory ? p.totalInventory : 0,
+      variantTitle: p.variantTitle,
+      maxQuantity: Number(p.maxUnit),
+      price: p.variantPrice  ,
+      imageUrl: p.productImage,    
     })),
   });
 }

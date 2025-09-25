@@ -110,6 +110,9 @@ model PreorderCampaignProduct {
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   productId    String
   variantId    String?
+  variantTitle String?
+  price        Decimal?
+  imageUrl     String?
   maxQuantity  Int?
   soldQuantity Int              @default(0)
   createdAt    DateTime         @default(now())

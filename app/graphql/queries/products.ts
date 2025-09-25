@@ -22,3 +22,26 @@ export const GET_PRODUCTS_BY_IDS = `#graphql
     }
   }
 `;
+
+export const GET_VARIENT_BY_IDS= `#graphql
+query getVariantsByIds($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    ... on ProductVariant {
+      id
+      title
+      inventoryQuantity
+      price
+      product {
+        id
+        title
+        featuredImage {
+          url
+        }
+      }
+      metafield(namespace: "custom", key: "preorder_max_units") {
+        value
+      }
+    }
+  }
+}
+`;

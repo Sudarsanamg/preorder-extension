@@ -55,10 +55,6 @@ import {
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
-// import {
-//   createPreorderCampaign,
-//   addProductsToCampaign,
-// } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
@@ -68,36 +64,51 @@ import { CampaignStatus } from "@prisma/client";
 import { SET_PREORDER_METAFIELDS } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { CREATE_CAMPAIGN, CREATE_DESIGN_SETTINGS } from "app/graphql/mutation/metaobject";
-import { GET_PRODUCTS_BY_IDS } from "app/graphql/queries/products";
+import { GET_PRODUCTS_BY_IDS, GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const campaign = await getCampaignById(params.id!);
-  const productIds = campaign?.products?.map((p) => p.productId) || [];
-
-  if (productIds.length === 0) {
+  console.log(campaign, ">>>>>>>>>>>>>>>>Campaign loaded");
+  const varientId = campaign?.products?.map((p) => p.variantId) || [];
+  if (varientId.length === 0) {
     return json({ campaign, products: [] });
   }
 
-const formattedIds = productIds.map(id => id.replace(/"/g, "")).join('","'); 
-  const response = await admin.graphql(GET_PRODUCTS_BY_IDS, {
-  variables: { ids: formattedIds }, 
+// const formattedIds = productIds.map(id => id.replace(/"/g, "")).join('","'); 
+const response = await admin.graphql(GET_VARIENT_BY_IDS, {
+  variables: { ids: varientId }, // make sure this is an array of IDs
 });
-  const data = await response.json();
-  const products = data.data.nodes.map((product: any) => ({
-    id: product.id,
-    title: product.title,
-    image: product.featuredImage?.url,
-    price: product.variants.edges[0]?.node.price ?? null,
-    inventory: product.variants.edges[0]?.node.inventoryQuantity ?? null,
-    maxUnit: product.metafield?.value,
-  }));
+
+const data = await response.json();
+
+const variants = data.data.nodes.map((variant: any) => ({
+  id: variant.id,
+  title: variant.title,
+  image: variant.product?.featuredImage?.url ?? null,
+  price: variant.price ?? null,        // already scalar
+  inventory: variant.inventoryQuantity ?? null,
+  maxUnit: variant.metafield?.value ?? null,
+  productId: variant.product?.id ?? null,
+  productTitle: variant.product?.title ?? null,
+}));
+
 
   let designSettingsResponse = await fetchMetaobject(admin, params.id!, "design_settings");
   let parsedDesignSettingsResponse = await designSettingsResponse.json();
   let campaignSettingsResponse = await fetchMetaobject(admin, params.id!, "preordercampaign");
   let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
+  const products = variants.map((variant) => ({
+    productId: variant.productId,
+    variantId: variant.id,
+    variantTitle: variant.title,
+    variantPrice: variant.price,
+    variantInventory: variant.inventory,
+    maxUnit: variant.maxUnit,
+    productImage: variant.image,
+    productTitle: variant.productTitle
+  }));
 
   return json({
     campaign,
@@ -386,25 +397,27 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
     const metafields = products.flatMap((product) => [
       {
-        ownerId: product.id,
+        ownerId: product.variantId,
         namespace: "custom",
         key: "campaign_id",
         value: id,
       },
       {
-        ownerId: product.id,
+        ownerId: product.variantId,
         namespace: "custom",
         key: "preorder",
         value: "true",
       },
     ]);
 
+    console.log("Metafields:", metafields);
+
     try {
       const graphqlResponse = await admin.graphql(mutation, {
         variables: { metafields },
       });
 
-      const response = await graphqlResponse.json(); // 👈 parse it
+      const response = await graphqlResponse.json(); 
 
       if (response.data?.metafieldsSet?.userErrors?.length) {
         console.error(
@@ -675,15 +688,17 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
       const metafields = products.flatMap((product) => [
         {
-          ownerId: product.id,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "campaign_id",
-          value: "null",
+          type: "single_line_text_field",
+          value: id,
         },
         {
-          ownerId: product.id,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "preorder",
+          type: "boolean",
           value: "false",
         },
       ]);
@@ -737,7 +752,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 `;
 
       const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
-        variables: { id: products[0].id },
+        variables: { id: products[0].productId },
       });
       const productData = await productResp.json();
 
@@ -834,28 +849,28 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
           const metafields = products.flatMap((product) => [
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "campaign_id",
               type: "single_line_text_field",
               value: String(campaign.id),
             },
             {
-              ownerId: product.id,
+              ownerId:product.variantId,
               namespace: "custom",
               key: "preorder",
               type: "boolean",
               value: "true",
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "release_date",
               type: "date",
               value: "2025-08-30",
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder_end_date",
               type: "date_time",
@@ -864,14 +879,14 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
               ).toISOString(),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "deposit_percent",
               type: "number_integer",
               value: String(formData.get("depositPercent") || "0"),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "balance_due_date",
               type: "date",
@@ -880,7 +895,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
               ).toISOString(),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
@@ -1297,17 +1312,13 @@ export default function CampaignDetail() {
     },
   ];
 
-  const filteredProducts =
-    selectedProducts.length > 0
-      ? selectedProducts.filter((product) =>
-          product.title?.toLowerCase().includes(searchTerm.toLowerCase()),
-        )
-      : [];
+  const filteredProducts = selectedProducts?.filter((product) =>
+    product.variantTitle?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   function handleRemoveProduct(id: string) {
-    if (selectedProducts.length === 0) return; // do nothing if empty
-
-    setSelectedProducts((prev) => prev.filter((product) => product.id !== id));
+    // if (selectedProducts.length === 0) return; // do nothing if empty
+    setSelectedProducts((prev) => prev.filter((product) => product.variantId !== id));
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -2448,7 +2459,7 @@ export default function CampaignDetail() {
                     </thead>
                     <tbody>
                       {filteredProducts.map((product) => (
-                        <tr key={product.id}>
+                        <tr key={product.varientId}>
                           <td
                             style={{
                               padding: "8px",
@@ -2457,10 +2468,9 @@ export default function CampaignDetail() {
                           >
                             <img
                               src={
-                                product.images?.[0]?.originalSrc ||
-                                product.image
+                                product.productImage
                               }
-                              alt={product.title}
+                              alt={product.variantTitle}
                               style={{
                                 width: 50,
                                 height: 50,
@@ -2474,7 +2484,7 @@ export default function CampaignDetail() {
                               borderBottom: "1px solid #eee",
                             }}
                           >
-                            {product.title}
+                            {product.variantTitle !== 'Default Title' ? product.variantTitle : product.productTitle}
                           </td>
                           <td
                             style={{
@@ -2482,8 +2492,8 @@ export default function CampaignDetail() {
                               borderBottom: "1px solid #eee",
                             }}
                           >
-                            {product.totalInventory
-                              ? product.totalInventory
+                            {product.variantInventory
+                              ? product.variantInventory
                               : product.inventory}
                           </td>
                           <td
@@ -2498,7 +2508,7 @@ export default function CampaignDetail() {
                               min={0}
                               value={product?.maxUnit?.toString() || "0"} // Polaris expects string
                               onChange={(value) =>
-                                handleMaxUnitChange(product.id, Number(value))
+                                handleMaxUnitChange(product.variantId, Number(value))
                               }
                             />
                           </td>
@@ -2508,7 +2518,7 @@ export default function CampaignDetail() {
                               borderBottom: "1px solid #eee",
                             }}
                           >
-                            {product.variants?.[0]?.price || product.price}
+                            {product.variantPrice}
                           </td>
                           <td
                             style={{
@@ -2518,7 +2528,7 @@ export default function CampaignDetail() {
                           >
                             <div
                               onClick={() => {
-                                handleRemoveProduct(product.id);
+                                handleRemoveProduct(product.variantId);
                               }}
                             >
                               <Icon source={DeleteIcon} />

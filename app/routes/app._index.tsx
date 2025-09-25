@@ -39,7 +39,7 @@ import {
 import { FileIcon } from "@shopify/polaris-icons";
 import preorderCampaignDef from "app/utils/preorderCampaignDef";
 import designSettingsDef from "app/utils/designSettingsDef";
-import productMetafieldDefinitions from "app/utils/productMetafieldDefinitions";
+import productMetafieldDefinitions, { variantMetafieldDefinitions } from "app/utils/productMetafieldDefinitions";
 import {
   confrimOrderTemplate,
   ShippingEmailTemplate,
@@ -118,6 +118,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   await createMetaobjectDefinition(admin, designSettingsDef);
 
   for (const def of productMetafieldDefinitions) {
+    await createMetafieldDefinition(admin, def);
+  }
+  for(const def of variantMetafieldDefinitions){
     await createMetafieldDefinition(admin, def);
   }
   

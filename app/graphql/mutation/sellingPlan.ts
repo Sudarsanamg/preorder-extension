@@ -35,7 +35,7 @@ export const CREATE_SELLING_PLAN_BASE = (paymentMode: "partial" | "full", discou
 
   return `#graphql
     mutation CreateSellingPlan(
-      $productIds: [ID!]!
+      $variantIds: [ID!]!
       ${isPartial ? "$percentage: Float!, $days: String!" : ""}
       ${discountType === "percentage" ? "$discountPercentage: Float!" : ""}
       ${discountType === "flat" ? "$fixedValue: Decimal!" : ""}
@@ -57,7 +57,7 @@ export const CREATE_SELLING_PLAN_BASE = (paymentMode: "partial" | "full", discou
             }
           ]
         }
-        resources: { productIds: $productIds }
+        resources: { productVariantIds: $variantIds }
       ) {
         sellingPlanGroup {
           id

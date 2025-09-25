@@ -165,28 +165,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           // -------------------------------
           const metafields = products.flatMap((product: any) => [
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "campaign_id",
               type: "single_line_text_field",
               value: String(campaign.id),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder",
               type: "boolean",
               value: "true",
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "release_date",
               type: "date",
               value: "2025-08-30",
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder_end_date",
               type: "date_time",
@@ -195,14 +195,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               ).toISOString(),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "deposit_percent",
               type: "number_integer",
               value: String(formData.get("depositPercent") || "0"),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "balance_due_date",
               type: "date",
@@ -211,14 +211,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               ).toISOString(),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
               value: String(product?.maxUnit || "0"),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder_units_sold",
               type: "number_integer",
@@ -504,11 +504,23 @@ export default function Newcampaign() {
 
     picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
       if (productRadio === "option1") {
-        setSelectedProducts(payload.selection);
+        // console.log('Payload selection >>>>>>>>>>>>>>>>',payload.selection);
+       const products = payload.selection.flatMap((p :any) =>
+  p.variants.map((v :any) => ({
+    productId: p.id,
+    productImage: p.images?.[0]?.originalSrc,
+    variantId: v.id,
+    variantTitle: v.displayName,
+    variantPrice: v.price,
+    variantInventory: v.inventoryQuantity,
+    maxUnit:0
+  }))
+);
+
+        setSelectedProducts(products);
         console.log(payload.selection);
       } else {
         await fetchProductsInCollection(payload.selection[0].id);
-        // setSelectedProducts(products);
       }
     });
 
@@ -558,11 +570,11 @@ export default function Newcampaign() {
   ];
 
   const filteredProducts = selectedProducts?.filter((product) =>
-    product.title.toLowerCase().includes(searchTerm.toLowerCase()),
+    product.variantTitle.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  function handleRemoveProduct(id: any) {
-    setSelectedProducts((prev) => prev.filter((product) => product.id !== id));
+  function handleRemoveProduct(id: any ) {
+    setSelectedProducts((prev) => prev.filter((product) => product.variantId !== id ));
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -630,15 +642,12 @@ export default function Newcampaign() {
     submit(formData, { method: "post" });
   };
 
-  useEffect(() => {
-    console.log(selectedProducts);
-  }, [selectedProducts]);
-
+  
   const handleMaxUnitChange = (id: string, value: number) => {
     setSelectedProducts((prev: any) =>
       prev.map((product) =>
-        product.id === id
-          ? { ...product, maxUnit: value } // add/update maxUnit
+        product.variantId === id
+          ? { ...product, maxUnit: value } 
           : product,
       ),
     );
@@ -1695,7 +1704,7 @@ export default function Newcampaign() {
                       <tbody>
                         {filteredProducts.map((product) => (
                           <tr
-                            key={product.id}
+                            key={product.variantId}
                             style={{
                               backgroundColor: handleDuplication(product.id)
                                 ? "#ea9898ff"
@@ -1711,10 +1720,10 @@ export default function Newcampaign() {
                             >
                               <img
                                 src={
-                                  product.images?.[0]?.originalSrc ||
+                                  product.productImage ||
                                   product.image
                                 }
-                                alt={product.title}
+                                alt={product.variantTitle}
                                 style={{
                                   width: 50,
                                   height: 50,
@@ -1729,7 +1738,7 @@ export default function Newcampaign() {
                                 textAlign: "center",
                               }}
                             >
-                              {product.title}
+                              {product.variantTitle}
                             </td>
                             <td
                               style={{
@@ -1738,8 +1747,8 @@ export default function Newcampaign() {
                                 textAlign: "center",
                               }}
                             >
-                              {product.totalInventory
-                                ? product.totalInventory
+                              {product.variantInventory
+                                ? product.variantInventory
                                 : product.inventory}
                             </td>
                             {selectedOption !== 3 && (
@@ -1754,17 +1763,13 @@ export default function Newcampaign() {
                                   type="number"
                                   min={0}
                                   value={
-                                    product?.maxUnit?.toString() ||
-                                    selectedOption == 3
-                                      ? product.totalInventory
-                                        ? product.totalInventory
-                                        : product.inventory
-                                      : "0"
+                                    product?.maxUnit?.toString()
                                   }
                                   onChange={(value) =>
                                     handleMaxUnitChange(
-                                      product.id,
+                                      product.variantId,
                                       Number(value),
+
                                     )
                                   }
                                 />
@@ -1777,7 +1782,7 @@ export default function Newcampaign() {
                                 textAlign: "center",
                               }}
                             >
-                              {product.variants?.[0]?.price || product.price}
+                              {product.variantPrice}
                             </td>
                             <td
                               style={{
@@ -1787,7 +1792,7 @@ export default function Newcampaign() {
                             >
                               <div
                                 onClick={() => {
-                                  handleRemoveProduct(product.id);
+                                  handleRemoveProduct(product.variantId);
                                 }}
                               >
                                 <Icon source={DeleteIcon} />
