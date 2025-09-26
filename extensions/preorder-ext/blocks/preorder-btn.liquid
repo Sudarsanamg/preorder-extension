@@ -26,7 +26,7 @@
 <link rel="stylesheet" href="{{ 'preorder-btn.css' | asset_url }}">
 
 
-{% if product.metafields.custom.preorder == true %}
+{% comment %} {% if product.metafields.custom.preorder == true %}
   
 <div 
   id="preorder-button-{{ product.selected_or_first_available_variant.id }}"
@@ -62,7 +62,39 @@
 </div>
 
 
-{% endif %}
+{% endif %} {% endcomment %}
+{% for variant in product.variants %}
+  <div 
+    class="preorder-button"
+    data-variant-id="{{ variant.id }}"
+    data-preorder="{{ variant.metafields.custom.preorder.value }}"
+    style="display:none;
+           border: {{ designSettings.borderSize }}px solid {{ designSettings.borderColor }};
+           border-radius: {{ designSettings.borderRadius }}px;
+           padding-top: {{ designSettings.spacingIT }}px;
+           padding-bottom: {{ designSettings.spacingIB }}px;
+           margin-top: {{ designSettings.spacingOT }}px;
+           margin-bottom: {{ designSettings.spacingOB }}px;
+           cursor:pointer;
+           justify-content:center;
+           align-items:center;
+           background:
+             {% if designSettings.buttonStyle == 'single' %}
+               {{ designSettings.buttonBackgroundColor }}
+             {% else %}
+               linear-gradient({{ designSettings.gradientDegree }}deg, {{ designSettings.gradientColor1 }}, {{ designSettings.gradientColor2 }})
+             {% endif %}
+          ">
+    <p class="button-text" style="
+      color: {{ designSettings.buttonTextColor }};
+      font-size: {{ designSettings.messageFontSize }}px;
+      font-family: {{ designSettings.fontFamily }};
+    ">
+      {{ campaignSettings.button_text }}
+    </p>
+  </div>
+{% endfor %}
+
 {% schema %}
 {
   "name": "preorder button",
