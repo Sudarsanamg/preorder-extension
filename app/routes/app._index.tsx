@@ -96,12 +96,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   await createWebhook(
     admin,
     "ORDERS_CREATE",
-    `https://harvard-perry-derek-carpet.trycloudflare.com/webhooks/custom`,
+    `https://findarticles-respect-anthropology-bulk.trycloudflare.com/webhooks/custom`,
   );
   const orderPaidRes = await createWebhook(
     admin,
     "ORDERS_PAID",
-    `https://harvard-perry-derek-carpet.trycloudflare.com/webhooks/order_paid`,
+    `https://findarticles-respect-anthropology-bulk.trycloudflare.com/webhooks/order_paid`,
   );
 
   if (orderPaidRes.data?.webhookSubscriptionCreate?.userErrors?.length) {

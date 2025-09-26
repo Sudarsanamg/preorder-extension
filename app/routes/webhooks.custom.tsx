@@ -14,18 +14,22 @@ export const action = async ({ request }: { request: Request }) => {
     // console.log(payload);
     const products = payload.line_items || [];
     const line_items = payload.line_items || [];
+    const variantIds = line_items.map((item: any) => item.variant_id);
     const productIds = line_items.map((item: any) => item.product_id);
-
     const formattedProductIds = productIds.map((id: number) => {
       return `gid://shopify/Product/${id}`;
     });
-    console.log("formattedProductIds", formattedProductIds);
+
+   const formattedVariantIds = variantIds.map((id: number) => {
+  return `gid://shopify/ProductVariant/${id}`;
+});
+
 
     //update preorder_units_sold
-    for (const productId of formattedProductIds) {
+    for (const variantId of formattedVariantIds) {
       try {
        
-      await incrementUnitsSold(shop, productId);
+      await incrementUnitsSold(shop, variantId);
        
       } catch (error) {
         console.log(error);

@@ -68,6 +68,8 @@
     class="preorder-button"
     data-variant-id="{{ variant.id }}"
     data-preorder="{{ variant.metafields.custom.preorder.value }}"
+    data-max-units="{{ variant.metafields.custom.preorder_max_units.value }}"
+    data-units-sold="{{ variant.metafields.custom.preorder_units_sold.value }}"
     style="display:none;
            border: {{ designSettings.borderSize }}px solid {{ designSettings.borderColor }};
            border-radius: {{ designSettings.borderRadius }}px;

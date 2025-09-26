@@ -13,8 +13,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const stockEl = document.getElementById("product-stock");
   const inStock = stockEl?.dataset.inStock === "true";
   const metaEl = document.getElementById("product-metafields");
-  const maxUnits = parseInt(metaEl.dataset.maxUnits, 10);
-  const unitsSold = parseInt(metaEl.dataset.unitsSold, 10);
   // Variant selection
   const variantSelect = document.querySelector("[name='id']");
   const preorderButtons = document.querySelectorAll(".preorder-button");
@@ -24,11 +22,14 @@ document.addEventListener("DOMContentLoaded", function () {
     let showingPreorder = false;
 
     preorderButtons.forEach((btn) => {
+       
       const isPreorder = btn.dataset.preorder == "true";
       if (btn.dataset.variantId === variantId && isPreorder) {
         btn.style.display = "flex";
 
         // Check sold out
+        const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
+       const unitsSold = parseInt(btn.dataset.unitsSold || "0", 10);
         if (unitsSold >= maxUnits) {
           btn.style.opacity = "0.5";
           btn.style.pointerEvents = "none";
