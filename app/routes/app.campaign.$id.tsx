@@ -66,6 +66,7 @@ import { createSellingPlan } from "app/services/sellingPlan.server";
 import { CREATE_CAMPAIGN, CREATE_DESIGN_SETTINGS } from "app/graphql/mutation/metaobject";
 import { GET_PRODUCTS_BY_IDS, GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
+import { GET_VARIANT_SELLING_PLANS } from "app/graphql/mutation/sellingPlan";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -471,6 +472,112 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                   console.error("GraphQL mutation failed:", err);
                   throw err;
                 }
+
+       const removedVarients = formData.get('removedVarients') as string;
+       const parsedRemovedVarients = removedVarients ? JSON.parse(removedVarients) : [];
+       console.log("parsedRemovedVarients", parsedRemovedVarients);
+
+       if (parsedRemovedVarients.length > 0) {
+         //need to remove selling group and
+         //remove metafields
+         for (const variantId of parsedRemovedVarients) {
+           const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+             variables: {
+               id: variantId,
+             },
+           });
+
+           const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
+           for (const g of groups) {
+             const groupId = g.node.id;
+
+             // Step 2: remove variant from group
+             const removeVariantMutation = `
+        mutation RemoveVariantFromGroup($groupId: ID!, $variantIds: [ID!]!) {
+          sellingPlanGroupRemoveProductVariants(
+            id: $groupId
+            productVariantIds: $variantIds
+          ) {
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+             await admin.graphql(removeVariantMutation, {
+               variables: {
+                 groupId,
+                 variantIds: [variantId],
+               },
+             });
+           }
+         }
+
+         //remove metafields
+          const removeMetaFieldMutation = `
+            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
+              metafieldsSet(metafields: $metafields) {
+                metafields {
+                  id
+                  namespace
+                  key
+                  type
+                  value
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
+
+          const metafields = parsedRemovedVarients.flatMap((varientId :any) => [
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: 'null',
+        },
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: 'null',
+        },
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+      ]);
+
+      try {
+        const graphqlResponse = await admin.graphql(removeMetaFieldMutation, {
+          variables: { metafields },
+        });
+
+        console.log("GraphQL response:", graphqlResponse);
+       }
+       catch (err) {
+        console.error("GraphQL mutation failed:", err);
+        throw err;
+      }
+      }
+       
+       
 
       return redirect(`/app/`);
     } catch (err) {
@@ -992,6 +1099,116 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
         await updateCampaignStatus(campaign.id, "PUBLISHED");
         await deleteCampaign(params.id!);
+          const removedVarients = formData.get("removedVarients") as string;
+          const parsedRemovedVarients = removedVarients
+            ? JSON.parse(removedVarients)
+            : [];
+
+          if (parsedRemovedVarients.length > 0) {
+            //need to remove selling group and
+            //remove metafields
+            for (const variantId of parsedRemovedVarients) {
+              const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+                variables: {
+                  id: variantId,
+                },
+              });
+
+              const groups =
+                data?.productVariant?.sellingPlanGroups?.edges || [];
+              for (const g of groups) {
+                const groupId = g.node.id;
+
+                // Step 2: remove variant from group
+                const removeVariantMutation = `
+        mutation RemoveVariantFromGroup($groupId: ID!, $variantIds: [ID!]!) {
+          sellingPlanGroupRemoveProductVariants(
+            id: $groupId
+            productVariantIds: $variantIds
+          ) {
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+                await admin.graphql(removeVariantMutation, {
+                  variables: {
+                    groupId,
+                    variantIds: [variantId],
+                  },
+                });
+              }
+            }
+
+            //remove metafields
+            const removeMetaFieldMutation = `
+            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
+              metafieldsSet(metafields: $metafields) {
+                metafields {
+                  id
+                  namespace
+                  key
+                  type
+                  value
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
+
+            const metafields = parsedRemovedVarients.flatMap(
+              (varientId: any) => [
+                {
+                  ownerId: varientId,
+                  namespace: "custom",
+                  key: "campaign_id",
+                  type: "single_line_text_field",
+                  value: "null",
+                },
+                {
+                  ownerId: varientId,
+                  namespace: "custom",
+                  key: "preorder",
+                  type: "boolean",
+                  value: "false",
+                },
+                {
+                  ownerId: varientId,
+                  namespace: "custom",
+                  key: "campaign_id",
+                  type: "single_line_text_field",
+                  value: "null",
+                },
+                {
+                  ownerId: varientId,
+                  namespace: "custom",
+                  key: "preorder",
+                  type: "boolean",
+                  value: "false",
+                },
+              ],
+            );
+
+            try {
+              const graphqlResponse = await admin.graphql(
+                removeMetaFieldMutation,
+                {
+                  variables: { metafields },
+                },
+              );
+
+              console.log("GraphQL response:", graphqlResponse);
+            } catch (err) {
+              console.error("GraphQL mutation failed:", err);
+              throw err;
+            }
+          }
+       
 
         return redirect("/app");
       }
@@ -1125,6 +1342,7 @@ export default function CampaignDetail() {
   const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
     "Pay {payment} now and {remaining} will be charged on {date}",
   );
+  const [removedVarients, setRemovedVarients] = useState<string[]>([]);
 
   // console.log(designFieldsObj);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1301,6 +1519,7 @@ export default function CampaignDetail() {
   function handleRemoveProduct(id: string) {
     // if (selectedProducts.length === 0) return; // do nothing if empty
     setSelectedProducts((prev) => prev.filter((product) => product.variantId !== id));
+    setRemovedVarients((prev) => [...prev, id]);
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1374,6 +1593,7 @@ export default function CampaignDetail() {
     const formData = new FormData();
     formData.append("intent", "unpublish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
+    formData.append('removedVarients', JSON.stringify(removedVarients));
     formData.append("secondaryIntent", "delete-campaign-create-new");
     formData.append("id", id);
     formData.append("name", String(campaignName));
@@ -1452,6 +1672,7 @@ export default function CampaignDetail() {
     shippingMessage,
     productTags,
     customerTags,
+    campaignEndDate,
   ]);
 
   const handleButtonClick = useCallback(
@@ -2381,7 +2602,10 @@ export default function CampaignDetail() {
                       <Button onClick={openResourcePicker}>
                         Add More Products
                       </Button>
-                      <Button onClick={() => setSelectedProducts([])}>
+                      <Button onClick={() => {
+                        setRemovedVarients([...removedVarients, ...selectedProducts.map((p) => p.variantId)])
+                        setSelectedProducts([])
+                        }}>
                         Remove all Products
                       </Button>
                     </ButtonGroup>

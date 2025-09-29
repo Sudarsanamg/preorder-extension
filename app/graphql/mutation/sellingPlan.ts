@@ -75,3 +75,20 @@ export const CREATE_SELLING_PLAN_BASE = (
     }
   `;
 };
+
+export const GET_VARIANT_SELLING_PLANS = `
+  query GetVariantSellingPlans($id: ID!) {
+    productVariant(id: $id) {
+      id
+      sellingPlanGroups(first: 10) {
+        edges {
+          node {
+            id
+            name
+            merchantCode
+          }
+        }
+      }
+    }
+  }
+`;
