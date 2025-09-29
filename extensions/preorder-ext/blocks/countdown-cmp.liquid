@@ -1,40 +1,28 @@
- {% if product.metafields.custom.preorder == true
-  and product.metafields.custom.preorder_end_date.value != blank 
-   %}
+{% comment %}
+  Output hidden divs for each variant with preorder info
+{% endcomment %}
+{% for variant in product.variants %}
+  <div class="variant-preorder-data"
+       data-variant-id="{{ variant.id }}"
+       data-preorder="{{ variant.metafields.custom.preorder.value }}"
+       data-preorder-end-date="{{ variant.metafields.custom.preorder_end_date.value }}">
+  </div>
+{% endfor %}
 
-<div 
-  id="campaign-countdown" 
-  class="countdown" 
-  data-end-date="{{ product.metafields.custom.preorder_end_date.value }}"
->
-<div>
-<p>Hurry! Sale gonna end in </p>
-</div>
-<div class="countdown-timer">
-  <div class="countdown-item">
-    <span id="days">00</span>
-    <small>Days</small>
+<div id="campaign-countdown" class="countdown" style="display:none;">
+  <div>
+    <p>Hurry! Sale gonna end in</p>
   </div>
-  <div class="countdown-item">
-    <span id="hours">00</span>
-    <small>Hours</small>
-  </div>
-  <div class="countdown-item">
-    <span id="minutes">00</span>
-    <small>Minutes</small>
-  </div>
-  <div class="countdown-item">
-    <span id="seconds">00</span>
-    <small>Seconds</small>
-  </div>
+  <div class="countdown-timer">
+    <div class="countdown-item"><span id="days">00</span><small>Days</small></div>
+    <div class="countdown-item"><span id="hours">00</span><small>Hours</small></div>
+    <div class="countdown-item"><span id="minutes">00</span><small>Minutes</small></div>
+    <div class="countdown-item"><span id="seconds">00</span><small>Seconds</small></div>
   </div>
 </div>
-{% endif %} 
-
 
 <script src="{{ 'countdown.js' | asset_url }}" defer="defer"></script>
 <link rel="stylesheet" href="{{ 'countdown.css' | asset_url }}">
-
 
 {% schema %}
 {

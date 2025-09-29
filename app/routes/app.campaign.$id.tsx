@@ -327,6 +327,150 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           ),
         );
       }
+      const products = JSON.parse(
+          (formData.get("products") as string) || "[]",
+        );
+
+      const metafields = products.flatMap((product: any) => [
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "campaign_id",
+                    type: "single_line_text_field",
+                    value: String(params.id),
+                  },
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "preorder",
+                    type: "boolean",
+                    value: "true"
+                  },
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "release_date",
+                    type: "date",
+                    value: "2025-08-30",
+                  },
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "preorder_end_date",
+                    type: "date_time",
+                    value: new Date(
+                      formData.get("campaignEndDate") as string,
+                    ).toISOString(),
+                  },
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "deposit_percent",
+                    type: "number_integer",
+                    value: String(formData.get("depositPercent") || "0"),
+                  },
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "balance_due_date",
+                    type: "date",
+                    value: new Date(
+                      formData.get("balanceDueDate") as string,
+                    ).toISOString(),
+                  },
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "preorder_max_units",
+                    type: "number_integer",
+                    value: String(product?.maxUnit || "0"),
+                  },
+                  {
+                    ownerId: product.variantId,
+                    namespace: "custom",
+                    key: "preorder_units_sold",
+                    type: "number_integer",
+                    value: "0",
+                  },
+                ]);
+      
+                const productMetafields = products.flatMap((product: any) => [
+                   {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "campaign_id",
+                    type: "single_line_text_field",
+                    value: String(params.id),
+                  },
+                  {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "preorder",
+                    type: "boolean",
+                    value: "true",
+                  },
+                  {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "release_date",
+                    type: "date",
+                    value: "2025-08-30",
+                  },
+                  {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "preorder_end_date",
+                    type: "date_time",
+                    value: new Date(
+                      formData.get("campaignEndDate") as string,
+                    ).toISOString(),
+                  },
+                  {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "deposit_percent",
+                    type: "number_integer",
+                    value: String(formData.get("depositPercent") || "0"),
+                  },
+                  {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "balance_due_date",
+                    type: "date",
+                    value: new Date(
+                      formData.get("balanceDueDate") as string,
+                    ).toISOString(),
+                  },
+                  {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "preorder_max_units",
+                    type: "number_integer",
+                    value: String(product?.maxUnit || "0"),
+                  },
+                  {
+                    ownerId: product.productId,
+                    namespace: "custom",
+                    key: "preorder_units_sold",
+                    type: "number_integer",
+                    value: "0",
+                  },
+                ])
+      
+                try {
+                  const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
+                    variables: { metafields },
+                  });
+                  
+                  const response2 = await admin.graphql(SET_PREORDER_METAFIELDS, {
+                    variables: { metafields: productMetafields },
+                  })
+                  console.log("GraphQL response:", response);
+                  console.log("GraphQL response2:", response2);
+                } catch (err) {
+                  console.error("GraphQL mutation failed:", err);
+                  throw err;
+                }
 
       return redirect(`/app/`);
     } catch (err) {
@@ -410,7 +554,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       },
     ]);
 
-    console.log("Metafields:", metafields);
 
     try {
       const graphqlResponse = await admin.graphql(mutation, {
@@ -430,201 +573,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       throw err;
     }
 
-//     if (formData.get("paymentMode") === "partial") {
-//       const discountType = formData.get("discountType");
-
-//       let CREATE_SELLING_PLAN = ``;
-//       if (discountType == "none") {
-//         CREATE_SELLING_PLAN = `
-//   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
-//     sellingPlanGroupCreate(
-//       input: {
-//         name: "Deposit Pre-order"
-//         merchantCode: "pre-order-deposit"
-//         options: ["Pre-order"]
-//         sellingPlansToCreate: [
-//           {
-//             name: "Deposit, balance later"
-//             category: PRE_ORDER
-//             options: ["Deposit, balance later"]
-//             billingPolicy: {
-//               fixed: {
-//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-//                 remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-//                 remainingBalanceChargeTimeAfterCheckout: $days
-//               }
-//             }
-//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-//             inventoryPolicy: { reserve: ON_FULFILLMENT }
-//           }
-//         ]
-//       }
-//       resources: { productIds: $productIds }
-//     ) {
-//       sellingPlanGroup {
-//         id
-//         sellingPlans(first: 1) {
-//           edges {
-//             node { id }
-//           }
-//         }
-//       }
-//       userErrors {
-//         field
-//         message
-//       }
-//     }
-//   }
-// `;
-//       } else if (discountType == "percentage") {
-//         CREATE_SELLING_PLAN = `
-//   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
-//     sellingPlanGroupCreate(
-//       input: {
-//         name: "Deposit Pre-order"
-//         merchantCode: "pre-order-deposit"
-//         options: ["Pre-order"]
-//         sellingPlansToCreate: [
-//           {
-//             name: "Deposit, balance later"
-//             category: PRE_ORDER
-//             options: ["Deposit, balance later"]
-//             billingPolicy: {
-//               fixed: {
-//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-//                 remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-//                 remainingBalanceChargeTimeAfterCheckout: $days
-//               }
-//             }
-//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-//             inventoryPolicy: { reserve: ON_FULFILLMENT }
-//             pricingPolicies: [
-//             {
-//               fixed: {
-//                 adjustmentType: PERCENTAGE
-//                 adjustmentValue: { percentage: $discountPercentage }
-//               }
-//             }
-//           ]
-//           }
-//         ]
-//       }
-//       resources: { productIds: $productIds }
-//     ) {
-//       sellingPlanGroup {
-//         id
-//         sellingPlans(first: 1) {
-//           edges {
-//             node { id }
-//           }
-//         }
-//       }
-//       userErrors {
-//         field
-//         message
-//       }
-//     }
-//   }
-// `;
-//       } else if (discountType == "flat") {
-//         CREATE_SELLING_PLAN = `
-//   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
-//     sellingPlanGroupCreate(
-//       input: {
-//         name: "Deposit Pre-order"
-//         merchantCode: "pre-order-deposit"
-//         options: ["Pre-order"]
-//         sellingPlansToCreate: [
-//           {
-//             name: "Deposit, balance later"
-//             category: PRE_ORDER
-//             options: ["Deposit, balance later"]
-//             billingPolicy: {
-//               fixed: {
-//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-//                 remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-//                 remainingBalanceChargeTimeAfterCheckout: $days
-//               }
-//             }
-//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-//             inventoryPolicy: { reserve: ON_FULFILLMENT }
-//             pricingPolicies: [
-//             {
-//               fixed: {
-//                 adjustmentType: FIXED_AMOUNT
-//                 adjustmentValue: { fixedValue: $fixedValue }
-//               }
-//             }
-//           ]
-            
-//           }
-//         ]
-//       }
-//       resources: { productIds: $productIds }
-//     ) {
-//       sellingPlanGroup {
-//         id
-//         sellingPlans(first: 1) {
-//           edges {
-//             node { id }
-//           }
-//         }
-//       }
-//       userErrors {
-//         field
-//         message
-//       }
-//     }
-//   }
-// `;
-//       }
-
-//       const productIds = products.map((p) => p.id);
-
-
-//       try {
-//         let res;
-//         if (discountType == "none") {
-//           res = await admin.graphql(CREATE_SELLING_PLAN, {
-//             variables: {
-//               productIds,
-//               percentage: Number(formData.get("depositPercent")),
-//               days: "P7D",
-//             },
-//           });
-//         } else if (discountType == "percentage") {
-//           res = await admin.graphql(CREATE_SELLING_PLAN, {
-//             variables: {
-//               productIds,
-//               percentage: Number(formData.get("depositPercent")),
-//               days: "P7D",
-//               discountPercentage: Number(
-//                 formData.get("discountPercentage") ?? 0,
-//               ),
-//             },
-//           });
-//         } else if (discountType == "flat") {
-//           res = await admin.graphql(CREATE_SELLING_PLAN, {
-//             variables: {
-//               productIds,
-//               percentage: Number(formData.get("depositPercent")),
-//               days: "P7D",
-//               fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
-//             },
-//           });
-//         }
-
-//         res = await res.json();
-//         console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
-//       } catch (error) {
-//         console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-//       }
-
-//       await updateCampaignStatus(params.id!, "PUBLISHED");
-
-//       return redirect(`/app/`);
-//     }
-
  const paymentMode = formData.get("paymentMode") as "partial" | "full";
         const discountType = formData.get("discountType") as
           | "none"
@@ -640,6 +588,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         );
         console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
         await updateCampaignStatus(params.id!, "PUBLISHED");
+            return redirect(`/app/`);
 
 
     
