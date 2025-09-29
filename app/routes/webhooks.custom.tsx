@@ -167,7 +167,7 @@ export const action = async ({ request }: { request: Request }) => {
       const shopId = storeIdQueryResponseData.data.shop.id;
       const plusStore = storeIdQueryResponseData.data.shop.plan.shopifyPlus;
       // getDueByValt is true
-      // this should be in whole store
+      // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
       let vaultPayment = false;
       if (plusStore) {
         const campaign = await prisma.preorderCampaign.findFirst({

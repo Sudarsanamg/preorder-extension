@@ -263,6 +263,14 @@ export async function getOrders(shopId: string) {
     where: {
       storeId: shopId,
     },
+    select: {
+      order_id: true,
+      order_number: true,
+      dueDate: true,
+      balanceAmount: true,
+      paymentStatus: true,
+      storeId: true,
+    }
   });
 }
 
