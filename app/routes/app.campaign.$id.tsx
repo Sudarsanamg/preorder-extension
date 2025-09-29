@@ -395,7 +395,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
     const products = JSON.parse((formData.get("products") as string) || "[]");
 
-    const metafields = products.flatMap((product) => [
+    const metafields = products.flatMap((product:any) => [
       {
         ownerId: product.variantId,
         namespace: "custom",
@@ -430,200 +430,219 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       throw err;
     }
 
-    if (formData.get("paymentMode") === "partial") {
-      const discountType = formData.get("discountType");
+//     if (formData.get("paymentMode") === "partial") {
+//       const discountType = formData.get("discountType");
 
-      let CREATE_SELLING_PLAN = ``;
-      if (discountType == "none") {
-        CREATE_SELLING_PLAN = `
-  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
-    sellingPlanGroupCreate(
-      input: {
-        name: "Deposit Pre-order"
-        merchantCode: "pre-order-deposit"
-        options: ["Pre-order"]
-        sellingPlansToCreate: [
-          {
-            name: "Deposit, balance later"
-            category: PRE_ORDER
-            options: ["Deposit, balance later"]
-            billingPolicy: {
-              fixed: {
-                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                remainingBalanceChargeTimeAfterCheckout: $days
-              }
-            }
-            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-            inventoryPolicy: { reserve: ON_FULFILLMENT }
-          }
-        ]
-      }
-      resources: { productIds: $productIds }
-    ) {
-      sellingPlanGroup {
-        id
-        sellingPlans(first: 1) {
-          edges {
-            node { id }
-          }
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-      } else if (discountType == "percentage") {
-        CREATE_SELLING_PLAN = `
-  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
-    sellingPlanGroupCreate(
-      input: {
-        name: "Deposit Pre-order"
-        merchantCode: "pre-order-deposit"
-        options: ["Pre-order"]
-        sellingPlansToCreate: [
-          {
-            name: "Deposit, balance later"
-            category: PRE_ORDER
-            options: ["Deposit, balance later"]
-            billingPolicy: {
-              fixed: {
-                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                remainingBalanceChargeTimeAfterCheckout: $days
-              }
-            }
-            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-            inventoryPolicy: { reserve: ON_FULFILLMENT }
-            pricingPolicies: [
-            {
-              fixed: {
-                adjustmentType: PERCENTAGE
-                adjustmentValue: { percentage: $discountPercentage }
-              }
-            }
-          ]
-          }
-        ]
-      }
-      resources: { productIds: $productIds }
-    ) {
-      sellingPlanGroup {
-        id
-        sellingPlans(first: 1) {
-          edges {
-            node { id }
-          }
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-      } else if (discountType == "flat") {
-        CREATE_SELLING_PLAN = `
-  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
-    sellingPlanGroupCreate(
-      input: {
-        name: "Deposit Pre-order"
-        merchantCode: "pre-order-deposit"
-        options: ["Pre-order"]
-        sellingPlansToCreate: [
-          {
-            name: "Deposit, balance later"
-            category: PRE_ORDER
-            options: ["Deposit, balance later"]
-            billingPolicy: {
-              fixed: {
-                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                remainingBalanceChargeTimeAfterCheckout: $days
-              }
-            }
-            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-            inventoryPolicy: { reserve: ON_FULFILLMENT }
-            pricingPolicies: [
-            {
-              fixed: {
-                adjustmentType: FIXED_AMOUNT
-                adjustmentValue: { fixedValue: $fixedValue }
-              }
-            }
-          ]
+//       let CREATE_SELLING_PLAN = ``;
+//       if (discountType == "none") {
+//         CREATE_SELLING_PLAN = `
+//   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
+//     sellingPlanGroupCreate(
+//       input: {
+//         name: "Deposit Pre-order"
+//         merchantCode: "pre-order-deposit"
+//         options: ["Pre-order"]
+//         sellingPlansToCreate: [
+//           {
+//             name: "Deposit, balance later"
+//             category: PRE_ORDER
+//             options: ["Deposit, balance later"]
+//             billingPolicy: {
+//               fixed: {
+//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+//                 remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+//                 remainingBalanceChargeTimeAfterCheckout: $days
+//               }
+//             }
+//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+//             inventoryPolicy: { reserve: ON_FULFILLMENT }
+//           }
+//         ]
+//       }
+//       resources: { productIds: $productIds }
+//     ) {
+//       sellingPlanGroup {
+//         id
+//         sellingPlans(first: 1) {
+//           edges {
+//             node { id }
+//           }
+//         }
+//       }
+//       userErrors {
+//         field
+//         message
+//       }
+//     }
+//   }
+// `;
+//       } else if (discountType == "percentage") {
+//         CREATE_SELLING_PLAN = `
+//   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
+//     sellingPlanGroupCreate(
+//       input: {
+//         name: "Deposit Pre-order"
+//         merchantCode: "pre-order-deposit"
+//         options: ["Pre-order"]
+//         sellingPlansToCreate: [
+//           {
+//             name: "Deposit, balance later"
+//             category: PRE_ORDER
+//             options: ["Deposit, balance later"]
+//             billingPolicy: {
+//               fixed: {
+//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+//                 remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+//                 remainingBalanceChargeTimeAfterCheckout: $days
+//               }
+//             }
+//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+//             inventoryPolicy: { reserve: ON_FULFILLMENT }
+//             pricingPolicies: [
+//             {
+//               fixed: {
+//                 adjustmentType: PERCENTAGE
+//                 adjustmentValue: { percentage: $discountPercentage }
+//               }
+//             }
+//           ]
+//           }
+//         ]
+//       }
+//       resources: { productIds: $productIds }
+//     ) {
+//       sellingPlanGroup {
+//         id
+//         sellingPlans(first: 1) {
+//           edges {
+//             node { id }
+//           }
+//         }
+//       }
+//       userErrors {
+//         field
+//         message
+//       }
+//     }
+//   }
+// `;
+//       } else if (discountType == "flat") {
+//         CREATE_SELLING_PLAN = `
+//   mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
+//     sellingPlanGroupCreate(
+//       input: {
+//         name: "Deposit Pre-order"
+//         merchantCode: "pre-order-deposit"
+//         options: ["Pre-order"]
+//         sellingPlansToCreate: [
+//           {
+//             name: "Deposit, balance later"
+//             category: PRE_ORDER
+//             options: ["Deposit, balance later"]
+//             billingPolicy: {
+//               fixed: {
+//                 checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+//                 remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+//                 remainingBalanceChargeTimeAfterCheckout: $days
+//               }
+//             }
+//             deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+//             inventoryPolicy: { reserve: ON_FULFILLMENT }
+//             pricingPolicies: [
+//             {
+//               fixed: {
+//                 adjustmentType: FIXED_AMOUNT
+//                 adjustmentValue: { fixedValue: $fixedValue }
+//               }
+//             }
+//           ]
             
-          }
-        ]
-      }
-      resources: { productIds: $productIds }
-    ) {
-      sellingPlanGroup {
-        id
-        sellingPlans(first: 1) {
-          edges {
-            node { id }
-          }
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-      }
+//           }
+//         ]
+//       }
+//       resources: { productIds: $productIds }
+//     ) {
+//       sellingPlanGroup {
+//         id
+//         sellingPlans(first: 1) {
+//           edges {
+//             node { id }
+//           }
+//         }
+//       }
+//       userErrors {
+//         field
+//         message
+//       }
+//     }
+//   }
+// `;
+//       }
 
-      const productIds = products.map((p) => p.id);
+//       const productIds = products.map((p) => p.id);
 
 
-      try {
-        let res;
-        if (discountType == "none") {
-          res = await admin.graphql(CREATE_SELLING_PLAN, {
-            variables: {
-              productIds,
-              percentage: Number(formData.get("depositPercent")),
-              days: "P7D",
-            },
-          });
-        } else if (discountType == "percentage") {
-          res = await admin.graphql(CREATE_SELLING_PLAN, {
-            variables: {
-              productIds,
-              percentage: Number(formData.get("depositPercent")),
-              days: "P7D",
-              discountPercentage: Number(
-                formData.get("discountPercentage") ?? 0,
-              ),
-            },
-          });
-        } else if (discountType == "flat") {
-          res = await admin.graphql(CREATE_SELLING_PLAN, {
-            variables: {
-              productIds,
-              percentage: Number(formData.get("depositPercent")),
-              days: "P7D",
-              fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
-            },
-          });
-        }
+//       try {
+//         let res;
+//         if (discountType == "none") {
+//           res = await admin.graphql(CREATE_SELLING_PLAN, {
+//             variables: {
+//               productIds,
+//               percentage: Number(formData.get("depositPercent")),
+//               days: "P7D",
+//             },
+//           });
+//         } else if (discountType == "percentage") {
+//           res = await admin.graphql(CREATE_SELLING_PLAN, {
+//             variables: {
+//               productIds,
+//               percentage: Number(formData.get("depositPercent")),
+//               days: "P7D",
+//               discountPercentage: Number(
+//                 formData.get("discountPercentage") ?? 0,
+//               ),
+//             },
+//           });
+//         } else if (discountType == "flat") {
+//           res = await admin.graphql(CREATE_SELLING_PLAN, {
+//             variables: {
+//               productIds,
+//               percentage: Number(formData.get("depositPercent")),
+//               days: "P7D",
+//               fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
+//             },
+//           });
+//         }
 
-        res = await res.json();
-        console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
-      } catch (error) {
-        console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-      }
+//         res = await res.json();
+//         console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
+//       } catch (error) {
+//         console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
+//       }
 
-      await updateCampaignStatus(params.id!, "PUBLISHED");
+//       await updateCampaignStatus(params.id!, "PUBLISHED");
 
-      return redirect(`/app/`);
-    }
+//       return redirect(`/app/`);
+//     }
+
+ const paymentMode = formData.get("paymentMode") as "partial" | "full";
+        const discountType = formData.get("discountType") as
+          | "none"
+          | "percentage"
+          | "flat";
+
+        const res = await createSellingPlan(
+          admin,
+          paymentMode,
+          discountType,
+          products,
+          formData,
+        );
+        console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
+        await updateCampaignStatus(params.id!, "PUBLISHED");
+
+
+    
   }
 
   if (intent === "unpublish-campaign") {
@@ -696,6 +715,20 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         },
         {
           ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: id,
+        },
+        {
+          ownerId: product.productId,
           namespace: "custom",
           key: "preorder",
           type: "boolean",

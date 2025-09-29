@@ -176,7 +176,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder",
               type: "boolean",
-              value: "true",
+              value: "true"
             },
             {
               ownerId: product.variantId,
