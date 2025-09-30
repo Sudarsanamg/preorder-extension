@@ -523,3 +523,85 @@ export async function getPreorderEmailConfig(storeId: string) {
     where: { storeId },
   });
 }
+
+export async function getAllVariants(storeID: string) {
+  // Get stored access token for this shop
+  const store = await prisma.store.findUnique({
+    where: { storeID: storeID },
+    select: { offlineToken: true ,
+      shopifyDomain: true
+    },
+
+  });
+
+  if (!store?.offlineToken) {
+    throw new Error(`No access token found for shop: ${store?.shopifyDomain}`);
+  }
+
+  const endpoint = `https://${store?.shopifyDomain}/admin/api/2023-10/graphql.json`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": store.offlineToken,
+    },
+    body: JSON.stringify({
+      query: `
+        query GetProductsWithVariants {
+          products(first: 250) {
+            edges {
+              node {
+                id
+                images(first: 1) {
+                  edges {
+                    node {
+                      originalSrc
+                    }
+                  }
+                }
+                variants(first: 250) {
+                  edges {
+                    node {
+                      id
+                      displayName
+                      price
+                      inventoryQuantity
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (data.errors) {
+    console.error("Shopify GraphQL errors:", data.errors);
+    throw new Error("Failed to fetch variants from Shopify");
+  }
+
+  const variants = data.data.products.edges.flatMap((edge: any) => {
+    const p = edge.node;
+    const productImage = p.images?.edges?.[0]?.node?.originalSrc || null;
+
+    return p.variants.edges.map((variantEdge: any) => {
+      const v = variantEdge.node;
+      return {
+        productId: p.id,
+        productImage,
+        variantId: v.id,
+        variantTitle: v.displayName,
+        variantPrice: v.price,
+        variantInventory: v.inventoryQuantity ?? 0,
+        maxUnit: 0,
+      };
+    });
+  });
+
+  return variants;
+}

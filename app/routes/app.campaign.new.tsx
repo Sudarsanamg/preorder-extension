@@ -46,7 +46,6 @@ import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import {
   createPreorderCampaign,
   addProductsToCampaign,
-  getAllProducts,
   updateCampaignStatus,
 } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
@@ -597,9 +596,8 @@ export default function Newcampaign() {
 
   const selectAllProducts = async () => {
     const res = await fetch("/api/products");
-    const allProducts = await res.json();
-    console.log(allProducts, "**********************All products fetched");
-    setSelectedProducts(allProducts);
+    const allVariants = await res.json();
+    setSelectedProducts(allVariants);
   };
 
   const togglePopover = useCallback(
