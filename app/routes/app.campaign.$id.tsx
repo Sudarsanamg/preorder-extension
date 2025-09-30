@@ -41,11 +41,9 @@ import { authenticate } from "../shopify.server";
 import {
   useSubmit,
   useNavigate,
-  useFetcher,
-  useActionData,
   useLoaderData,
   Link,
-  useNavigation
+  useNavigation,
 } from "@remix-run/react";
 import {
   DiscountIcon,
@@ -55,107 +53,65 @@ import {
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
-// import {
-//   createPreorderCampaign,
-//   addProductsToCampaign,
-// } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
 import prisma from "app/db.server";
 import { CampaignStatus } from "@prisma/client";
+import { removeMetaFieldMutation, SET_PREORDER_METAFIELDS } from "app/graphql/mutation/metafields";
+import { createSellingPlan } from "app/services/sellingPlan.server";
+import { CREATE_CAMPAIGN, CREATE_DESIGN_SETTINGS, unpublishMutation } from "app/graphql/mutation/metaobject";
+import { GET_PRODUCTS_BY_IDS, GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
+import { fetchMetaobject } from "app/services/metaobject.server";
+import {  DELETE_SELLING_PLAN_GROUP, GET_VARIANT_SELLING_PLANS, removeVariantMutation } from "app/graphql/mutation/sellingPlan";
+import { publishMutation } from "app/graphql/queries/metaobject";
+import { GET_SHOP } from "app/graphql/queries/shop";
+import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
-
-  // ✅ get campaign from your DB
   const campaign = await getCampaignById(params.id!);
-  // ✅ product IDs from campaign
-  //get tags 
-  const productIds = campaign?.products?.map((p) => p.productId) || [];
-
-  if (productIds.length === 0) {
+  console.log(campaign, ">>>>>>>>>>>>>>>>Campaign loaded");
+  const varientId = campaign?.products?.map((p) => p.variantId) || [];
+  if (varientId.length === 0) {
     return json({ campaign, products: [] });
   }
 
-  // ✅ format IDs into Shopify GID format
-  const formattedIds = productIds.map((id) => `"${id}"`).join(",");
+// const formattedIds = productIds.map(id => id.replace(/"/g, "")).join('","'); 
+const response = await admin.graphql(GET_VARIENT_BY_IDS, {
+  variables: { ids: varientId }, // make sure this is an array of IDs
+});
 
-  // ✅ GraphQL query
-  const query = `
-    {
-      nodes(ids: [${formattedIds}]) {
-        ... on Product {
-          id
-          title
-          featuredImage {
-            url
-          }
-          variants(first: 1) {
-            edges {
-              node {
-                price
-                inventoryQuantity
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
+const data = await response.json();
 
-  // ✅ Run query via admin.graphql
-  const response = await admin.graphql(query);
-  const data = await response.json();
-  const products = data.data.nodes.map((product: any) => ({
-    id: product.id,
-    title: product.title,
-    image: product.featuredImage?.url,
-    price: product.variants.edges[0]?.node.price ?? null,
-    inventory: product.variants.edges[0]?.node.inventoryQuantity ?? null,
+const variants = data.data.nodes.map((variant: any) => ({
+  id: variant.id,
+  title: variant.title,
+  image: variant.product?.featuredImage?.url ?? null,
+  price: variant.price ?? null,        // already scalar
+  inventory: variant.inventoryQuantity ?? null,
+  maxUnit: variant.metafield?.value ?? null,
+  productId: variant.product?.id ?? null,
+  productTitle: variant.product?.title ?? null,
+}));
+
+
+  let designSettingsResponse = await fetchMetaobject(admin, params.id!, "design_settings");
+  let parsedDesignSettingsResponse = await designSettingsResponse.json();
+  let campaignSettingsResponse = await fetchMetaobject(admin, params.id!, "preordercampaign");
+  let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
+  const products = variants.map((variant) => ({
+    productId: variant.productId,
+    variantId: variant.id,
+    variantTitle: variant.title,
+    variantPrice: variant.price,
+    variantInventory: variant.inventory,
+    maxUnit: variant.maxUnit,
+    productImage: variant.image,
+    productTitle: variant.productTitle
   }));
 
-  const GET_DESIGN_SETTINGS = `
-  query GetDesignSettings($handle: String!) {
-    metaobjectByHandle(handle: { handle: $handle, type: "design_settings" }) {
-      id
-      handle
-      type
-      fields {
-        key
-        value
-        type
-      }
-    }
-  }
-`;
-
-  let designSettingsResponse = await admin.graphql(GET_DESIGN_SETTINGS, {
-    variables: { handle: params.id! },
-  });
-
-  let parsedDesignSettingsResponse = await designSettingsResponse.json();
-
-  const GET_CAMPAIGN_SETTINGS = `
-  query GetCampaignSettings($handle: String!) {
-    metaobjectByHandle(handle: { handle: $handle, type: "preordercampaign" }) {
-      id
-      handle
-      type
-      fields {
-        key
-        value
-        type
-      }
-    }
-  }
-`;
-  let campaignSettingsResponse = await admin.graphql(GET_CAMPAIGN_SETTINGS, {
-    variables: { handle: params.id! },
-  });
-
-  let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
   return json({
     campaign,
     products,
@@ -166,7 +122,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
- 
+
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const secondaryIntent = formData.get("secondaryIntent") as string;
@@ -177,39 +133,41 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     await deleteCampaign(id);
     return redirect("/app");
   }
- if (intent === "update-campaign") {
-  try {
-    // ------------------------
-    // Step 1: Update campaign basic data
-    // ------------------------
-    const updatedCampaign = await updateCampaign({
-      id: params.id!,
-      name: formData.get("name") as string,
-      depositPercent: Number(formData.get("depositPercent")),
-      balanceDueDate: new Date(formData.get("balanceDueDate") as string),
-      refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-      releaseDate: formData.get("campaignEndDate")
-        ? new Date(formData.get("campaignEndDate") as string)
-        : undefined,
-      campaignType: Number(formData.get("campaignType")),
-      orderTags: JSON.parse((formData.get("orderTags") as string) || "{}"),
-      customerTags: JSON.parse((formData.get("customerTags") as string) || "{}"),
-      status: campaignCurrentStatus,
-    });
+  if (intent === "update-campaign") {
+    try {
+      // ------------------------
+      // Step 1: Update campaign basic data
+      // ------------------------
+      await updateCampaign({
+        id: params.id!,
+        name: formData.get("name") as string,
+        depositPercent: Number(formData.get("depositPercent")),
+        balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+        refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
+        releaseDate: formData.get("campaignEndDate")
+          ? new Date(formData.get("campaignEndDate") as string)
+          : undefined,
+        campaignType: Number(formData.get("campaignType")),
+        orderTags: JSON.parse((formData.get("orderTags") as string) || "{}"),
+        customerTags: JSON.parse(
+          (formData.get("customerTags") as string) || "{}",
+        ),
+        status: campaignCurrentStatus,
+      });
 
-    // console.log("Updated campaign basic info:", updatedCampaign);
+      // ------------------------
+      // Step 1b: Replace campaign products
+      // ------------------------
+      const updatedProducts = JSON.parse(
+        (formData.get("products") as string) || "[]",
+      );
+      await replaceProductsInCampaign(String(params.id!), updatedProducts);
+      // console.log("Replaced products:", replace);
 
-    // ------------------------
-    // Step 1b: Replace campaign products
-    // ------------------------
-    const updatedProducts = JSON.parse((formData.get("products") as string) || "[]");
-    const replace = await replaceProductsInCampaign(String(params.id!), updatedProducts);
-    // console.log("Replaced products:", replace);
-
-    // ------------------------
-    // Step 2: Update campaign metaobject
-    // ------------------------
-    const getIdQuery = `
+      // ------------------------
+      // Step 2: Update campaign metaobject
+      // ------------------------
+      const getIdQuery = `
       query GetCampaignId($handle: MetaobjectHandleInput!) {
         metaobjectByHandle(handle: $handle) {
           id
@@ -217,42 +175,53 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }
     `;
 
-    const handleRes = await admin.graphql(getIdQuery, {
-      variables: {
-        handle: { type: "preordercampaign", handle: params.id },
-      },
-    });
+      const handleRes = await admin.graphql(getIdQuery, {
+        variables: {
+          handle: { type: "preordercampaign", handle: params.id },
+        },
+      });
 
-    const handleData = await handleRes.json();
-    const metaobjectId = handleData?.data?.metaobjectByHandle?.id;
+      const handleData = await handleRes.json();
+      const metaobjectId = handleData?.data?.metaobjectByHandle?.id;
 
-    if (!metaobjectId) {
-      throw new Error("Campaign metaobject not found for handle: " + params.id);
-    }
+      if (!metaobjectId) {
+        throw new Error(
+          "Campaign metaobject not found for handle: " + params.id,
+        );
+      }
 
-    const campaignFields = [
-      {
-        key: "object",
-        value: JSON.stringify({
-          campaign_id: String(params.id),
-          name: (formData.get("name") as string) || "Untitled Campaign",
-          status: "publish",
-          button_text: (formData.get("buttonText") as string) || "Preorder",
-          shipping_message: (formData.get("shippingMessage") as string) || "Ship as soon as possible",
-          payment_type: (formData.get("paymentMode") as string) || "Full",
-          ppercent: String(formData.get("depositPercent") || "0"),
-          paymentduedate: new Date((formData.get("balanceDueDate") as string) || Date.now()).toISOString(),
-          campaign_end_date: new Date((formData.get("campaignEndDate") as string) || Date.now()).toISOString(),
-          discount_type: (formData.get("discountType") as string) || "none",
-          discountpercent: (formData.get("discountPercentage") as string) || "0",
-          discountfixed: (formData.get("flatDiscount") as string) || "0",
-          campaigntags: JSON.parse((formData.get("orderTags") as string) || "[]").join(","),
-          campaigntype: String(formData.get("campaignType") as string),
-        }),
-      },
-    ];
+      const campaignFields = [
+        {
+          key: "object",
+          value: JSON.stringify({
+            campaign_id: String(params.id),
+            name: (formData.get("name") as string) || "Untitled Campaign",
+            status: "publish",
+            button_text: (formData.get("buttonText") as string) || "Preorder",
+            shipping_message:
+              (formData.get("shippingMessage") as string) ||
+              "Ship as soon as possible",
+            payment_type: (formData.get("paymentMode") as string) || "Full",
+            ppercent: String(formData.get("depositPercent") || "0"),
+            paymentduedate: new Date(
+              (formData.get("balanceDueDate") as string) || Date.now(),
+            ).toISOString(),
+            campaign_end_date: new Date(
+              (formData.get("campaignEndDate") as string) || Date.now(),
+            ).toISOString(),
+            discount_type: (formData.get("discountType") as string) || "none",
+            discountpercent:
+              (formData.get("discountPercentage") as string) || "0",
+            discountfixed: (formData.get("flatDiscount") as string) || "0",
+            campaigntags: JSON.parse(
+              (formData.get("orderTags") as string) || "[]",
+            ).join(","),
+            campaigntype: String(formData.get("campaignType") as string),
+          }),
+        },
+      ];
 
-    const updateCampaignMutation = `
+      const updateCampaignMutation = `
       mutation UpdateCampaign($id: ID!, $metaobject: MetaobjectInput!) {
         metaobjectUpdate(id: $id, metaobject: $metaobject) {
           metaobject {
@@ -265,30 +234,47 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }
     `;
 
-    const campaignUpdateResponse = await admin.graphql(updateCampaignMutation, {
-      variables: { id: metaobjectId, metaobject: { fields: campaignFields } },
-    });
+      const campaignUpdateResponse = await admin.graphql(
+        updateCampaignMutation,
+        {
+          variables: {
+            id: metaobjectId,
+            metaobject: { fields: campaignFields },
+          },
+        },
+      );
 
-    const parsedCampaign = await campaignUpdateResponse.json();
+      const parsedCampaign = await campaignUpdateResponse.json();
 
-    if (parsedCampaign?.data?.metaobjectUpdate?.userErrors?.length) {
-      console.error("Campaign Update Errors:", parsedCampaign.data.metaobjectUpdate.userErrors);
-    } else {
-      console.log("Updated Campaign Metaobject:", parsedCampaign.data.metaobjectUpdate.metaobject);
-    }
+      if (parsedCampaign?.data?.metaobjectUpdate?.userErrors?.length) {
+        console.error(
+          "Campaign Update Errors:",
+          parsedCampaign.data.metaobjectUpdate.userErrors,
+        );
+      } else {
+        console.log(
+          "Updated Campaign Metaobject:",
+          parsedCampaign.data.metaobjectUpdate.metaobject,
+        );
+      }
 
-    // ------------------------
-    // Step 3: Update design metaobject
-    // ------------------------
-    const designFieldsInput = JSON.parse(formData.get("designFields") as string);
-    const designFields = [
-      {
-        key: "object",
-        value: JSON.stringify({ ...designFieldsInput, campaign_id: params.id }),
-      },
-    ];
+      // ------------------------
+      // Step 3: Update design metaobject
+      // ------------------------
+      const designFieldsInput = JSON.parse(
+        formData.get("designFields") as string,
+      );
+      const designFields = [
+        {
+          key: "object",
+          value: JSON.stringify({
+            ...designFieldsInput,
+            campaign_id: params.id,
+          }),
+        },
+      ];
 
-    const getDesignQuery = `
+      const getDesignQuery = `
       query GetDesignSettings($handle: String!) {
         metaobjectByHandle(handle: { handle: $handle, type: "design_settings" }) {
           id handle type fields { key value }
@@ -296,15 +282,17 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }
     `;
 
-    const designRes = await admin.graphql(getDesignQuery, { variables: { handle: params.id } });
-    const designData = await designRes.json();
+      const designRes = await admin.graphql(getDesignQuery, {
+        variables: { handle: params.id },
+      });
+      const designData = await designRes.json();
 
-    const designMetaobjectId = designData?.data?.metaobjectByHandle?.id;
-    if (!designMetaobjectId) {
-      throw new Error("Design metaobject not found for handle: " + params.id);
-    }
+      const designMetaobjectId = designData?.data?.metaobjectByHandle?.id;
+      if (!designMetaobjectId) {
+        throw new Error("Design metaobject not found for handle: " + params.id);
+      }
 
-    const updateDesignMutation = `
+      const updateDesignMutation = `
       mutation UpdateDesignSettings($id: ID!, $metaobject: MetaobjectInput!) {
         metaobjectUpdate(id: $id, metaobject: $metaobject) {
           metaobject { id handle fields { key value } }
@@ -313,70 +301,218 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }
     `;
 
-    const designUpdateRes = await admin.graphql(updateDesignMutation, {
-      variables: { id: designMetaobjectId, metaobject: { fields: designFields } },
-    });
-
-    const updatedDesign = await designUpdateRes.json();
-
-    if (updatedDesign?.data?.metaobjectUpdate?.userErrors?.length) {
-      console.error("Design Update Errors:", updatedDesign.data.metaobjectUpdate.userErrors);
-    } else {
-      console.log(
-        "Updated Design Metaobject:",
-        JSON.stringify(updatedDesign.data.metaobjectUpdate.metaobject, null, 2),
-      );
-    }
-
-    return redirect(`/app/`);
-  } catch (err) {
-    console.error("Update Campaign Exception:", err);
-    throw err; // let Remix handle the error page
-  }
-}
-
-
-  if (intent === "publish-campaign") {
-    const id = formData.get("id");
-
-    const publishMutation = `
-mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
-  metaobjectUpsert(
-    handle: $handle,
-    metaobject: {
-      fields: [
-        { key: "status", value: $status }
-      ]
-    }
-  ) {
-    metaobject {
-      id
-      handle
-      fields {
-        key
-        value
-      }
-    }
-    userErrors {
-      field
-      message
-      code
-    }
-  }
-}
-`;
-    try {
-      const res = await admin.graphql(publishMutation, {
+      const designUpdateRes = await admin.graphql(updateDesignMutation, {
         variables: {
-          handle: { type: "preordercampaign", handle: id }, 
-          status: "ACTIVE",
+          id: designMetaobjectId,
+          metaobject: { fields: designFields },
         },
       });
-    } catch (error) {
-      console.log(error);
-    }
 
-    const mutation = `
+      const updatedDesign = await designUpdateRes.json();
+
+      if (updatedDesign?.data?.metaobjectUpdate?.userErrors?.length) {
+        console.error(
+          "Design Update Errors:",
+          updatedDesign.data.metaobjectUpdate.userErrors,
+        );
+      } else {
+        console.log(
+          "Updated Design Metaobject:",
+          JSON.stringify(
+            updatedDesign.data.metaobjectUpdate.metaobject,
+            null,
+            2,
+          ),
+        );
+      }
+      const products = JSON.parse((formData.get("products") as string) || "[]");
+
+      const metafields = products.flatMap((product: any) => [
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: String(params.id),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "true",
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "release_date",
+          type: "date",
+          value: "2025-08-30",
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder_end_date",
+          type: "date_time",
+          value: new Date(
+            formData.get("campaignEndDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "deposit_percent",
+          type: "number_integer",
+          value: String(formData.get("depositPercent") || "0"),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "balance_due_date",
+          type: "date",
+          value: new Date(
+            formData.get("balanceDueDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder_max_units",
+          type: "number_integer",
+          value: String(product?.maxUnit || "0"),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder_units_sold",
+          type: "number_integer",
+          value: "0",
+        },
+      ]);
+
+      const productMetafields = products.flatMap((product: any) => [
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: String(params.id),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "true",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "release_date",
+          type: "date",
+          value: "2025-08-30",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder_end_date",
+          type: "date_time",
+          value: new Date(
+            formData.get("campaignEndDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "deposit_percent",
+          type: "number_integer",
+          value: String(formData.get("depositPercent") || "0"),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "balance_due_date",
+          type: "date",
+          value: new Date(
+            formData.get("balanceDueDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder_max_units",
+          type: "number_integer",
+          value: String(product?.maxUnit || "0"),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder_units_sold",
+          type: "number_integer",
+          value: "0",
+        },
+      ]);
+
+      try {
+        const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
+          variables: { metafields },
+        });
+
+        const response2 = await admin.graphql(SET_PREORDER_METAFIELDS, {
+          variables: { metafields: productMetafields },
+        });
+        console.log("GraphQL response:", response);
+        console.log("GraphQL response2:", response2);
+      } catch (err) {
+        console.error("GraphQL mutation failed:", err);
+        throw err;
+      }
+
+      const removedVarients = formData.get("removedVarients") as string;
+      const parsedRemovedVarients = removedVarients
+        ? JSON.parse(removedVarients)
+        : [];
+      console.log("parsedRemovedVarients", parsedRemovedVarients);
+
+      if (parsedRemovedVarients.length > 0) {
+        //need to remove selling group and
+        //remove metafields
+        for (const variantId of parsedRemovedVarients) {
+          const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+            variables: {
+              id: variantId,
+            },
+          });
+
+          const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
+          for (const g of groups) {
+            const groupId = g.node.id;
+
+            // Step 2: remove variant from group
+            const removeVariantMutation = `
+        mutation RemoveVariantFromGroup($groupId: ID!, $variantIds: [ID!]!) {
+          sellingPlanGroupRemoveProductVariants(
+            id: $groupId
+            productVariantIds: $variantIds
+          ) {
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+            await admin.graphql(removeVariantMutation, {
+              variables: {
+                groupId,
+                variantIds: [variantId],
+              },
+            });
+          }
+        }
+
+        //remove metafields
+        const removeMetaFieldMutation = `
             mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
               metafieldsSet(metafields: $metafields) {
                 metafields {
@@ -394,17 +530,84 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
             }
           `;
 
+        const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "campaign_id",
+            type: "single_line_text_field",
+            value: "null",
+          },
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "preorder",
+            type: "boolean",
+            value: "false",
+          },
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "campaign_id",
+            type: "single_line_text_field",
+            value: "null",
+          },
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "preorder",
+            type: "boolean",
+            value: "false",
+          },
+        ]);
+
+        try {
+          const graphqlResponse = await admin.graphql(removeMetaFieldMutation, {
+            variables: { metafields },
+          });
+
+          console.log("GraphQL response:", graphqlResponse);
+        } catch (err) {
+          console.error("GraphQL mutation failed:", err);
+          throw err;
+        }
+      }
+
+      return redirect(`/app/`);
+    } catch (err) {
+      console.error("Update Campaign Exception:", err);
+      throw err; // let Remix handle the error page
+    }
+  }
+
+  if (intent === "publish-campaign") {
+    const id = formData.get("id");
+
+   
+    try {
+      const res = await admin.graphql(publishMutation, {
+        variables: {
+          handle: { type: "preordercampaign", handle: id },
+          status: "ACTIVE",
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
+
+
     const products = JSON.parse((formData.get("products") as string) || "[]");
 
-    const metafields = products.flatMap((product) => [
+    const metafields = products.flatMap((product: any) => [
       {
-        ownerId: product.id,
+        ownerId: product.variantId,
         namespace: "custom",
         key: "campaign_id",
         value: id,
       },
       {
-        ownerId: product.id,
+        ownerId: product.variantId,
         namespace: "custom",
         key: "preorder",
         value: "true",
@@ -412,11 +615,11 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
     ]);
 
     try {
-      const graphqlResponse = await admin.graphql(mutation, {
+      const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
         variables: { metafields },
       });
 
-      const response = await graphqlResponse.json(); // 👈 parse it
+      const response = await graphqlResponse.json();
 
       if (response.data?.metafieldsSet?.userErrors?.length) {
         console.error(
@@ -429,236 +632,27 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       throw err;
     }
 
+    const paymentMode = formData.get("paymentMode") as "partial" | "full";
+    const discountType = formData.get("discountType") as
+      | "none"
+      | "percentage"
+      | "flat";
 
-    if (formData.get("paymentMode") === "partial") {
-      const discountType = formData.get("discountType");
-
-      let CREATE_SELLING_PLAN = ``;
-      if (discountType == "none") {
-        CREATE_SELLING_PLAN = `
-  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
-    sellingPlanGroupCreate(
-      input: {
-        name: "Deposit Pre-order"
-        merchantCode: "pre-order-deposit"
-        options: ["Pre-order"]
-        sellingPlansToCreate: [
-          {
-            name: "Deposit, balance later"
-            category: PRE_ORDER
-            options: ["Deposit, balance later"]
-            billingPolicy: {
-              fixed: {
-                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                remainingBalanceChargeTimeAfterCheckout: $days
-              }
-            }
-            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-            inventoryPolicy: { reserve: ON_FULFILLMENT }
-          }
-        ]
-      }
-      resources: { productIds: $productIds }
-    ) {
-      sellingPlanGroup {
-        id
-        sellingPlans(first: 1) {
-          edges {
-            node { id }
-          }
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-      } else if (discountType == "percentage") {
-        CREATE_SELLING_PLAN = `
-  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
-    sellingPlanGroupCreate(
-      input: {
-        name: "Deposit Pre-order"
-        merchantCode: "pre-order-deposit"
-        options: ["Pre-order"]
-        sellingPlansToCreate: [
-          {
-            name: "Deposit, balance later"
-            category: PRE_ORDER
-            options: ["Deposit, balance later"]
-            billingPolicy: {
-              fixed: {
-                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                remainingBalanceChargeTimeAfterCheckout: $days
-              }
-            }
-            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-            inventoryPolicy: { reserve: ON_FULFILLMENT }
-            pricingPolicies: [
-            {
-              fixed: {
-                adjustmentType: PERCENTAGE
-                adjustmentValue: { percentage: $discountPercentage }
-              }
-            }
-          ]
-          }
-        ]
-      }
-      resources: { productIds: $productIds }
-    ) {
-      sellingPlanGroup {
-        id
-        sellingPlans(first: 1) {
-          edges {
-            node { id }
-          }
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-      } else if (discountType == "flat") {
-        CREATE_SELLING_PLAN = `
-  mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
-    sellingPlanGroupCreate(
-      input: {
-        name: "Deposit Pre-order"
-        merchantCode: "pre-order-deposit"
-        options: ["Pre-order"]
-        sellingPlansToCreate: [
-          {
-            name: "Deposit, balance later"
-            category: PRE_ORDER
-            options: ["Deposit, balance later"]
-            billingPolicy: {
-              fixed: {
-                checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                remainingBalanceChargeTimeAfterCheckout: $days
-              }
-            }
-            deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-            inventoryPolicy: { reserve: ON_FULFILLMENT }
-            pricingPolicies: [
-            {
-              fixed: {
-                adjustmentType: FIXED_AMOUNT
-                adjustmentValue: { fixedValue: $fixedValue }
-              }
-            }
-          ]
-            
-          }
-        ]
-      }
-      resources: { productIds: $productIds }
-    ) {
-      sellingPlanGroup {
-        id
-        sellingPlans(first: 1) {
-          edges {
-            node { id }
-          }
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-      }
-
-      const productIds = products.map((p) => p.id);
-
-      // console.log(
-      //   productIds,
-      //   Number(formData.get("depositPercent")),
-      //   "formData >>>>>>>>>>>>>>>>>>>>>>",
-      // );
-
-      try {
-        let res;
-        if (discountType == "none") {
-          res = await admin.graphql(CREATE_SELLING_PLAN, {
-            variables: {
-              productIds,
-              percentage: Number(formData.get("depositPercent")),
-              days: "P7D",
-            },
-          });
-        } else if (discountType == "percentage") {
-          res = await admin.graphql(CREATE_SELLING_PLAN, {
-            variables: {
-              productIds,
-              percentage: Number(formData.get("depositPercent")),
-              days: "P7D",
-              discountPercentage: Number(
-                formData.get("discountPercentage") ?? 0,
-              ),
-            },
-          });
-        } else if (discountType == "flat") {
-          res = await admin.graphql(CREATE_SELLING_PLAN, {
-            variables: {
-              productIds,
-              percentage: Number(formData.get("depositPercent")),
-              days: "P7D",
-              fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
-            },
-          });
-        }
-
-        res = await res.json();
-        console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
-      } catch (error) {
-        console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-      }
-
-      await updateCampaignStatus(params.id!, "PUBLISHED");
-
-      return redirect(`/app/`);
-    }
+    const res = await createSellingPlan(
+      admin,
+      paymentMode,
+      discountType,
+      products,
+      formData,
+    );
+    console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
+    await updateCampaignStatus(params.id!, "PUBLISHED");
+    return redirect(`/app/`);
   }
 
   if (intent === "unpublish-campaign") {
     const id = formData.get("id");
-    const unpublishMutation = `
-mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
-  metaobjectUpsert(
-    handle: $handle,
-    metaobject: {
-      fields: [
-        { key: "status", value: $status }
-      ]
-    }
-  ) {
-    metaobject {
-      id
-      handle
-      fields {
-        key
-        value
-      }
-    }
-    userErrors {
-      field
-      message
-      code
-    }
-  }
-}
-`;
+    
     try {
       const res = await admin.graphql(unpublishMutation, {
         variables: {
@@ -671,43 +665,41 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
       //need to get campaign products and need to remove campaign_id metafield in them
 
-      const mutation = `
-            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-              metafieldsSet(metafields: $metafields) {
-                metafields {
-                  id
-                  namespace
-                  key
-                  type
-                  value
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `;
-
       const products = JSON.parse((formData.get("products") as string) || "[]");
 
       const metafields = products.flatMap((product) => [
         {
-          ownerId: product.id,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "campaign_id",
-          value: "null",
+          type: "single_line_text_field",
+          value: id,
         },
         {
-          ownerId: product.id,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: id,
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
           value: "false",
         },
       ]);
 
       try {
-        const graphqlResponse = await admin.graphql(mutation, {
+        const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
           variables: { metafields },
         });
 
@@ -724,38 +716,10 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         throw err;
       }
 
-      const GET_PRODUCT_SELLING_PLAN_GROUPS = `
-  query GetProductSPGs($id: ID!) {
-    product(id: $id) {
-      id
-      title
-      sellingPlanGroups(first: 50) {
-        edges {
-          node {
-            id
-            name
-            merchantCode
-          }
-        }
-      }
-    }
-  }
-`;
 
-      const DELETE_SELLING_PLAN_GROUP = `
-  mutation DeleteSellingPlanGroup($id: ID!) {
-    sellingPlanGroupDelete(id: $id) {
-      deletedSellingPlanGroupId
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
 
       const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
-        variables: { id: products[0].id },
+        variables: { id: products[0].productId },
       });
       const productData = await productResp.json();
 
@@ -799,24 +763,15 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
       const totalOrders = totalOrdersResponse?.totalOrders || 0;
 
-
-
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!);
       }
 
-      const query = `{
-            shop {
-              id
-              name
-              myshopifyDomain
-            }
-          }`;
-        
-          const response = await admin.graphql(query);
-          const data = await response.json();
-          const storeId = data.data.shop.id; 
+     
 
+      const response = await admin.graphql(GET_SHOP);
+      const data = await response.json();
+      const storeId = data.data.shop.id;
 
       if (secondaryIntent === "delete-campaign-create-new") {
         const campaign = await createPreorderCampaign({
@@ -836,9 +791,9 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
           storeId: storeId,
-          getDueByValt : false,
-          totalOrders : totalOrders,
-          status : campaignCurrentStatus 
+          getDueByValt: false,
+          totalOrders: totalOrders,
+          status: campaignCurrentStatus,
         });
 
         const products = JSON.parse(
@@ -851,48 +806,31 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           // -------------------------------
           // PREORDER METAFIELDS UPDATE
           // -------------------------------
-          const mutation = `
-                   mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-                     metafieldsSet(metafields: $metafields) {
-                       metafields {
-                         id
-                         namespace
-                         key
-                         type
-                         value
-                       }
-                       userErrors {
-                         field
-                         message
-                       }
-                     }
-                   }
-                 `;
 
           const metafields = products.flatMap((product) => [
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "campaign_id",
               type: "single_line_text_field",
               value: String(campaign.id),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder",
               type: "boolean",
               value: "true",
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "release_date",
               type: "date",
               value: "2025-08-30",
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder_end_date",
               type: "date_time",
@@ -901,14 +839,14 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
               ).toISOString(),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "deposit_percent",
               type: "number_integer",
               value: String(formData.get("depositPercent") || "0"),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "balance_due_date",
               type: "date",
@@ -917,16 +855,16 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
               ).toISOString(),
             },
             {
-              ownerId: product.id,
+              ownerId: product.variantId,
               namespace: "custom",
-              key: "preorder_units",
+              key: "preorder_max_units",
               type: "number_integer",
               value: String(product?.maxUnit || "0"),
             },
           ]);
 
           try {
-            const response = await admin.graphql(mutation, {
+            const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
               variables: { metafields },
             });
             console.log("GraphQL response:", response);
@@ -937,344 +875,21 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         }
 
         // if the payment option is partial
+        const paymentMode = formData.get("paymentMode") as "partial" | "full";
+        const discountType = formData.get("discountType") as
+          | "none"
+          | "percentage"
+          | "flat";
 
-        if (formData.get("paymentMode") === "partial") {
-          
-          const discountType = formData.get("discountType");
-
-          let CREATE_SELLING_PLAN = ``;
-          if (discountType == "none") {
-            CREATE_SELLING_PLAN = `
-         mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String!) {
-           sellingPlanGroupCreate(
-             input: {
-               name: "Deposit Pre-order"
-               merchantCode: "pre-order-deposit"
-               options: ["Pre-order"]
-               sellingPlansToCreate: [
-                 {
-                   name: "Deposit, balance later"
-                   category: PRE_ORDER
-                   options: ["Deposit, balance later"]
-                   billingPolicy: {
-                     fixed: {
-                       checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                       remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                       remainingBalanceChargeTimeAfterCheckout: $days
-                     }
-                   }
-                   deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-                   inventoryPolicy: { reserve: ON_FULFILLMENT }
-                 }
-               ]
-             }
-             resources: { productIds: $productIds }
-           ) {
-             sellingPlanGroup {
-               id
-               sellingPlans(first: 1) {
-                 edges {
-                   node { id }
-                 }
-               }
-             }
-             userErrors {
-               field
-               message
-             }
-           }
-         }
-       `;
-          } else if (discountType == "percentage") {
-            CREATE_SELLING_PLAN = `
-         mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $discountPercentage: Float!) {
-           sellingPlanGroupCreate(
-             input: {
-               name: "Deposit Pre-order"
-               merchantCode: "pre-order-deposit"
-               options: ["Pre-order"]
-               sellingPlansToCreate: [
-                 {
-                   name: "Deposit, balance later"
-                   category: PRE_ORDER
-                   options: ["Deposit, balance later"]
-                   billingPolicy: {
-                     fixed: {
-                       checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                       remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                       remainingBalanceChargeTimeAfterCheckout: $days
-                     }
-                   }
-                   deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-                   inventoryPolicy: { reserve: ON_FULFILLMENT }
-                   pricingPolicies: [
-                   {
-                     fixed: {
-                       adjustmentType: PERCENTAGE
-                       adjustmentValue: { percentage: $discountPercentage }
-                     }
-                   }
-                 ]
-                 }
-               ]
-             }
-             resources: { productIds: $productIds }
-           ) {
-             sellingPlanGroup {
-               id
-               sellingPlans(first: 1) {
-                 edges {
-                   node { id }
-                 }
-               }
-             }
-             userErrors {
-               field
-               message
-             }
-           }
-         }
-       `;
-          } else if (discountType == "flat") {
-            CREATE_SELLING_PLAN = `
-         mutation CreateSellingPlan($productIds: [ID!]!, $percentage: Float!, $days: String! , $fixedValue: Decimal!) {
-           sellingPlanGroupCreate(
-             input: {
-               name: "Deposit Pre-order"
-               merchantCode: "pre-order-deposit"
-               options: ["Pre-order"]
-               sellingPlansToCreate: [
-                 {
-                   name: "Deposit, balance later"
-                   category: PRE_ORDER
-                   options: ["Deposit, balance later"]
-                   billingPolicy: {
-                     fixed: {
-                       checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-                       remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-                       remainingBalanceChargeTimeAfterCheckout: $days
-                     }
-                   }
-                   deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-                   inventoryPolicy: { reserve: ON_FULFILLMENT }
-                   pricingPolicies: [
-                   {
-                     fixed: {
-                       adjustmentType: FIXED_AMOUNT
-                       adjustmentValue: { fixedValue: $fixedValue }
-                     }
-                   }
-                 ]
-                   
-                 }
-               ]
-             }
-             resources: { productIds: $productIds }
-           ) {
-             sellingPlanGroup {
-               id
-               sellingPlans(first: 1) {
-                 edges {
-                   node { id }
-                 }
-               }
-             }
-             userErrors {
-               field
-               message
-             }
-           }
-         }
-       `;
-          }
-
-          const productIds = products.map((p) => p.id);
-
-          try {
-            let res;
-            if (discountType == "none") {
-              res = await admin.graphql(CREATE_SELLING_PLAN, {
-                variables: {
-                  productIds,
-                  percentage: Number(formData.get("depositPercent")),
-                  days: "P7D",
-                },
-              });
-            } else if (discountType == "percentage") {
-              res = await admin.graphql(CREATE_SELLING_PLAN, {
-                variables: {
-                  productIds,
-                  percentage: Number(formData.get("depositPercent")),
-                  days: "P7D",
-                  discountPercentage: Number(
-                    formData.get("discountPercentage"),
-                  ),
-                },
-              });
-            } else if (discountType == "flat") {
-              res = await admin.graphql(CREATE_SELLING_PLAN, {
-                variables: {
-                  productIds,
-                  percentage: Number(formData.get("depositPercent")),
-                  days: "P7D",
-                  fixedValue: (formData.get("flatDiscount") ?? "0").toString(),
-                },
-              });
-            }
-
-            res = await res.json();
-            console.log(res, "res >>>>>>>>>>>>>>>>>>>>>> SGP");
-          } catch (error) {
-            console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-          }
-        }
-        else {
-          const discountType = formData.get("discountType");
-          let CREATE_SELLING_PLAN = ``;
-
-          if (discountType === "none") {
-            CREATE_SELLING_PLAN = `
-      mutation CreateSellingPlan($productIds: [ID!]!) {
-        sellingPlanGroupCreate(
-          input: {
-            name: "Full Payment Pre-order"
-            merchantCode: "pre-order-full"
-            options: ["Pre-order"]
-            sellingPlansToCreate: [
-              {
-                name: "Pay full upfront"
-                category: PRE_ORDER
-                options: ["Full payment"]
-                billingPolicy: {
-                  fixed: {
-                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
-                  }
-                }
-                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-                inventoryPolicy: { reserve: ON_FULFILLMENT }
-              }
-            ]
-          }
-          resources: { productIds: $productIds }
-        ) {
-          sellingPlanGroup { id }
-          userErrors { field message }
-        }
-      }
-    `;
-          } 
-          else if (discountType === "percentage") {
-            CREATE_SELLING_PLAN = `
-      mutation CreateSellingPlan($productIds: [ID!]!, $discountPercentage: Float!) {
-        sellingPlanGroupCreate(
-          input: {
-            name: "Full Payment Pre-order"
-            merchantCode: "pre-order-full"
-            options: ["Pre-order"]
-            sellingPlansToCreate: [
-              {
-                name: "Pay full upfront"
-                category: PRE_ORDER
-                options: ["Full payment"]
-                billingPolicy: {
-                  fixed: {
-                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
-                  }
-                }
-                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-                inventoryPolicy: { reserve: ON_FULFILLMENT }
-                pricingPolicies: [
-                  {
-                    fixed: {
-                      adjustmentType: PERCENTAGE
-                      adjustmentValue: { percentage: $discountPercentage }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-          resources: { productIds: $productIds }
-        ) {
-          sellingPlanGroup { id }
-          userErrors { field message }
-        }
-      }
-    `;
-          } else if (discountType === "flat") {
-            CREATE_SELLING_PLAN = `
-      mutation CreateSellingPlan($productIds: [ID!]!, $fixedValue: Decimal!) {
-        sellingPlanGroupCreate(
-          input: {
-            name: "Full Payment Pre-order"
-            merchantCode: "pre-order-full"
-            options: ["Pre-order"]
-            sellingPlansToCreate: [
-              {
-                name: "Pay full upfront"
-                category: PRE_ORDER
-                options: ["Full payment"]
-                billingPolicy: {
-                  fixed: {
-                    checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE
-                  }
-                }
-                deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
-                inventoryPolicy: { reserve: ON_FULFILLMENT }
-                pricingPolicies: [
-                  {
-                    fixed: {
-                      adjustmentType: FIXED_AMOUNT
-                      adjustmentValue: { amount: $fixedValue }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-          resources: { productIds: $productIds }
-        ) {
-          sellingPlanGroup { id }
-          userErrors { field message }
-        }
-      }
-    `;
-          }
-
-          const productIds = products.map((p) => p.id);
-
-          try {
-            const response = await admin.graphql(CREATE_SELLING_PLAN, {
-              variables:
-                discountType === "percentage"
-                  ? {
-                      productIds,
-                      discountPercentage: Number(
-                        formData.get("discountPercentage"),
-                      ),
-                    }
-                  : discountType === "flat"
-                    ? {
-                        productIds,
-                        fixedValue: (
-                          formData.get("flatDiscount") ?? "0"
-                        ).toString(),
-                      }
-                    : { productIds },
-            });
-
-            const data = await response.json();
-            console.log(
-              JSON.stringify(data, null, 2),
-              "res >>>>>>>>>>>>>>>>>>>>>> SGP in full payment",
-            );
-          } catch (error) {
-            console.log("error: >>>>>>>>>>>>>>>>>>>>>>", error);
-          }
-        }
+        // const products = JSON.parse(formData.get("products") as string);
+        const res = await createSellingPlan(
+          admin,
+          paymentMode,
+          discountType,
+          products,
+          formData,
+        );
+        console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
 
         const designFields = JSON.parse(formData.get("designFields") as string);
         console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
@@ -1288,88 +903,25 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           },
         ];
 
-        console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
-
-        const mutation = `
-         mutation CreateDesignSettings($fields: [MetaobjectFieldInput!]!) {
-         metaobjectCreate(
-           metaobject: {
-             type: "design_settings",
-             fields: $fields,
-             capabilities: {
-               publishable: {
-                 status: ACTIVE
-               }
-             }
-           }
-         ) {
-           metaobject {
-             id
-             handle
-             capabilities {
-               publishable {
-                 status
-               }
-             }
-           }
-           userErrors {
-             field
-             message
-           }
-         }
-       }
-         `;
-        const campaign_mutation = `
-         mutation CreateCampaign($fields: [MetaobjectFieldInput!]!) {
-           metaobjectCreate(
-             metaobject: {
-               type: "preordercampaign",
-               fields: $fields,
-               capabilities: {
-                 publishable: {
-                   status: ACTIVE
-                 }
-               }
-             }
-           )
-           {
-             metaobject {
-               id
-               handle
-               capabilities {
-                 publishable {
-                   status
-                 }
-               }
-             }
-             userErrors {
-               field
-               message
-             }
-           }
-         }
-         `;
 
         try {
-          const response = await admin.graphql(mutation, {
-            
-            variables: {     
-              fields : [
+          const response = await admin.graphql(CREATE_DESIGN_SETTINGS, {
+            variables: {
+              fields: [
                 {
-                  key:"campaign_id",
-                  value: String(campaign.id)
+                  key: "campaign_id",
+                  value: String(campaign.id),
                 },
-                
-                  ...fields
-                
-              ]
-             },
-          });
-          
 
-        const campaignFields = [
+                ...fields,
+              ],
+            },
+          });
+          const result = await response.json();
+          console.log("design Metaobject:", JSON.stringify(result, null, 2));
+
+          const campaignFields = [
             {
-              
               key: "object",
               value: JSON.stringify({
                 campaign_id: String(campaign.id),
@@ -1401,29 +953,98 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
             },
           ];
 
-           const campaign_response = await admin.graphql(campaign_mutation, {
+          await admin.graphql(CREATE_CAMPAIGN, {
             variables: {
               fields: [
                 { key: "campaign_id", value: String(campaign.id) },
-                ...campaignFields
+                ...campaignFields,
               ],
             },
           });
-          const parsedCampaignResponse = await campaign_response.json();
-          console.log(
-            parsedCampaignResponse,
-            "parsedResponse >>>>>>>>>>>>>>>>>>>>>>",
-          );
-          console.log(
-            "store meta Metaobject //////:",
-            JSON.stringify(parsedCampaignResponse, null, 2),
-          );
         } catch (error) {
           console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
         }
 
         await updateCampaignStatus(campaign.id, "PUBLISHED");
         await deleteCampaign(params.id!);
+        const removedVarients = formData.get("removedVarients") as string;
+        const parsedRemovedVarients = removedVarients
+          ? JSON.parse(removedVarients)
+          : [];
+
+        if (parsedRemovedVarients.length > 0) {
+          //need to remove selling group and
+          //remove metafields
+          for (const variantId of parsedRemovedVarients) {
+            const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+              variables: {
+                id: variantId,
+              },
+            });
+
+            const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
+            for (const g of groups) {
+              const groupId = g.node.id;
+
+              // Step 2: remove variant from group
+              
+              await admin.graphql(removeVariantMutation, {
+                variables: {
+                  groupId,
+                  variantIds: [variantId],
+                },
+              });
+            }
+          }
+
+          //remove metafields
+          
+
+          const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: "null",
+            },
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: "null",
+            },
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+          ]);
+
+          try {
+            const graphqlResponse = await admin.graphql(
+              removeMetaFieldMutation,
+              {
+                variables: { metafields },
+              },
+            );
+
+            console.log("GraphQL response:", graphqlResponse);
+          } catch (err) {
+            console.error("GraphQL mutation failed:", err);
+            throw err;
+          }
+        }
 
         return redirect("/app");
       }
@@ -1444,10 +1065,8 @@ export default function CampaignDetail() {
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
   } = useLoaderData<typeof loader>();
-  console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
-  console.log(parsedCampaignSettingsResponse, "parsedCampaignSettingsResponse");
-
-const navigation = useNavigation();
+ 
+  const navigation = useNavigation();
 
   const designFieldsObj =
     parsedDesignSettingsResponse?.data?.metaobjectByHandle?.fields;
@@ -1463,11 +1082,9 @@ const navigation = useNavigation();
     {} as Record<string, string>,
   );
 
-  const parsedCampaignData = JSON.parse(
-    campaignSettingsMap?.object || "{}",
-  )
+  const parsedCampaignData = JSON.parse(campaignSettingsMap?.object || "{}");
 
-   const designFieldsMap = designFieldsObj?.reduce(
+  const designFieldsMap = designFieldsObj?.reduce(
     (acc, field) => {
       acc[field.key] = field.value;
       return acc;
@@ -1475,10 +1092,8 @@ const navigation = useNavigation();
     {} as Record<string, string>,
   );
 
-  const parsedDesignFields = JSON.parse(
-    designFieldsMap?.object || "{}",
-  )
-  
+  const parsedDesignFields = JSON.parse(designFieldsMap?.object || "{}");
+
   // console.log(parsedCampaignData, "parsedCampaignData");
 
   // console.log(campaignSettingsMap, "campaignSettingsMap");
@@ -1486,9 +1101,6 @@ const navigation = useNavigation();
 
   const submit = useSubmit();
   const navigate = useNavigate();
-  const fetcher = useFetcher();
-  const actionData = useActionData<typeof action>();
-  const [campaignId, setCampaignId] = useState(campaign?.id);
 
   const [campaignName, setCampaignName] = useState(campaign?.name);
   const [selected, setSelected] = useState(0);
@@ -1505,9 +1117,7 @@ const navigation = useNavigation();
   const [selectedOption, setSelectedOption] = useState(
     Number(parsedCampaignData?.campaigntype),
   );
-  const [buttonText, setButtonText] = useState(
-    parsedCampaignData?.button_text,
-  );
+  const [buttonText, setButtonText] = useState(parsedCampaignData?.button_text);
   const [shippingMessage, setShippingMessage] = useState(
     parsedCampaignData?.shipping_message,
   );
@@ -1559,39 +1169,36 @@ const navigation = useNavigation();
   );
   const [criticalChange, setCriticalChange] = useState(false);
   const [partialPaymentText, setPartialPaymentText] =
-      useState("Partial payment");
-    const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
-      "Pay {payment} now and {remaining} will be charged on {date}",
-    );
+    useState("Partial payment");
+  const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
+    "Pay {payment} now and {remaining} will be charged on {date}",
+  );
+  const [removedVarients, setRemovedVarients] = useState<string[]>([]);
 
   // console.log(designFieldsObj);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
- 
+  const [designFields, setDesignFields] = useState<DesignFields>({
+    messageFontSize: parsedDesignFields?.messageFontSize,
+    messageColor: parsedDesignFields?.messageColor,
+    fontFamily: parsedDesignFields?.fontFamily,
+    buttonStyle: parsedDesignFields?.buttonStyle,
+    buttonBackgroundColor: parsedDesignFields?.buttonBackgroundColor,
+    gradientDegree: parsedDesignFields?.gradientDegree,
+    gradientColor1: parsedDesignFields?.gradientColor1,
+    gradientColor2: parsedDesignFields?.gradientColor2,
+    borderSize: parsedDesignFields?.borderSize,
+    borderColor: parsedDesignFields?.borderColor,
+    spacingIT: parsedDesignFields?.spacingIT,
+    spacingIB: parsedDesignFields?.spacingIB,
+    spacingOT: parsedDesignFields?.spacingOT,
+    spacingOB: parsedDesignFields?.spacingOB,
+    borderRadius: parsedDesignFields?.borderRadius,
+    preorderMessageColor: parsedDesignFields?.preorderMessageColor,
+    buttonFontSize: parsedDesignFields?.buttonFontSize,
+    buttonTextColor: parsedDesignFields?.buttonTextColor,
+  });
 
- const [designFields, setDesignFields] = useState<DesignFields>({
-  messageFontSize: parsedDesignFields?.messageFontSize,
-  messageColor: parsedDesignFields?.messageColor,
-  fontFamily: parsedDesignFields?.fontFamily,
-  buttonStyle: parsedDesignFields?.buttonStyle,
-  buttonBackgroundColor: parsedDesignFields?.buttonBackgroundColor,
-  gradientDegree: parsedDesignFields?.gradientDegree,
-  gradientColor1: parsedDesignFields?.gradientColor1,
-  gradientColor2: parsedDesignFields?.gradientColor2,
-  borderSize: parsedDesignFields?.borderSize,
-  borderColor: parsedDesignFields?.borderColor,
-  spacingIT: parsedDesignFields?.spacingIT,
-  spacingIB: parsedDesignFields?.spacingIB,
-  spacingOT: parsedDesignFields?.spacingOT,
-  spacingOB: parsedDesignFields?.spacingOB,
-  borderRadius: parsedDesignFields?.borderRadius,
-  preorderMessageColor: parsedDesignFields?.preorderMessageColor,
-  buttonFontSize: parsedDesignFields?.buttonFontSize,
-  buttonTextColor: parsedDesignFields?.buttonTextColor,
-});
-
-
-  console.log(designFields,'&&&&&&&&&&&')
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
   const [discountType, setDiscountType] = useState(
@@ -1650,7 +1257,7 @@ const navigation = useNavigation();
   const openResourcePicker = () => {
     shopify.modal.hide("my-modal");
 
- async function fetchProductsInCollection(collectionId: string) {
+    async function fetchProductsInCollection(collectionId: string) {
       const res = await fetch("/api/products-in-collection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1736,17 +1343,14 @@ const navigation = useNavigation();
     },
   ];
 
-  const filteredProducts =
-    selectedProducts.length > 0
-      ? selectedProducts.filter((product) =>
-          product.title?.toLowerCase().includes(searchTerm.toLowerCase()),
-        )
-      : [];
+  const filteredProducts = selectedProducts?.filter((product) =>
+    product.variantTitle?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   function handleRemoveProduct(id: string) {
-    if (selectedProducts.length === 0) return; // do nothing if empty
-
-    setSelectedProducts((prev) => prev.filter((product) => product.id !== id));
+    // if (selectedProducts.length === 0) return; // do nothing if empty
+    setSelectedProducts((prev) => prev.filter((product) => product.variantId !== id));
+    setRemovedVarients((prev) => [...prev, id]);
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1782,7 +1386,6 @@ const navigation = useNavigation();
     submit(formData, { method: "post" });
   };
 
-
   const handleMaxUnitChange = (id: string, value: number) => {
     setSelectedProducts((prev: any) =>
       prev.map((product) =>
@@ -1792,8 +1395,6 @@ const navigation = useNavigation();
       ),
     );
   };
-
-
 
   const appBridge = useAppBridge();
 
@@ -1823,6 +1424,7 @@ const navigation = useNavigation();
     const formData = new FormData();
     formData.append("intent", "unpublish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
+    formData.append('removedVarients', JSON.stringify(removedVarients));
     formData.append("secondaryIntent", "delete-campaign-create-new");
     formData.append("id", id);
     formData.append("name", String(campaignName));
@@ -1849,22 +1451,21 @@ const navigation = useNavigation();
     submit(formData, { method: "post" });
   }
 
-  const handleSave = async() => {
-  try {
-    if (criticalChange === true) {
-      console.log("handleCriticalChange");
-      await handleCriticalChange(String(campaign?.id));
-    } else {
-      console.log("Saving");
-      await handleSubmit();
-    }
+  const handleSave = async () => {
+    try {
+      if (criticalChange === true) {
+        console.log("handleCriticalChange");
+        await handleCriticalChange(String(campaign?.id));
+      } else {
+        console.log("Saving");
+        await handleSubmit();
+      }
 
-    shopify.saveBar.hide("my-save-bar");
-  } catch (error) {
-    console.error("Save error:", error);
- 
+      shopify.saveBar.hide("my-save-bar");
+    } catch (error) {
+      console.error("Save error:", error);
+    }
   };
-}
 
   const handleDiscard = () => {
     console.log("Discarding");
@@ -1901,7 +1502,8 @@ const navigation = useNavigation();
     buttonText,
     shippingMessage,
     productTags,
-    customerTags
+    customerTags,
+    campaignEndDate,
   ]);
 
   const handleButtonClick = useCallback(
@@ -1951,7 +1553,7 @@ const navigation = useNavigation();
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title={`Update ${campaign?.name}`  }
+        title={`Update ${campaign?.name}`}
         titleMetadata={
           campaign?.status === "PUBLISHED" ? (
             <Badge tone="success">Published</Badge>
@@ -1998,8 +1600,8 @@ const navigation = useNavigation();
               variant="primary"
               tone="critical"
               onClick={() => {
-                handleDelete(String(campaign?.id))
-                shopify.modal.hide("delete-modal")
+                handleDelete(String(campaign?.id));
+                shopify.modal.hide("delete-modal");
               }}
               loading={navigation.state !== "idle"}
             >
@@ -2301,7 +1903,7 @@ const navigation = useNavigation();
                                 <TextField
                                   autoComplete="off"
                                   suffix={` ${partialPaymentType === "percent" ? "%" : "$"}`}
-                                  value={partialPaymentPercentage}
+                                  value={String(partialPaymentPercentage)}
                                   onChange={setPartialPaymentPercentage}
                                 />
                               </div>
@@ -2374,8 +1976,11 @@ const navigation = useNavigation();
                               Visible in cart, checkout, transactional emails
                             </Text>
                             <div>
-                              <TextField autoComplete="off" label="Text"
-                                value={partialPaymentInfoText} />
+                              <TextField
+                                autoComplete="off"
+                                label="Text"
+                                value={partialPaymentInfoText}
+                              />
                               <Text as="p" variant="bodyMd">
                                 Use {"{payment}"} and {"{remaining}"} to display
                                 partial payment amounts and {"{date}"} for full
@@ -2707,7 +2312,7 @@ const navigation = useNavigation();
                       </div>
                     )}
                   </Card>
-                  <div>
+                  <div style={{ marginTop: 20 }}>
                     <Card>
                       <div style={{ padding: 3, textAlign: "center" }}>
                         <Text as="p" variant="headingSm">
@@ -2828,7 +2433,10 @@ const navigation = useNavigation();
                       <Button onClick={openResourcePicker}>
                         Add More Products
                       </Button>
-                      <Button onClick={() => setSelectedProducts([])}>
+                      <Button onClick={() => {
+                        setRemovedVarients([...removedVarients, ...selectedProducts.map((p) => p.variantId)])
+                        setSelectedProducts([])
+                        }}>
                         Remove all Products
                       </Button>
                     </ButtonGroup>
@@ -2888,19 +2496,19 @@ const navigation = useNavigation();
                     </thead>
                     <tbody>
                       {filteredProducts.map((product) => (
-                        <tr key={product.id}>
+                        <tr key={product.varientId}>
                           <td
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
                             <img
                               src={
-                                product.images?.[0]?.originalSrc ||
-                                product.image
+                                product.productImage
                               }
-                              alt={product.title}
+                              alt={product.variantTitle}
                               style={{
                                 width: 50,
                                 height: 50,
@@ -2912,18 +2520,20 @@ const navigation = useNavigation();
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
-                            {product.title}
+                            {product.variantTitle !== 'Default Title' ? product.variantTitle : product.productTitle}
                           </td>
                           <td
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
-                            {product.totalInventory
-                              ? product.totalInventory
+                            {product.variantInventory
+                              ? product.variantInventory
                               : product.inventory}
                           </td>
                           <td
@@ -2931,6 +2541,7 @@ const navigation = useNavigation();
                               padding: "8px",
                               borderBottom: "1px solid #eee",
                               width: "100px",
+                              textAlign: "center",
                             }}
                           >
                             <TextField
@@ -2938,7 +2549,7 @@ const navigation = useNavigation();
                               min={0}
                               value={product?.maxUnit?.toString() || "0"} // Polaris expects string
                               onChange={(value) =>
-                                handleMaxUnitChange(product.id, Number(value))
+                                handleMaxUnitChange(product.variantId, Number(value))
                               }
                             />
                           </td>
@@ -2946,9 +2557,10 @@ const navigation = useNavigation();
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
-                            {product.variants?.[0]?.price || product.price}
+                            {product.variantPrice}
                           </td>
                           <td
                             style={{
@@ -2958,7 +2570,7 @@ const navigation = useNavigation();
                           >
                             <div
                               onClick={() => {
-                                handleRemoveProduct(product.id);
+                                handleRemoveProduct(product.variantId);
                               }}
                             >
                               <Icon source={DeleteIcon} />

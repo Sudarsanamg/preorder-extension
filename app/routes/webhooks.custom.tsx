@@ -14,18 +14,22 @@ export const action = async ({ request }: { request: Request }) => {
     // console.log(payload);
     const products = payload.line_items || [];
     const line_items = payload.line_items || [];
+    const variantIds = line_items.map((item: any) => item.variant_id);
     const productIds = line_items.map((item: any) => item.product_id);
-
     const formattedProductIds = productIds.map((id: number) => {
       return `gid://shopify/Product/${id}`;
     });
-    console.log("formattedProductIds", formattedProductIds);
+
+   const formattedVariantIds = variantIds.map((id: number) => {
+  return `gid://shopify/ProductVariant/${id}`;
+});
+
 
     //update preorder_units_sold
-    for (const productId of formattedProductIds) {
+    for (const variantId of formattedVariantIds) {
       try {
        
-      await incrementUnitsSold(shop, productId);
+      await incrementUnitsSold(shop, variantId);
        
       } catch (error) {
         console.log(error);
@@ -163,7 +167,7 @@ export const action = async ({ request }: { request: Request }) => {
       const shopId = storeIdQueryResponseData.data.shop.id;
       const plusStore = storeIdQueryResponseData.data.shop.plan.shopifyPlus;
       // getDueByValt is true
-      // this should be in whole store
+      // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
       let vaultPayment = false;
       if (plusStore) {
         const campaign = await prisma.preorderCampaign.findFirst({
@@ -221,9 +225,10 @@ export const action = async ({ request }: { request: Request }) => {
           },
         });
 
-        const emailConfig = await prisma.emailConfig.findFirst({
-          where: { storeId: shopId },
-        });
+        const emailConfig = {
+          fromName :'Preorder',
+          replyName: 'Preorder@noreply.com',
+        };
 
         try {
           await transporter.sendMail({

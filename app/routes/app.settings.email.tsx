@@ -28,9 +28,14 @@ export const loader = async ({ request }: { request: Request }) => {
     const data = await response.json();
     const shopId = data.data.shop.id;
 
-    const emailConfig = await prisma.emailConfig.findUnique({
-      where: { storeId: shopId },
-    });
+    // const emailConfig = await prisma.emailConfig.findUnique({
+    //   where: { storeId: shopId },
+    // });
+    const emailConfig = {
+      fromName: "preorder",
+      fromEmail: "info@essentialspreorder.com",
+      replyName: "preorder",
+    };
     
 
     return {shopId ,emailConfig};

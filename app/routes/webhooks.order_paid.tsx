@@ -60,7 +60,7 @@ export const action = async ({ request }: { request: Request }) => {
       );
     }
 
-    orderStatusUpdate(note, "paid");
+    orderStatusUpdate(note, "PAID");
     const duePaymentOrderId = payload.admin_graphql_api_id;
     // archeive the due payment
     const CloseOrderMutation = `
