@@ -92,3 +92,30 @@ export const GET_VARIANT_SELLING_PLANS = `
     }
   }
 `;
+
+export const removeVariantMutation = `
+        mutation RemoveVariantFromGroup($groupId: ID!, $variantIds: [ID!]!) {
+          sellingPlanGroupRemoveProductVariants(
+            id: $groupId
+            productVariantIds: $variantIds
+          ) {
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+export const DELETE_SELLING_PLAN_GROUP = `
+  mutation DeleteSellingPlanGroup($id: ID!) {
+    sellingPlanGroupDelete(id: $id) {
+      deletedSellingPlanGroupId
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+

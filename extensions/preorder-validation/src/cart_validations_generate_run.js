@@ -17,7 +17,6 @@ export function cartValidationsGenerateRun(input) {
     // console.log(maxMeta,'maxMeta');
     const unitsSold = parseInt(variant.preorderSold?.value || "0", 10);
     // console.log(unitsSold,'unitsSold');
-    const availableUnits = maxMeta - unitsSold;
     // console.log(availableUnits,'availableUnits');
 
    // Only validate if maxMeta > 0

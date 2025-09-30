@@ -41,8 +41,6 @@ import { authenticate } from "../shopify.server";
 import {
   useSubmit,
   useNavigate,
-  useFetcher,
-  useActionData,
   useLoaderData,
   Link,
   useNavigation,
@@ -61,12 +59,15 @@ import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
 import prisma from "app/db.server";
 import { CampaignStatus } from "@prisma/client";
-import { SET_PREORDER_METAFIELDS } from "app/graphql/mutation/metafields";
+import { removeMetaFieldMutation, SET_PREORDER_METAFIELDS } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
-import { CREATE_CAMPAIGN, CREATE_DESIGN_SETTINGS } from "app/graphql/mutation/metaobject";
+import { CREATE_CAMPAIGN, CREATE_DESIGN_SETTINGS, unpublishMutation } from "app/graphql/mutation/metaobject";
 import { GET_PRODUCTS_BY_IDS, GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
-import { GET_VARIANT_SELLING_PLANS } from "app/graphql/mutation/sellingPlan";
+import {  DELETE_SELLING_PLAN_GROUP, GET_VARIANT_SELLING_PLANS, removeVariantMutation } from "app/graphql/mutation/sellingPlan";
+import { publishMutation } from "app/graphql/queries/metaobject";
+import { GET_SHOP } from "app/graphql/queries/shop";
+import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -137,7 +138,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       // ------------------------
       // Step 1: Update campaign basic data
       // ------------------------
-      const updatedCampaign = await updateCampaign({
+      await updateCampaign({
         id: params.id!,
         name: formData.get("name") as string,
         depositPercent: Number(formData.get("depositPercent")),
@@ -154,17 +155,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         status: campaignCurrentStatus,
       });
 
-
       // ------------------------
       // Step 1b: Replace campaign products
       // ------------------------
       const updatedProducts = JSON.parse(
         (formData.get("products") as string) || "[]",
       );
-      const replace = await replaceProductsInCampaign(
-        String(params.id!),
-        updatedProducts,
-      );
+      await replaceProductsInCampaign(String(params.id!), updatedProducts);
       // console.log("Replaced products:", replace);
 
       // ------------------------
@@ -328,171 +325,171 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           ),
         );
       }
-      const products = JSON.parse(
-          (formData.get("products") as string) || "[]",
-        );
+      const products = JSON.parse((formData.get("products") as string) || "[]");
 
       const metafields = products.flatMap((product: any) => [
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "campaign_id",
-                    type: "single_line_text_field",
-                    value: String(params.id),
-                  },
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "preorder",
-                    type: "boolean",
-                    value: "true"
-                  },
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "release_date",
-                    type: "date",
-                    value: "2025-08-30",
-                  },
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "preorder_end_date",
-                    type: "date_time",
-                    value: new Date(
-                      formData.get("campaignEndDate") as string,
-                    ).toISOString(),
-                  },
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "deposit_percent",
-                    type: "number_integer",
-                    value: String(formData.get("depositPercent") || "0"),
-                  },
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "balance_due_date",
-                    type: "date",
-                    value: new Date(
-                      formData.get("balanceDueDate") as string,
-                    ).toISOString(),
-                  },
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "preorder_max_units",
-                    type: "number_integer",
-                    value: String(product?.maxUnit || "0"),
-                  },
-                  {
-                    ownerId: product.variantId,
-                    namespace: "custom",
-                    key: "preorder_units_sold",
-                    type: "number_integer",
-                    value: "0",
-                  },
-                ]);
-      
-                const productMetafields = products.flatMap((product: any) => [
-                   {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "campaign_id",
-                    type: "single_line_text_field",
-                    value: String(params.id),
-                  },
-                  {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "preorder",
-                    type: "boolean",
-                    value: "true",
-                  },
-                  {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "release_date",
-                    type: "date",
-                    value: "2025-08-30",
-                  },
-                  {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "preorder_end_date",
-                    type: "date_time",
-                    value: new Date(
-                      formData.get("campaignEndDate") as string,
-                    ).toISOString(),
-                  },
-                  {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "deposit_percent",
-                    type: "number_integer",
-                    value: String(formData.get("depositPercent") || "0"),
-                  },
-                  {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "balance_due_date",
-                    type: "date",
-                    value: new Date(
-                      formData.get("balanceDueDate") as string,
-                    ).toISOString(),
-                  },
-                  {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "preorder_max_units",
-                    type: "number_integer",
-                    value: String(product?.maxUnit || "0"),
-                  },
-                  {
-                    ownerId: product.productId,
-                    namespace: "custom",
-                    key: "preorder_units_sold",
-                    type: "number_integer",
-                    value: "0",
-                  },
-                ])
-      
-                try {
-                  const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
-                    variables: { metafields },
-                  });
-                  
-                  const response2 = await admin.graphql(SET_PREORDER_METAFIELDS, {
-                    variables: { metafields: productMetafields },
-                  })
-                  console.log("GraphQL response:", response);
-                  console.log("GraphQL response2:", response2);
-                } catch (err) {
-                  console.error("GraphQL mutation failed:", err);
-                  throw err;
-                }
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: String(params.id),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "true",
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "release_date",
+          type: "date",
+          value: "2025-08-30",
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder_end_date",
+          type: "date_time",
+          value: new Date(
+            formData.get("campaignEndDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "deposit_percent",
+          type: "number_integer",
+          value: String(formData.get("depositPercent") || "0"),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "balance_due_date",
+          type: "date",
+          value: new Date(
+            formData.get("balanceDueDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder_max_units",
+          type: "number_integer",
+          value: String(product?.maxUnit || "0"),
+        },
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder_units_sold",
+          type: "number_integer",
+          value: "0",
+        },
+      ]);
 
-       const removedVarients = formData.get('removedVarients') as string;
-       const parsedRemovedVarients = removedVarients ? JSON.parse(removedVarients) : [];
-       console.log("parsedRemovedVarients", parsedRemovedVarients);
+      const productMetafields = products.flatMap((product: any) => [
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: String(params.id),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "true",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "release_date",
+          type: "date",
+          value: "2025-08-30",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder_end_date",
+          type: "date_time",
+          value: new Date(
+            formData.get("campaignEndDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "deposit_percent",
+          type: "number_integer",
+          value: String(formData.get("depositPercent") || "0"),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "balance_due_date",
+          type: "date",
+          value: new Date(
+            formData.get("balanceDueDate") as string,
+          ).toISOString(),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder_max_units",
+          type: "number_integer",
+          value: String(product?.maxUnit || "0"),
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder_units_sold",
+          type: "number_integer",
+          value: "0",
+        },
+      ]);
 
-       if (parsedRemovedVarients.length > 0) {
-         //need to remove selling group and
-         //remove metafields
-         for (const variantId of parsedRemovedVarients) {
-           const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
-             variables: {
-               id: variantId,
-             },
-           });
+      try {
+        const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
+          variables: { metafields },
+        });
 
-           const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
-           for (const g of groups) {
-             const groupId = g.node.id;
+        const response2 = await admin.graphql(SET_PREORDER_METAFIELDS, {
+          variables: { metafields: productMetafields },
+        });
+        console.log("GraphQL response:", response);
+        console.log("GraphQL response2:", response2);
+      } catch (err) {
+        console.error("GraphQL mutation failed:", err);
+        throw err;
+      }
 
-             // Step 2: remove variant from group
-             const removeVariantMutation = `
+      const removedVarients = formData.get("removedVarients") as string;
+      const parsedRemovedVarients = removedVarients
+        ? JSON.parse(removedVarients)
+        : [];
+      console.log("parsedRemovedVarients", parsedRemovedVarients);
+
+      if (parsedRemovedVarients.length > 0) {
+        //need to remove selling group and
+        //remove metafields
+        for (const variantId of parsedRemovedVarients) {
+          const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+            variables: {
+              id: variantId,
+            },
+          });
+
+          const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
+          for (const g of groups) {
+            const groupId = g.node.id;
+
+            // Step 2: remove variant from group
+            const removeVariantMutation = `
         mutation RemoveVariantFromGroup($groupId: ID!, $variantIds: [ID!]!) {
           sellingPlanGroupRemoveProductVariants(
             id: $groupId
@@ -505,17 +502,17 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           }
         }
       `;
-             await admin.graphql(removeVariantMutation, {
-               variables: {
-                 groupId,
-                 variantIds: [variantId],
-               },
-             });
-           }
-         }
+            await admin.graphql(removeVariantMutation, {
+              variables: {
+                groupId,
+                variantIds: [variantId],
+              },
+            });
+          }
+        }
 
-         //remove metafields
-          const removeMetaFieldMutation = `
+        //remove metafields
+        const removeMetaFieldMutation = `
             mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
               metafieldsSet(metafields: $metafields) {
                 metafields {
@@ -533,51 +530,48 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
             }
           `;
 
-          const metafields = parsedRemovedVarients.flatMap((varientId :any) => [
-        {
-          ownerId: varientId,
-          namespace: "custom",
-          key: "campaign_id",
-          type: "single_line_text_field",
-          value: 'null',
-        },
-        {
-          ownerId: varientId,
-          namespace: "custom",
-          key: "preorder",
-          type: "boolean",
-          value: "false",
-        },
-        {
-          ownerId: varientId,
-          namespace: "custom",
-          key: "campaign_id",
-          type: "single_line_text_field",
-          value: 'null',
-        },
-        {
-          ownerId: varientId,
-          namespace: "custom",
-          key: "preorder",
-          type: "boolean",
-          value: "false",
-        },
-      ]);
+        const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "campaign_id",
+            type: "single_line_text_field",
+            value: "null",
+          },
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "preorder",
+            type: "boolean",
+            value: "false",
+          },
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "campaign_id",
+            type: "single_line_text_field",
+            value: "null",
+          },
+          {
+            ownerId: varientId,
+            namespace: "custom",
+            key: "preorder",
+            type: "boolean",
+            value: "false",
+          },
+        ]);
 
-      try {
-        const graphqlResponse = await admin.graphql(removeMetaFieldMutation, {
-          variables: { metafields },
-        });
+        try {
+          const graphqlResponse = await admin.graphql(removeMetaFieldMutation, {
+            variables: { metafields },
+          });
 
-        console.log("GraphQL response:", graphqlResponse);
-       }
-       catch (err) {
-        console.error("GraphQL mutation failed:", err);
-        throw err;
+          console.log("GraphQL response:", graphqlResponse);
+        } catch (err) {
+          console.error("GraphQL mutation failed:", err);
+          throw err;
+        }
       }
-      }
-       
-       
 
       return redirect(`/app/`);
     } catch (err) {
@@ -589,32 +583,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   if (intent === "publish-campaign") {
     const id = formData.get("id");
 
-    const publishMutation = `
-mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
-  metaobjectUpsert(
-    handle: $handle,
-    metaobject: {
-      fields: [
-        { key: "status", value: $status }
-      ]
-    }
-  ) {
-    metaobject {
-      id
-      handle
-      fields {
-        key
-        value
-      }
-    }
-    userErrors {
-      field
-      message
-      code
-    }
-  }
-}
-`;
+   
     try {
       const res = await admin.graphql(publishMutation, {
         variables: {
@@ -626,27 +595,11 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       console.log(error);
     }
 
-    const mutation = `
-            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-              metafieldsSet(metafields: $metafields) {
-                metafields {
-                  id
-                  namespace
-                  key
-                  type
-                  value
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `;
+
 
     const products = JSON.parse((formData.get("products") as string) || "[]");
 
-    const metafields = products.flatMap((product:any) => [
+    const metafields = products.flatMap((product: any) => [
       {
         ownerId: product.variantId,
         namespace: "custom",
@@ -661,13 +614,12 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       },
     ]);
 
-
     try {
-      const graphqlResponse = await admin.graphql(mutation, {
+      const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
         variables: { metafields },
       });
 
-      const response = await graphqlResponse.json(); 
+      const response = await graphqlResponse.json();
 
       if (response.data?.metafieldsSet?.userErrors?.length) {
         console.error(
@@ -680,55 +632,27 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       throw err;
     }
 
- const paymentMode = formData.get("paymentMode") as "partial" | "full";
-        const discountType = formData.get("discountType") as
-          | "none"
-          | "percentage"
-          | "flat";
+    const paymentMode = formData.get("paymentMode") as "partial" | "full";
+    const discountType = formData.get("discountType") as
+      | "none"
+      | "percentage"
+      | "flat";
 
-        const res = await createSellingPlan(
-          admin,
-          paymentMode,
-          discountType,
-          products,
-          formData,
-        );
-        console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
-        await updateCampaignStatus(params.id!, "PUBLISHED");
-            return redirect(`/app/`);
-
-
-    
+    const res = await createSellingPlan(
+      admin,
+      paymentMode,
+      discountType,
+      products,
+      formData,
+    );
+    console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
+    await updateCampaignStatus(params.id!, "PUBLISHED");
+    return redirect(`/app/`);
   }
 
   if (intent === "unpublish-campaign") {
     const id = formData.get("id");
-    const unpublishMutation = `
-mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
-  metaobjectUpsert(
-    handle: $handle,
-    metaobject: {
-      fields: [
-        { key: "status", value: $status }
-      ]
-    }
-  ) {
-    metaobject {
-      id
-      handle
-      fields {
-        key
-        value
-      }
-    }
-    userErrors {
-      field
-      message
-      code
-    }
-  }
-}
-`;
+    
     try {
       const res = await admin.graphql(unpublishMutation, {
         variables: {
@@ -740,24 +664,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       const result = await res.json();
 
       //need to get campaign products and need to remove campaign_id metafield in them
-
-      const mutation = `
-            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-              metafieldsSet(metafields: $metafields) {
-                metafields {
-                  id
-                  namespace
-                  key
-                  type
-                  value
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `;
 
       const products = JSON.parse((formData.get("products") as string) || "[]");
 
@@ -793,7 +699,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
       ]);
 
       try {
-        const graphqlResponse = await admin.graphql(mutation, {
+        const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
           variables: { metafields },
         });
 
@@ -810,35 +716,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         throw err;
       }
 
-      const GET_PRODUCT_SELLING_PLAN_GROUPS = `
-  query GetProductSPGs($id: ID!) {
-    product(id: $id) {
-      id
-      title
-      sellingPlanGroups(first: 50) {
-        edges {
-          node {
-            id
-            name
-            merchantCode
-          }
-        }
-      }
-    }
-  }
-`;
 
-      const DELETE_SELLING_PLAN_GROUP = `
-  mutation DeleteSellingPlanGroup($id: ID!) {
-    sellingPlanGroupDelete(id: $id) {
-      deletedSellingPlanGroupId
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
 
       const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
         variables: { id: products[0].productId },
@@ -889,15 +767,9 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         await deleteCampaign(params.id!);
       }
 
-      const query = `{
-            shop {
-              id
-              name
-              myshopifyDomain
-            }
-          }`;
+     
 
-      const response = await admin.graphql(query);
+      const response = await admin.graphql(GET_SHOP);
       const data = await response.json();
       const storeId = data.data.shop.id;
 
@@ -934,7 +806,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           // -------------------------------
           // PREORDER METAFIELDS UPDATE
           // -------------------------------
-          
 
           const metafields = products.flatMap((product) => [
             {
@@ -945,7 +816,7 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
               value: String(campaign.id),
             },
             {
-              ownerId:product.variantId,
+              ownerId: product.variantId,
               namespace: "custom",
               key: "preorder",
               type: "boolean",
@@ -1032,9 +903,6 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
           },
         ];
 
-        console.log(fields, "fields >>>>>>>>>>>>>>>>>>>>>>");
-
-       
 
         try {
           const response = await admin.graphql(CREATE_DESIGN_SETTINGS, {
@@ -1099,116 +967,84 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
 
         await updateCampaignStatus(campaign.id, "PUBLISHED");
         await deleteCampaign(params.id!);
-          const removedVarients = formData.get("removedVarients") as string;
-          const parsedRemovedVarients = removedVarients
-            ? JSON.parse(removedVarients)
-            : [];
+        const removedVarients = formData.get("removedVarients") as string;
+        const parsedRemovedVarients = removedVarients
+          ? JSON.parse(removedVarients)
+          : [];
 
-          if (parsedRemovedVarients.length > 0) {
-            //need to remove selling group and
-            //remove metafields
-            for (const variantId of parsedRemovedVarients) {
-              const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+        if (parsedRemovedVarients.length > 0) {
+          //need to remove selling group and
+          //remove metafields
+          for (const variantId of parsedRemovedVarients) {
+            const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+              variables: {
+                id: variantId,
+              },
+            });
+
+            const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
+            for (const g of groups) {
+              const groupId = g.node.id;
+
+              // Step 2: remove variant from group
+              
+              await admin.graphql(removeVariantMutation, {
                 variables: {
-                  id: variantId,
+                  groupId,
+                  variantIds: [variantId],
                 },
               });
-
-              const groups =
-                data?.productVariant?.sellingPlanGroups?.edges || [];
-              for (const g of groups) {
-                const groupId = g.node.id;
-
-                // Step 2: remove variant from group
-                const removeVariantMutation = `
-        mutation RemoveVariantFromGroup($groupId: ID!, $variantIds: [ID!]!) {
-          sellingPlanGroupRemoveProductVariants(
-            id: $groupId
-            productVariantIds: $variantIds
-          ) {
-            userErrors {
-              field
-              message
             }
           }
-        }
-      `;
-                await admin.graphql(removeVariantMutation, {
-                  variables: {
-                    groupId,
-                    variantIds: [variantId],
-                  },
-                });
-              }
-            }
 
-            //remove metafields
-            const removeMetaFieldMutation = `
-            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-              metafieldsSet(metafields: $metafields) {
-                metafields {
-                  id
-                  namespace
-                  key
-                  type
-                  value
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `;
+          //remove metafields
+          
 
-            const metafields = parsedRemovedVarients.flatMap(
-              (varientId: any) => [
-                {
-                  ownerId: varientId,
-                  namespace: "custom",
-                  key: "campaign_id",
-                  type: "single_line_text_field",
-                  value: "null",
-                },
-                {
-                  ownerId: varientId,
-                  namespace: "custom",
-                  key: "preorder",
-                  type: "boolean",
-                  value: "false",
-                },
-                {
-                  ownerId: varientId,
-                  namespace: "custom",
-                  key: "campaign_id",
-                  type: "single_line_text_field",
-                  value: "null",
-                },
-                {
-                  ownerId: varientId,
-                  namespace: "custom",
-                  key: "preorder",
-                  type: "boolean",
-                  value: "false",
-                },
-              ],
+          const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: "null",
+            },
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: "null",
+            },
+            {
+              ownerId: varientId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+          ]);
+
+          try {
+            const graphqlResponse = await admin.graphql(
+              removeMetaFieldMutation,
+              {
+                variables: { metafields },
+              },
             );
 
-            try {
-              const graphqlResponse = await admin.graphql(
-                removeMetaFieldMutation,
-                {
-                  variables: { metafields },
-                },
-              );
-
-              console.log("GraphQL response:", graphqlResponse);
-            } catch (err) {
-              console.error("GraphQL mutation failed:", err);
-              throw err;
-            }
+            console.log("GraphQL response:", graphqlResponse);
+          } catch (err) {
+            console.error("GraphQL mutation failed:", err);
+            throw err;
           }
-       
+        }
 
         return redirect("/app");
       }
@@ -1229,9 +1065,7 @@ export default function CampaignDetail() {
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
   } = useLoaderData<typeof loader>();
-  console.log(parsedDesignSettingsResponse, "parsedDesignSettingsResponse");
-  console.log(parsedCampaignSettingsResponse, "parsedCampaignSettingsResponse");
-
+ 
   const navigation = useNavigation();
 
   const designFieldsObj =
@@ -1267,9 +1101,6 @@ export default function CampaignDetail() {
 
   const submit = useSubmit();
   const navigate = useNavigate();
-  const fetcher = useFetcher();
-  const actionData = useActionData<typeof action>();
-  const [campaignId, setCampaignId] = useState(campaign?.id);
 
   const [campaignName, setCampaignName] = useState(campaign?.name);
   const [selected, setSelected] = useState(0);
@@ -2072,7 +1903,7 @@ export default function CampaignDetail() {
                                 <TextField
                                   autoComplete="off"
                                   suffix={` ${partialPaymentType === "percent" ? "%" : "$"}`}
-                                  value={partialPaymentPercentage}
+                                  value={String(partialPaymentPercentage)}
                                   onChange={setPartialPaymentPercentage}
                                 />
                               </div>
@@ -2481,7 +2312,7 @@ export default function CampaignDetail() {
                       </div>
                     )}
                   </Card>
-                  <div>
+                  <div style={{ marginTop: 20 }}>
                     <Card>
                       <div style={{ padding: 3, textAlign: "center" }}>
                         <Text as="p" variant="headingSm">
@@ -2670,6 +2501,7 @@ export default function CampaignDetail() {
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
                             <img
@@ -2688,6 +2520,7 @@ export default function CampaignDetail() {
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
                             {product.variantTitle !== 'Default Title' ? product.variantTitle : product.productTitle}
@@ -2696,6 +2529,7 @@ export default function CampaignDetail() {
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
                             {product.variantInventory
@@ -2707,6 +2541,7 @@ export default function CampaignDetail() {
                               padding: "8px",
                               borderBottom: "1px solid #eee",
                               width: "100px",
+                              textAlign: "center",
                             }}
                           >
                             <TextField
@@ -2722,6 +2557,7 @@ export default function CampaignDetail() {
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              textAlign: "center",
                             }}
                           >
                             {product.variantPrice}

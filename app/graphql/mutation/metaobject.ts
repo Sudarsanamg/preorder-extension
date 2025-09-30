@@ -52,3 +52,30 @@ export const CREATE_CAMPAIGN = `#graphql
     }
   }
 `;
+
+export const unpublishMutation = `
+mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
+  metaobjectUpsert(
+    handle: $handle,
+    metaobject: {
+      fields: [
+        { key: "status", value: $status }
+      ]
+    }
+  ) {
+    metaobject {
+      id
+      handle
+      fields {
+        key
+        value
+      }
+    }
+    userErrors {
+      field
+      message
+      code
+    }
+  }
+}
+`;

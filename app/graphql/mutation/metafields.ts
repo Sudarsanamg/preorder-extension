@@ -51,3 +51,20 @@ export const GET_PRODUCTS_WITH_PREORDER = `#graphql
   }
 `;
 
+export const removeMetaFieldMutation = `
+            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
+              metafieldsSet(metafields: $metafields) {
+                metafields {
+                  id
+                  namespace
+                  key
+                  type
+                  value
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;

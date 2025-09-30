@@ -638,7 +638,7 @@ export default function Newcampaign() {
   ];
 
   const filteredProducts = selectedProducts?.filter((product) =>
-    product.variantTitle.toLowerCase().includes(searchTerm.toLowerCase()),
+    product?.variantTitle.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   function handleRemoveProduct(id: any ) {
