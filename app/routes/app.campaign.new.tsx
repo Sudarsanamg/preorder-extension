@@ -78,34 +78,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     case "fetchProductsInCollection": {
       const collectionId = url.searchParams.get("collectionId");
 
-      try {
-        const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
-          variables: { id: collectionId },
-        });
+     try {
+  const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
+    variables: { id: collectionId },
+  });
 
-        const res = await response.json();
 
-        const prod = res.data.collection.products.edges.map((edge: any) => {
-          const node = edge.node;
+  // ✅ Instead use:
+  const resData = await response.json ? await response.json() : response;
 
-          const totalInventory = node.variants.edges.reduce(
-            (sum: number, v: any) => sum + (v.node.inventoryQuantity || 0),
-            0,
-          );
+  const prod = resData.data.collection.products.edges.flatMap((edge: any) => {
+    const node = edge.node;
 
-          return {
-            id: node.id,
-            title: node.title,
-            handle: node.handle,
-            image: node.images.edges[0]?.node?.src || null,
-            price: node.variants.edges[0]?.node?.price || null,
-            totalInventory,
-          };
-        });
-        return json({ prod });
-      } catch (error) {
-        console.log(error);
-      }
+    return node.variants.edges.map((v: any) => ({
+      productId: node.id,
+      productTitle: node.title,
+      handle: node.handle,
+      productImage: node.images.edges[0]?.node?.url || null, // use `url` not `src` in GraphQL
+      variantId: v.node.id,
+      variantTitle: v.node.displayName,
+      variantPrice: v.node.price,
+      variantInventory: v.node.inventoryQuantity,
+      maxUnit: 0,
+    }));
+  });
+
+  return json({ prod });
+} catch (error) {
+  console.error(error);
+}
+
     }
   }
 
@@ -556,43 +558,45 @@ export default function Newcampaign() {
   }, []);
 
   const openResourcePicker = () => {
-    shopify.modal.hide("my-modal");
+  shopify.modal.hide("my-modal");
 
-    const picker = ResourcePicker.create(appBridge, {
-      resourceType:
-        productRadio === "option1"
-          ? ResourcePicker.ResourceType.Product
-          : ResourcePicker.ResourceType.Collection,
-      options: {
-        selectMultiple: true,
-        initialSelectionIds: selectedProducts.map((p) => ({ id: p.id })),
-      },
-    });
+  const picker = ResourcePicker.create(appBridge, {
+    resourceType:
+      productRadio === "option1"
+        ? ResourcePicker.ResourceType.Product
+        : ResourcePicker.ResourceType.Collection,
+    options: {
+      selectMultiple: true,
+      initialSelectionIds: selectedProducts.map((v) => ({ 
+        id: v.productId ,
+        variants: [{ id: v.variantId }]
+      })),
+    },
+  });
 
-    picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
-      if (productRadio === "option1") {
-        // console.log('Payload selection >>>>>>>>>>>>>>>>',payload.selection);
-       const products = payload.selection.flatMap((p :any) =>
-  p.variants.map((v :any) => ({
-    productId: p.id,
-    productImage: p.images?.[0]?.originalSrc,
-    variantId: v.id,
-    variantTitle: v.displayName,
-    variantPrice: v.price,
-    variantInventory: v.inventoryQuantity,
-    maxUnit:0
-  }))
-);
+  picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
+    if (productRadio === "option1") {
+      const products = payload.selection.flatMap((p: any) =>
+        p.variants.map((v: any) => ({
+          productId: p.id,
+          productImage: p.images?.[0]?.originalSrc,
+          variantId: v.id,
+          variantTitle: v.displayName,
+          variantPrice: v.price,
+          variantInventory: v.inventoryQuantity,
+          maxUnit: 0,
+        }))
+      );
 
-        setSelectedProducts(products);
-        console.log(payload.selection);
-      } else {
-        await fetchProductsInCollection(payload.selection[0].id);
-      }
-    });
+      setSelectedProducts(products);
+    } else {
+      await fetchProductsInCollection(payload.selection[0].id);
+    }
+  });
 
-    picker.dispatch(ResourcePicker.Action.OPEN);
-  };
+  picker.dispatch(ResourcePicker.Action.OPEN);
+};
+
 
   const selectAllProducts = async () => {
     const res = await fetch("/api/products");

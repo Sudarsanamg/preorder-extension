@@ -35,12 +35,16 @@ export const GET_COLLECTION_PRODUCTS = `#graphql
             handle
             images(first: 1) {
               edges {
-                node { src }
+                node {
+                  url
+                }
               }
             }
-            variants(first: 1) {
+            variants(first: 100) {   # increase limit, Shopify caps at 250
               edges {
-                node { 
+                node {
+                  id
+                  displayName
                   price
                   inventoryQuantity
                 }
@@ -52,3 +56,4 @@ export const GET_COLLECTION_PRODUCTS = `#graphql
     }
   }
 `;
+
