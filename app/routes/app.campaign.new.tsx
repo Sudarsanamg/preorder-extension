@@ -404,7 +404,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "productsWithPreorder": {
         let productIds = JSON.parse(formData.get("products") as string);
 
-        productIds = productIds.map((product) => product.id);
+        productIds = productIds.map((product) => product.variantId);
 
         const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER, {
           variables: { ids: productIds },
@@ -414,7 +414,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const productsWithPreorder = data.data.nodes.map((product: any) => ({
           id: product.id,
           title: product.title,
-          preorder: product?.metafield?.value === "true",
+          preorder: product?.metafield?.value == "true",
         }));
 
         return json({ productsWithPreorder });
@@ -1776,7 +1776,7 @@ export default function Newcampaign() {
                           <tr
                             key={product.variantId}
                             style={{
-                              backgroundColor: handleDuplication(product.id)
+                              backgroundColor: handleDuplication(product.variantId)
                                 ? "#ea9898ff"
                                 : "",
                             }}
