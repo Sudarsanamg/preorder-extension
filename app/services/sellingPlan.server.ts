@@ -1,6 +1,6 @@
 import { CREATE_SELLING_PLAN_BASE} from "../graphql/mutation/sellingPlan";
 
-export async function createSellingPlan(admin: any, paymentMode: "partial" | "full", discountType: "none" | "percentage" | "flat", products: any[], formData: FormData) {
+export async function createSellingPlan(admin: any, paymentMode: "partial" | "full", discountType: "none" | "percentage" | "flat", products: any[], formData: FormData, customDays?: number | 7) {
   const variantIds = products.map((p) => p.variantId);
   const mutation = CREATE_SELLING_PLAN_BASE(paymentMode, discountType);
 
@@ -8,7 +8,7 @@ export async function createSellingPlan(admin: any, paymentMode: "partial" | "fu
 
   if (paymentMode === "partial") {
     variables.percentage = Number(formData.get("depositPercent"));
-    variables.days = "P7D";
+    variables.days = `P${customDays}D`;
   }
 
   if (discountType === "percentage") {

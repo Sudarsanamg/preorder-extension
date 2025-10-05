@@ -479,7 +479,7 @@ export default function Newcampaign() {
     popoverActive: false,
     inputValue: new Date().toLocaleDateString(),
   });
-  const [campaignEndTime, setCampaignEndTime] = useState("");
+  const [campaignEndTime, setCampaignEndTime] = useState("00:00");
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: "16",
     messageColor: "#000000",
@@ -674,6 +674,11 @@ export default function Newcampaign() {
     [activeButtonIndex],
   );
 
+  const formatedDate = ` ${new Date().toLocaleDateString('en-US', {
+  month: 'short', day: 'numeric', year: 'numeric'
+}).replace(',', '')}`;
+
+
   const handleSubmit = () => {
     // if (
     //   !campaignName ||
@@ -689,7 +694,7 @@ export default function Newcampaign() {
     setLoading(true);
     const formData = new FormData();
     formData.append("intent", "create-campaign");
-    formData.append("name", campaignName);
+    formData.append("name", campaignName !== ''? campaignName : `Campaign ${formatedDate}`);
     formData.append("storeId", storeId);
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
@@ -1283,7 +1288,7 @@ export default function Newcampaign() {
                         <TextField
                           id="campaignEndTime"
                           autoComplete="off"
-                          type="time"
+                          type="time"                          
                           label="Time"
                           placeholder="Select time"
                           value={campaignEndTime}

@@ -44,6 +44,7 @@ import {
   useLoaderData,
   Link,
   useNavigation,
+  useFetcher,
 } from "@remix-run/react";
 import {
   DiscountIcon,
@@ -66,11 +67,47 @@ import { GET_PRODUCTS_BY_IDS, GET_VARIENT_BY_IDS } from "app/graphql/queries/pro
 import { fetchMetaobject } from "app/services/metaobject.server";
 import {  DELETE_SELLING_PLAN_GROUP, GET_VARIANT_SELLING_PLANS, removeVariantMutation } from "app/graphql/mutation/sellingPlan";
 import { publishMutation } from "app/graphql/queries/metaobject";
-import { GET_SHOP } from "app/graphql/queries/shop";
+import { GET_COLLECTION_PRODUCTS, GET_SHOP } from "app/graphql/queries/shop";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
+import { save } from "@shopify/app-bridge/actions/ContextualSaveBar";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const intent = url.searchParams.get("intent");
+  if(intent === "fetchProductsInCollection") {
+    const collectionId = url.searchParams.get("collectionId");
+    
+         try {
+      const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
+        variables: { id: collectionId },
+      });    
+      const resData = await response.json ? await response.json() : response;
+    
+      const prod = resData.data.collection.products.edges.flatMap((edge: any) => {
+        const node = edge.node;
+    
+        return node.variants.edges.map((v: any) => ({
+          productId: node.id,
+          productTitle: node.title,
+          handle: node.handle,
+          productImage: node.images.edges[0]?.node?.url || null, // use `url` not `src` in GraphQL
+          variantId: v.node.id,
+          variantTitle: v.node.displayName,
+          variantPrice: v.node.price,
+          variantInventory: v.node.inventoryQuantity,
+          maxUnit: 0,
+        }));
+      });
+    
+      return json({ prod });
+  }
+  catch (error) {
+      console.error("Error fetching products:", error);
+      return json({ error: "Failed to fetch products" });
+  }
+}
+  else{
   const campaign = await getCampaignById(params.id!);
   console.log(campaign, ">>>>>>>>>>>>>>>>Campaign loaded");
   const varientId = campaign?.products?.map((p) => p.variantId) || [];
@@ -118,6 +155,7 @@ const variants = data.data.nodes.map((variant: any) => ({
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
   });
+}
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -1064,9 +1102,12 @@ export default function CampaignDetail() {
     products,
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
+    prod
   } = useLoaderData<typeof loader>();
  
   const navigation = useNavigation();
+    const fetcher = useFetcher();
+
 
   const designFieldsObj =
     parsedDesignSettingsResponse?.data?.metaobjectByHandle?.fields;
@@ -1198,6 +1239,7 @@ export default function CampaignDetail() {
     buttonFontSize: parsedDesignFields?.buttonFontSize,
     buttonTextColor: parsedDesignFields?.buttonTextColor,
   });
+  const [saveBarActive, setSaveBarActive] = useState(false);
 
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
@@ -1254,21 +1296,33 @@ export default function CampaignDetail() {
     setCampaignEndTime(value);
   }, []);
 
+   async function fetchProductsInCollection(id: string) {
+    submit(
+      { intent: "fetchProductsInCollection", collectionId: id },
+      { method: "get" }
+    );
+      console.log(prod, "prod");
+
+    if (prod) {
+      setSelectedProducts(prod);
+    }
+  }
+
   const openResourcePicker = () => {
     shopify.modal.hide("my-modal");
 
-    async function fetchProductsInCollection(collectionId: string) {
-      const res = await fetch("/api/products-in-collection", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collectionId }),
-      });
+    // async function fetchProductsInCollection(collectionId: string) {
+    //   const res = await fetch("/api/products-in-collection", {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ collectionId }),
+    //   });
 
-      if (!res.ok) throw new Error("Failed to fetch products");
+    //   if (!res.ok) throw new Error("Failed to fetch products");
 
-      const data = await res.json();
-      return data.products;
-    }
+    //   const data = await res.json();
+    //   return data.products;
+    // }
 
     const picker = ResourcePicker.create(appBridge, {
       resourceType:
@@ -1277,14 +1331,28 @@ export default function CampaignDetail() {
           : ResourcePicker.ResourceType.Collection,
       options: {
         selectMultiple: true,
-        initialSelectionIds: selectedProducts.map((p) => ({ id: p.id })),
+       initialSelectionIds: selectedProducts.map((v) => ({ 
+        id: v.productId ,
+        variants: [{ id: v.variantId }]
+      })),
       },
     });
 
     picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
       if (productRadio === "option1") {
         // ✅ products directly selected
-        setSelectedProducts(payload.selection);
+        const products = payload.selection.flatMap((p: any) =>
+        p.variants.map((v: any) => ({
+          productId: p.id,
+          productImage: p.images?.[0]?.originalSrc,
+          variantId: v.id,
+          variantTitle: v.displayName,
+          variantPrice: v.price,
+          variantInventory: v.inventoryQuantity,
+          maxUnit: selectedProducts.find((p) => p.variantId === v.id)?.maxUnit || 0,
+        }))
+      );
+        setSelectedProducts(products);
       } else {
         // ✅ collections selected → fetch products inside
         let allProducts: any[] = [];
@@ -1338,7 +1406,7 @@ export default function CampaignDetail() {
     },
     {
       id: "add-products",
-      content: "Add Products",
+      content: "Products",
       panelID: "add-products-content",
     },
   ];
@@ -1387,9 +1455,11 @@ export default function CampaignDetail() {
   };
 
   const handleMaxUnitChange = (id: string, value: number) => {
+    //if value is alphabet dont get typed
+    if(isNaN(value)) return
     setSelectedProducts((prev: any) =>
       prev.map((product) =>
-        product.id === id
+        product.variantId === id
           ? { ...product, maxUnit: value } // add/update maxUnit
           : product,
       ),
@@ -1462,14 +1532,16 @@ export default function CampaignDetail() {
       }
 
       shopify.saveBar.hide("my-save-bar");
+      setSaveBarActive(false);
     } catch (error) {
       console.error("Save error:", error);
     }
   };
 
   const handleDiscard = () => {
-    console.log("Discarding");
+    // console.log("Discarding");
     shopify.saveBar.hide("my-save-bar");
+    setSaveBarActive(false);
   };
 
   function handlePublish(id: string): void {
@@ -1489,8 +1561,11 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
+
+
   useEffect(() => {
     shopify.saveBar.show("my-save-bar");
+    setSaveBarActive(true);
   }, [
     designFields,
     campaignName,
@@ -1505,6 +1580,10 @@ export default function CampaignDetail() {
     customerTags,
     campaignEndDate,
   ]);
+
+    useEffect(() => {
+   setSaveBarActive(false);
+  }, []);
 
   const handleButtonClick = useCallback(
     (index: number) => {
@@ -1553,7 +1632,7 @@ export default function CampaignDetail() {
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title={`Update ${campaign?.name}`}
+        title={`Update ${campaignName}`}
         titleMetadata={
           campaign?.status === "PUBLISHED" ? (
             <Badge tone="success">Published</Badge>
@@ -1563,7 +1642,17 @@ export default function CampaignDetail() {
         }
         backAction={{
           content: "Back",
-          onAction: () => navigate("/app"), // <-- Remix navigate
+          onAction: () => {
+            console.log(saveBarActive);
+            if(saveBarActive) {
+              shopify.saveBar.leaveConfirmation();
+              
+              // setSaveBarActive(false);
+            }
+            else{
+            navigate("/app")
+            }
+          }, // <-- Remix navigate
         }}
         // primaryAction={{
         //   content: "Publish",
@@ -2536,6 +2625,9 @@ export default function CampaignDetail() {
                               ? product.variantInventory
                               : product.inventory}
                           </td>
+                          {
+                            selectedOption !== 3 && (
+                        
                           <td
                             style={{
                               padding: "8px",
@@ -2545,14 +2637,23 @@ export default function CampaignDetail() {
                             }}
                           >
                             <TextField
-                              type="number"
+                              type="text"
                               min={0}
-                              value={product?.maxUnit?.toString() || "0"} // Polaris expects string
+                              value={
+                                selectedOption === 3 ?
+                                product.variantInventory
+                              ? product.variantInventory
+                              : product.inventory
+                                : 
+                                product?.maxUnit.toString() || '0'} 
                               onChange={(value) =>
                                 handleMaxUnitChange(product.variantId, Number(value))
                               }
                             />
                           </td>
+                                
+                            )
+                          }
                           <td
                             style={{
                               padding: "8px",

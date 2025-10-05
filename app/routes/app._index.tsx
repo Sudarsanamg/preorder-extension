@@ -96,13 +96,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   await createWebhook(
     admin,
     "ORDERS_CREATE",
-    `https://findarticles-respect-anthropology-bulk.trycloudflare.com/webhooks/custom`,
+    `https://screensaver-period-liverpool-confident.trycloudflare.com/webhooks/custom`,
   );
   const orderPaidRes = await createWebhook(
     admin,
     "ORDERS_PAID",
-    `https://findarticles-respect-anthropology-bulk.trycloudflare.com/webhooks/order_paid`,
+    `https://screensaver-period-liverpool-confident.trycloudflare.com/webhooks/order_paid`,
   );
+
+  const inventoryUpdateRes = await createWebhook(
+    admin,
+    "PRODUCTS_UPDATE",
+    `https://quarter-render-burner-residential.trycloudflare.com/webhooks/products_update`,
+  );
+
+  console.log("inventoryUpdateRes", inventoryUpdateRes);
+
+  if (inventoryUpdateRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
+    return json(
+      {
+        success: false,
+        errors: inventoryUpdateRes.data.webhookSubscriptionCreate.userErrors,
+      },
+      { status: 400 },
+    );
+  }
 
   if (orderPaidRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
     return json(
@@ -128,6 +146,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return json({
     success: true,
     webhook: orderPaidRes.data?.webhookSubscriptionCreate?.webhookSubscription,
+    // webhook:true
   });
     
   } catch (error) {
