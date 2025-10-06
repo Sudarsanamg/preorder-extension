@@ -2,7 +2,7 @@
 {% assign product_price = product.price | money_without_currency %}
 {% assign units_sold = product.metafields.custom.preorder_units_sold %}
 {% assign max_units  = product.metafields.custom.preorder_units %}
-{% assign variant = product.selected_or_first_available_variant %}
+{% assign variant = product.selected_variant %}
 {% assign selected_selling_plan_allocation = variant.selling_plan_allocations.first %}
 {% assign compare_at_price = selected_selling_plan_allocation.compare_at_price %}
 {% assign price = selected_selling_plan_allocation.price %}
