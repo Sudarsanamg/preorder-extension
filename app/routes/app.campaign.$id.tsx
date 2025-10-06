@@ -53,109 +53,132 @@ import {
   CashDollarIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
-import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
+import { ResourcePicker,  } from "@shopify/app-bridge/actions";
 import { useAppBridge } from "../components/AppBridgeProvider";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import { DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
 import prisma from "app/db.server";
-import { CampaignStatus } from "@prisma/client";
-import { removeMetaFieldMutation, SET_PREORDER_METAFIELDS } from "app/graphql/mutation/metafields";
+import {
+  removeMetaFieldMutation,
+  SET_PREORDER_METAFIELDS,
+} from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
-import { CREATE_CAMPAIGN, CREATE_DESIGN_SETTINGS, unpublishMutation } from "app/graphql/mutation/metaobject";
-import { GET_PRODUCTS_BY_IDS, GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
+import {
+  CREATE_CAMPAIGN,
+  CREATE_DESIGN_SETTINGS,
+  unpublishMutation,
+} from "app/graphql/mutation/metaobject";
+import {
+  GET_VARIENT_BY_IDS,
+} from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
-import {  DELETE_SELLING_PLAN_GROUP, GET_VARIANT_SELLING_PLANS, removeVariantMutation } from "app/graphql/mutation/sellingPlan";
-import { publishMutation } from "app/graphql/queries/metaobject";
+import {
+  DELETE_SELLING_PLAN_GROUP,
+  GET_VARIANT_SELLING_PLANS,
+  removeVariantMutation,
+} from "app/graphql/mutation/sellingPlan";
+import {
+  GetCampaignId,
+  getDesignQuery,
+  publishMutation,
+  updateCampaignMutation,
+  updateDesignMutation,
+} from "app/graphql/queries/metaobject";
 import { GET_COLLECTION_PRODUCTS, GET_SHOP } from "app/graphql/queries/shop";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
-import { save } from "@shopify/app-bridge/actions/ContextualSaveBar";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
-  if(intent === "fetchProductsInCollection") {
+  if (intent === "fetchProductsInCollection") {
     const collectionId = url.searchParams.get("collectionId");
-    
-         try {
+
+    try {
       const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
         variables: { id: collectionId },
-      });    
-      const resData = await response.json ? await response.json() : response;
-    
-      const prod = resData.data.collection.products.edges.flatMap((edge: any) => {
-        const node = edge.node;
-    
-        return node.variants.edges.map((v: any) => ({
-          productId: node.id,
-          productTitle: node.title,
-          handle: node.handle,
-          productImage: node.images.edges[0]?.node?.url || null, // use `url` not `src` in GraphQL
-          variantId: v.node.id,
-          variantTitle: v.node.displayName,
-          variantPrice: v.node.price,
-          variantInventory: v.node.inventoryQuantity,
-          maxUnit: 0,
-        }));
       });
-    
+      const resData : any= (await response.json) ? await response.json() : response;
+
+      const prod = resData.data.collection.products.edges.flatMap(
+        (edge: any) => {
+          const node = edge.node;
+
+          return node.variants.edges.map((v: any) => ({
+            productId: node.id,
+            productTitle: node.title,
+            handle: node.handle,
+            productImage: node.images.edges[0]?.node?.url || null, // use `url` not `src` in GraphQL
+            variantId: v.node.id,
+            variantTitle: v.node.displayName,
+            variantPrice: v.node.price,
+            variantInventory: v.node.inventoryQuantity,
+            maxUnit: 0,
+          }));
+        },
+      );
+
       return json({ prod });
-  }
-  catch (error) {
+    } catch (error) {
       console.error("Error fetching products:", error);
       return json({ error: "Failed to fetch products" });
+    }
+  } else {
+    const campaign = await getCampaignById(params.id!);
+    const varientId = campaign?.products?.map((p) => p.variantId) || [];
+    if (varientId.length === 0) {
+      return json({ campaign, products: [] });
+    }
+
+    // const formattedIds = productIds.map(id => id.replace(/"/g, "")).join('","');
+    const response = await admin.graphql(GET_VARIENT_BY_IDS, {
+      variables: { ids: varientId }, // make sure this is an array of IDs
+    });
+
+    const data = await response.json();
+
+    const variants = data.data.nodes.map((variant: any) => ({
+      id: variant.id,
+      title: variant.title,
+      image: variant.product?.featuredImage?.url ?? null,
+      price: variant.price ?? null, // already scalar
+      inventory: variant.inventoryQuantity ?? null,
+      maxUnit: variant.metafield?.value ?? null,
+      productId: variant.product?.id ?? null,
+      productTitle: variant.product?.title ?? null,
+    }));
+
+    let designSettingsResponse = await fetchMetaobject(
+      admin,
+      params.id!,
+      "design_settings",
+    );
+    let parsedDesignSettingsResponse = await designSettingsResponse.json();
+    let campaignSettingsResponse = await fetchMetaobject(
+      admin,
+      params.id!,
+      "preordercampaign",
+    );
+    let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
+    const products = variants.map((variant:any) => ({
+      productId: variant.productId,
+      variantId: variant.id,
+      variantTitle: variant.title,
+      variantPrice: variant.price,
+      variantInventory: variant.inventory,
+      maxUnit: variant.maxUnit,
+      productImage: variant.image,
+      productTitle: variant.productTitle,
+    }));
+
+    return json({
+      campaign,
+      products,
+      parsedDesignSettingsResponse,
+      parsedCampaignSettingsResponse,
+    });
   }
-}
-  else{
-  const campaign = await getCampaignById(params.id!);
-  console.log(campaign, ">>>>>>>>>>>>>>>>Campaign loaded");
-  const varientId = campaign?.products?.map((p) => p.variantId) || [];
-  if (varientId.length === 0) {
-    return json({ campaign, products: [] });
-  }
-
-// const formattedIds = productIds.map(id => id.replace(/"/g, "")).join('","'); 
-const response = await admin.graphql(GET_VARIENT_BY_IDS, {
-  variables: { ids: varientId }, // make sure this is an array of IDs
-});
-
-const data = await response.json();
-
-const variants = data.data.nodes.map((variant: any) => ({
-  id: variant.id,
-  title: variant.title,
-  image: variant.product?.featuredImage?.url ?? null,
-  price: variant.price ?? null,        // already scalar
-  inventory: variant.inventoryQuantity ?? null,
-  maxUnit: variant.metafield?.value ?? null,
-  productId: variant.product?.id ?? null,
-  productTitle: variant.product?.title ?? null,
-}));
-
-
-  let designSettingsResponse = await fetchMetaobject(admin, params.id!, "design_settings");
-  let parsedDesignSettingsResponse = await designSettingsResponse.json();
-  let campaignSettingsResponse = await fetchMetaobject(admin, params.id!, "preordercampaign");
-  let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
-  const products = variants.map((variant) => ({
-    productId: variant.productId,
-    variantId: variant.id,
-    variantTitle: variant.title,
-    variantPrice: variant.price,
-    variantInventory: variant.inventory,
-    maxUnit: variant.maxUnit,
-    productImage: variant.image,
-    productTitle: variant.productTitle
-  }));
-
-  return json({
-    campaign,
-    products,
-    parsedDesignSettingsResponse,
-    parsedCampaignSettingsResponse,
-  });
-}
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -205,15 +228,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       // ------------------------
       // Step 2: Update campaign metaobject
       // ------------------------
-      const getIdQuery = `
-      query GetCampaignId($handle: MetaobjectHandleInput!) {
-        metaobjectByHandle(handle: $handle) {
-          id
-        }
-      }
-    `;
 
-      const handleRes = await admin.graphql(getIdQuery, {
+      const handleRes = await admin.graphql(GetCampaignId, {
         variables: {
           handle: { type: "preordercampaign", handle: params.id },
         },
@@ -259,19 +275,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         },
       ];
 
-      const updateCampaignMutation = `
-      mutation UpdateCampaign($id: ID!, $metaobject: MetaobjectInput!) {
-        metaobjectUpdate(id: $id, metaobject: $metaobject) {
-          metaobject {
-            id
-            handle
-            fields { key value }
-          }
-          userErrors { field message }
-        }
-      }
-    `;
-
       const campaignUpdateResponse = await admin.graphql(
         updateCampaignMutation,
         {
@@ -312,14 +315,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         },
       ];
 
-      const getDesignQuery = `
-      query GetDesignSettings($handle: String!) {
-        metaobjectByHandle(handle: { handle: $handle, type: "design_settings" }) {
-          id handle type fields { key value }
-        }
-      }
-    `;
-
       const designRes = await admin.graphql(getDesignQuery, {
         variables: { handle: params.id },
       });
@@ -329,15 +324,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       if (!designMetaobjectId) {
         throw new Error("Design metaobject not found for handle: " + params.id);
       }
-
-      const updateDesignMutation = `
-      mutation UpdateDesignSettings($id: ID!, $metaobject: MetaobjectInput!) {
-        metaobjectUpdate(id: $id, metaobject: $metaobject) {
-          metaobject { id handle fields { key value } }
-          userErrors { field message }
-        }
-      }
-    `;
 
       const designUpdateRes = await admin.graphql(updateDesignMutation, {
         variables: {
@@ -492,15 +478,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       ]);
 
       try {
-        const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
+         await admin.graphql(SET_PREORDER_METAFIELDS, {
           variables: { metafields },
         });
 
-        const response2 = await admin.graphql(SET_PREORDER_METAFIELDS, {
+        await admin.graphql(SET_PREORDER_METAFIELDS, {
           variables: { metafields: productMetafields },
         });
-        console.log("GraphQL response:", response);
-        console.log("GraphQL response2:", response2);
+       
       } catch (err) {
         console.error("GraphQL mutation failed:", err);
         throw err;
@@ -510,7 +495,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const parsedRemovedVarients = removedVarients
         ? JSON.parse(removedVarients)
         : [];
-      console.log("parsedRemovedVarients", parsedRemovedVarients);
 
       if (parsedRemovedVarients.length > 0) {
         //need to remove selling group and
@@ -527,19 +511,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
             const groupId = g.node.id;
 
             // Step 2: remove variant from group
-            const removeVariantMutation = `
-        mutation RemoveVariantFromGroup($groupId: ID!, $variantIds: [ID!]!) {
-          sellingPlanGroupRemoveProductVariants(
-            id: $groupId
-            productVariantIds: $variantIds
-          ) {
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
             await admin.graphql(removeVariantMutation, {
               variables: {
                 groupId,
@@ -550,23 +521,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         }
 
         //remove metafields
-        const removeMetaFieldMutation = `
-            mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
-              metafieldsSet(metafields: $metafields) {
-                metafields {
-                  id
-                  namespace
-                  key
-                  type
-                  value
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `;
 
         const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
           {
@@ -600,11 +554,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         ]);
 
         try {
-          const graphqlResponse = await admin.graphql(removeMetaFieldMutation, {
+          await admin.graphql(removeMetaFieldMutation, {
             variables: { metafields },
           });
 
-          console.log("GraphQL response:", graphqlResponse);
         } catch (err) {
           console.error("GraphQL mutation failed:", err);
           throw err;
@@ -620,8 +573,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   if (intent === "publish-campaign") {
     const id = formData.get("id");
-
-   
     try {
       const res = await admin.graphql(publishMutation, {
         variables: {
@@ -633,10 +584,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       console.log(error);
     }
 
-
-
     const products = JSON.parse((formData.get("products") as string) || "[]");
-
     const metafields = products.flatMap((product: any) => [
       {
         ownerId: product.variantId,
@@ -660,9 +608,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const response = await graphqlResponse.json();
 
       if (response.data?.metafieldsSet?.userErrors?.length) {
-        console.error(
-          "///////////////////////",
-          response.data.metafieldsSet.userErrors,
+        console.error(response.data.metafieldsSet.userErrors,
         );
       }
     } catch (err) {
@@ -683,14 +629,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       products,
       formData,
     );
-    console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
     await updateCampaignStatus(params.id!, "PUBLISHED");
     return redirect(`/app/`);
   }
 
   if (intent === "unpublish-campaign") {
     const id = formData.get("id");
-    
     try {
       const res = await admin.graphql(unpublishMutation, {
         variables: {
@@ -699,13 +643,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         },
       });
 
-      const result = await res.json();
 
       //need to get campaign products and need to remove campaign_id metafield in them
 
       const products = JSON.parse((formData.get("products") as string) || "[]");
 
-      const metafields = products.flatMap((product) => [
+      const metafields = products.flatMap((product:any) => [
         {
           ownerId: product.variantId,
           namespace: "custom",
@@ -754,8 +697,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         throw err;
       }
 
-
-
       const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
         variables: { id: products[0].productId },
       });
@@ -763,7 +704,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       const groups =
         productData.data.product.sellingPlanGroups.edges.map(
-          (edge) => edge.node,
+          (edge:any) => edge.node,
         ) || [];
 
       const deletedGroups = [];
@@ -805,8 +746,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         await deleteCampaign(params.id!);
       }
 
-     
-
       const response = await admin.graphql(GET_SHOP);
       const data = await response.json();
       const storeId = data.data.shop.id;
@@ -845,7 +784,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           // PREORDER METAFIELDS UPDATE
           // -------------------------------
 
-          const metafields = products.flatMap((product) => [
+          const campaignType = Number(formData.get("campaignType"));
+          //if campaign type === 3 then inventory quantity need to update
+          const metafields = products.flatMap((product: any) => [
             {
               ownerId: product.variantId,
               namespace: "custom",
@@ -897,7 +838,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
-              value: String(product?.maxUnit || "0"),
+              value: campaignType === 3 ? String(product.variantInventory) :String(product?.maxUnit || "0"),
             },
           ]);
 
@@ -920,17 +861,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           | "flat";
 
         // const products = JSON.parse(formData.get("products") as string);
-        const res = await createSellingPlan(
+         await createSellingPlan(
           admin,
           paymentMode,
           discountType,
           products,
           formData,
         );
-        console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
 
         const designFields = JSON.parse(formData.get("designFields") as string);
-        console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
         const fields = [
           {
             key: "object",
@@ -940,7 +879,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
             }),
           },
         ];
-
 
         try {
           const response = await admin.graphql(CREATE_DESIGN_SETTINGS, {
@@ -955,8 +893,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               ],
             },
           });
-          const result = await response.json();
-          console.log("design Metaobject:", JSON.stringify(result, null, 2));
 
           const campaignFields = [
             {
@@ -1025,7 +961,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               const groupId = g.node.id;
 
               // Step 2: remove variant from group
-              
               await admin.graphql(removeVariantMutation, {
                 variables: {
                   groupId,
@@ -1036,7 +971,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           }
 
           //remove metafields
-          
 
           const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
             {
@@ -1070,14 +1004,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           ]);
 
           try {
-            const graphqlResponse = await admin.graphql(
+            await admin.graphql(
               removeMetaFieldMutation,
               {
                 variables: { metafields },
               },
             );
 
-            console.log("GraphQL response:", graphqlResponse);
           } catch (err) {
             console.error("GraphQL mutation failed:", err);
             throw err;
@@ -1102,12 +1035,9 @@ export default function CampaignDetail() {
     products,
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
-    prod
+    prod,
   } = useLoaderData<typeof loader>();
- 
   const navigation = useNavigation();
-    const fetcher = useFetcher();
-
 
   const designFieldsObj =
     parsedDesignSettingsResponse?.data?.metaobjectByHandle?.fields;
@@ -1116,7 +1046,7 @@ export default function CampaignDetail() {
     parsedCampaignSettingsResponse?.data?.metaobjectByHandle?.fields;
 
   const campaignSettingsMap = campaignSettingsObj?.reduce(
-    (acc, field) => {
+    (acc: any, field: any) => {
       acc[field.key] = field.value;
       return acc;
     },
@@ -1126,7 +1056,7 @@ export default function CampaignDetail() {
   const parsedCampaignData = JSON.parse(campaignSettingsMap?.object || "{}");
 
   const designFieldsMap = designFieldsObj?.reduce(
-    (acc, field) => {
+    (acc :any, field:any) => {
       acc[field.key] = field.value;
       return acc;
     },
@@ -1134,12 +1064,6 @@ export default function CampaignDetail() {
   );
 
   const parsedDesignFields = JSON.parse(designFieldsMap?.object || "{}");
-
-  // console.log(parsedCampaignData, "parsedCampaignData");
-
-  // console.log(campaignSettingsMap, "campaignSettingsMap");
-  console.log(parsedDesignFields, "parsedDesignFields");
-
   const submit = useSubmit();
   const navigate = useNavigate();
 
@@ -1200,13 +1124,7 @@ export default function CampaignDetail() {
     inputValue: new Date().toLocaleDateString(),
   });
   const [campaignEndTime, setCampaignEndTime] = useState(
-    campaign?.campaignEndDate
-      ? campaign.campaignEndDate
-      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-  );
-  console.log(campaignEndTime, "campaignEndTime");
-  const [status, setStatus] = useState<"published" | "not_published">(
-    "not_published",
+    campaign?.campaignEndDate ? campaign.campaignEndDate : "00:00",
   );
   const [criticalChange, setCriticalChange] = useState(false);
   const [partialPaymentText, setPartialPaymentText] =
@@ -1215,10 +1133,7 @@ export default function CampaignDetail() {
     "Pay {payment} now and {remaining} will be charged on {date}",
   );
   const [removedVarients, setRemovedVarients] = useState<string[]>([]);
-
-  // console.log(designFieldsObj);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: parsedDesignFields?.messageFontSize,
     messageColor: parsedDesignFields?.messageColor,
@@ -1240,7 +1155,6 @@ export default function CampaignDetail() {
     buttonTextColor: parsedDesignFields?.buttonTextColor,
   });
   const [saveBarActive, setSaveBarActive] = useState(false);
-
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
   const [discountType, setDiscountType] = useState(
@@ -1296,12 +1210,12 @@ export default function CampaignDetail() {
     setCampaignEndTime(value);
   }, []);
 
-   async function fetchProductsInCollection(id: string) {
+  async function fetchProductsInCollection(id: string) {
     submit(
       { intent: "fetchProductsInCollection", collectionId: id },
-      { method: "get" }
+      { method: "get" },
     );
-      console.log(prod, "prod");
+    console.log(prod, "prod");
 
     if (prod) {
       setSelectedProducts(prod);
@@ -1310,20 +1224,6 @@ export default function CampaignDetail() {
 
   const openResourcePicker = () => {
     shopify.modal.hide("my-modal");
-
-    // async function fetchProductsInCollection(collectionId: string) {
-    //   const res = await fetch("/api/products-in-collection", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({ collectionId }),
-    //   });
-
-    //   if (!res.ok) throw new Error("Failed to fetch products");
-
-    //   const data = await res.json();
-    //   return data.products;
-    // }
-
     const picker = ResourcePicker.create(appBridge, {
       resourceType:
         productRadio === "option1"
@@ -1331,10 +1231,10 @@ export default function CampaignDetail() {
           : ResourcePicker.ResourceType.Collection,
       options: {
         selectMultiple: true,
-       initialSelectionIds: selectedProducts.map((v) => ({ 
-        id: v.productId ,
-        variants: [{ id: v.variantId }]
-      })),
+        initialSelectionIds: selectedProducts.map((v) => ({
+          id: v.productId,
+          variants: [{ id: v.variantId }],
+        })),
       },
     });
 
@@ -1342,16 +1242,17 @@ export default function CampaignDetail() {
       if (productRadio === "option1") {
         // ✅ products directly selected
         const products = payload.selection.flatMap((p: any) =>
-        p.variants.map((v: any) => ({
-          productId: p.id,
-          productImage: p.images?.[0]?.originalSrc,
-          variantId: v.id,
-          variantTitle: v.displayName,
-          variantPrice: v.price,
-          variantInventory: v.inventoryQuantity,
-          maxUnit: selectedProducts.find((p) => p.variantId === v.id)?.maxUnit || 0,
-        }))
-      );
+          p.variants.map((v: any) => ({
+            productId: p.id,
+            productImage: p.images?.[0]?.originalSrc,
+            variantId: v.id,
+            variantTitle: v.displayName,
+            variantPrice: v.price,
+            variantInventory: v.inventoryQuantity,
+            maxUnit:
+              selectedProducts.find((p) => p.variantId === v.id)?.maxUnit || 0,
+          })),
+        );
         setSelectedProducts(products);
       } else {
         // ✅ collections selected → fetch products inside
@@ -1381,11 +1282,11 @@ export default function CampaignDetail() {
     [],
   );
 
-  const handleMonthChange = useCallback((newMonth, newYear) => {
+  const handleMonthChange = useCallback((newMonth :any, newYear:any) => {
     setMonthYear({ month: newMonth, year: newYear });
   }, []);
 
-  const handleDateChange = useCallback((range) => {
+  const handleDateChange = useCallback((range:any) => {
     setSelectedDates(range);
     if (range && range.start) {
       setDueDateInputValue(range.start.toLocaleDateString());
@@ -1411,13 +1312,15 @@ export default function CampaignDetail() {
     },
   ];
 
-  const filteredProducts = selectedProducts?.filter((product) =>
+  const filteredProducts = selectedProducts?.filter((product:any) =>
     product.variantTitle?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   function handleRemoveProduct(id: string) {
     // if (selectedProducts.length === 0) return; // do nothing if empty
-    setSelectedProducts((prev) => prev.filter((product) => product.variantId !== id));
+    setSelectedProducts((prev:any) =>
+      prev.filter((product:any) => product.variantId !== id),
+    );
     setRemovedVarients((prev) => [...prev, id]);
   }
 
@@ -1456,9 +1359,9 @@ export default function CampaignDetail() {
 
   const handleMaxUnitChange = (id: string, value: number) => {
     //if value is alphabet dont get typed
-    if(isNaN(value)) return
+    if (isNaN(value)) return;
     setSelectedProducts((prev: any) =>
-      prev.map((product) =>
+      prev.map((product:any) =>
         product.variantId === id
           ? { ...product, maxUnit: value } // add/update maxUnit
           : product,
@@ -1478,7 +1381,6 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
-  const [active, setActive] = useState(false);
 
   function handleUnpublish(id: string): void {
     const formData = new FormData();
@@ -1494,7 +1396,7 @@ export default function CampaignDetail() {
     const formData = new FormData();
     formData.append("intent", "unpublish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
-    formData.append('removedVarients', JSON.stringify(removedVarients));
+    formData.append("removedVarients", JSON.stringify(removedVarients));
     formData.append("secondaryIntent", "delete-campaign-create-new");
     formData.append("id", id);
     formData.append("name", String(campaignName));
@@ -1524,10 +1426,8 @@ export default function CampaignDetail() {
   const handleSave = async () => {
     try {
       if (criticalChange === true) {
-        console.log("handleCriticalChange");
         await handleCriticalChange(String(campaign?.id));
       } else {
-        console.log("Saving");
         await handleSubmit();
       }
 
@@ -1561,8 +1461,6 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
-
-
   useEffect(() => {
     shopify.saveBar.show("my-save-bar");
     setSaveBarActive(true);
@@ -1579,10 +1477,14 @@ export default function CampaignDetail() {
     productTags,
     customerTags,
     campaignEndDate,
+    discountType,
+    discountPercentage,
+    flatDiscount,
+    removedVarients,
   ]);
 
-    useEffect(() => {
-   setSaveBarActive(false);
+  useEffect(() => {
+    setSaveBarActive(false);
   }, []);
 
   const handleButtonClick = useCallback(
@@ -1644,13 +1546,12 @@ export default function CampaignDetail() {
           content: "Back",
           onAction: () => {
             console.log(saveBarActive);
-            if(saveBarActive) {
+            if (saveBarActive) {
               shopify.saveBar.leaveConfirmation();
-              
+
               // setSaveBarActive(false);
-            }
-            else{
-            navigate("/app")
+            } else {
+              navigate("/app");
             }
           }, // <-- Remix navigate
         }}
@@ -1660,7 +1561,6 @@ export default function CampaignDetail() {
         // }}
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
-          varient: "primary",
           loading: navigation.state !== "idle",
           onAction: () =>
             campaign?.status === "PUBLISHED"
@@ -2522,10 +2422,15 @@ export default function CampaignDetail() {
                       <Button onClick={openResourcePicker}>
                         Add More Products
                       </Button>
-                      <Button onClick={() => {
-                        setRemovedVarients([...removedVarients, ...selectedProducts.map((p) => p.variantId)])
-                        setSelectedProducts([])
-                        }}>
+                      <Button
+                        onClick={() => {
+                          setRemovedVarients([
+                            ...removedVarients,
+                            ...selectedProducts.map((p) => p.variantId),
+                          ]);
+                          setSelectedProducts([]);
+                        }}
+                      >
                         Remove all Products
                       </Button>
                     </ButtonGroup>
@@ -2559,14 +2464,14 @@ export default function CampaignDetail() {
                         >
                           Inventory
                         </th>
-                        <th
+                        {selectedOption !== 3 && <th
                           style={{
                             padding: "8px",
                             borderBottom: "1px solid #eee",
                           }}
                         >
                           Inventory limit
-                        </th>
+                        </th>}
                         <th
                           style={{
                             padding: "8px",
@@ -2594,9 +2499,7 @@ export default function CampaignDetail() {
                             }}
                           >
                             <img
-                              src={
-                                product.productImage
-                              }
+                              src={product.productImage}
                               alt={product.variantTitle}
                               style={{
                                 width: 50,
@@ -2612,7 +2515,9 @@ export default function CampaignDetail() {
                               textAlign: "center",
                             }}
                           >
-                            {product.variantTitle !== 'Default Title' ? product.variantTitle : product.productTitle}
+                            {product.variantTitle !== "Default Title"
+                              ? product.variantTitle
+                              : product.productTitle}
                           </td>
                           <td
                             style={{
@@ -2627,31 +2532,32 @@ export default function CampaignDetail() {
                           </td>
                           {
                             selectedOption !== 3 && (
-                        
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                              width: "100px",
-                              textAlign: "center",
-                            }}
-                          >
-                            <TextField
-                              type="text"
-                              min={0}
-                              value={
-                                selectedOption === 3 ?
-                                product.variantInventory
-                              ? product.variantInventory
-                              : product.inventory
-                                : 
-                                product?.maxUnit.toString() || '0'} 
-                              onChange={(value) =>
-                                handleMaxUnitChange(product.variantId, Number(value))
-                              }
-                            />
-                          </td>
-                                
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                                width: "100px",
+                                textAlign: "center",
+                              }}
+                            >
+                              <TextField
+                                type="text"
+                                min={0}
+                                value={
+                                  selectedOption === 3
+                                    ? product.variantInventory
+                                      ? product.variantInventory
+                                      : product.inventory
+                                    : product?.maxUnit.toString() || "0"
+                                }
+                                onChange={(value) =>
+                                  handleMaxUnitChange(
+                                    product.variantId,
+                                    Number(value),
+                                  )
+                                }
+                              />
+                            </td>
                             )
                           }
                           <td

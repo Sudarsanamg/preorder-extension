@@ -4,6 +4,11 @@
 {% assign designSettings = settings.object.value %}
 {% assign json_string = settings.object.value | replace: '=>', ':' %}
 {% assign campaignSettings = campaignprops.object.value %}
+{% comment %} <p>campaignid: {{ campaignid }}</p>
+<p>designSettings: {{ designSettings }}</p>
+<p>campaignSettings: {{ campaignSettings }}</p> {% endcomment %}
+{% comment %} <p>{{ product.metafields.custom.preorder.value }}</p> {% endcomment %}
+
 
 <div id="product-data" data-preorder="{{ product.metafields.custom.preorder.value }}"></div>
 <div 

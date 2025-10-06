@@ -8,7 +8,7 @@ export async function createSellingPlan(admin: any, paymentMode: "partial" | "fu
 
   if (paymentMode === "partial") {
     variables.percentage = Number(formData.get("depositPercent"));
-    variables.days = `P${customDays}D`;
+    variables.days = `P7D`;
   }
 
   if (discountType === "percentage") {

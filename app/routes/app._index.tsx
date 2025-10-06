@@ -96,18 +96,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   await createWebhook(
     admin,
     "ORDERS_CREATE",
-    `https://screensaver-period-liverpool-confident.trycloudflare.com/webhooks/custom`,
+    `https://incomplete-orleans-physically-irrigation.trycloudflare.com/webhooks/custom`,
   );
   const orderPaidRes = await createWebhook(
     admin,
     "ORDERS_PAID",
-    `https://screensaver-period-liverpool-confident.trycloudflare.com/webhooks/order_paid`,
+    `https://incomplete-orleans-physically-irrigation.trycloudflare.com/webhooks/order_paid`,
   );
 
   const inventoryUpdateRes = await createWebhook(
     admin,
     "PRODUCTS_UPDATE",
-    `https://quarter-render-burner-residential.trycloudflare.com/webhooks/products_update`,
+    `https://incomplete-orleans-physically-irrigation.trycloudflare.com/webhooks/products_update`,
   );
 
   console.log("inventoryUpdateRes", inventoryUpdateRes);

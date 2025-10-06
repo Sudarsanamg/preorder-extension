@@ -47,7 +47,7 @@ export async function loader({ request }: { request: Request }) {
 
   const shopId = data.data.shop.id; 
   // const status  = await getShippingEmailSettingsStatus(shopId); 
-  return {shopId ,status };
+  return {shopId , status: false};
 }
 
 export const action = async ({ request }: { request: Request }) => {

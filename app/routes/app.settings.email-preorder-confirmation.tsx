@@ -556,7 +556,7 @@ export default function EmailPreorderConfirmationSettings() {
               </BlockStack>
             </Card>
             <Card>
-              <BlockStack gap="300">
+              <BlockStack gap="500">
                 <Text variant="headingMd" as="h2">
                   Button
                 </Text>
@@ -579,10 +579,10 @@ export default function EmailPreorderConfirmationSettings() {
                   value={emailSettings.cancelButtonText}
                   onChange={(value) => {
                     handleEmailSettingsChange("cancelButtonText", value);
-                  }}
+                  }}               
                   autoComplete="off"
                 />
-                <Text as="p" variant="bodyMd">
+                <Text as="p" variant="bodyMd" >
                   Opens up order cancelation page. Use {"{order}"} for order
                   number
                 </Text>
