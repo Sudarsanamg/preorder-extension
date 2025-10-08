@@ -1,5 +1,3 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
-
 import {
   addProductsToCampaign,
   createPreorderCampaign,
@@ -44,7 +42,6 @@ import {
   useLoaderData,
   Link,
   useNavigation,
-  useFetcher,
 } from "@remix-run/react";
 import {
   DiscountIcon,
@@ -66,7 +63,6 @@ import {
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import {
   CREATE_CAMPAIGN,
-  CREATE_DESIGN_SETTINGS,
   unpublishMutation,
 } from "app/graphql/mutation/metaobject";
 import {
@@ -80,10 +76,8 @@ import {
 } from "app/graphql/mutation/sellingPlan";
 import {
   GetCampaignId,
-  getDesignQuery,
   publishMutation,
   updateCampaignMutation,
-  updateDesignMutation,
 } from "app/graphql/queries/metaobject";
 import { GET_COLLECTION_PRODUCTS, GET_SHOP } from "app/graphql/queries/shop";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
@@ -109,7 +103,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
             productId: node.id,
             productTitle: node.title,
             handle: node.handle,
-            productImage: node.images.edges[0]?.node?.url || null, // use `url` not `src` in GraphQL
+            productImage: node.images.edges[0]?.node?.url || null, 
             variantId: v.node.id,
             variantTitle: v.node.displayName,
             variantPrice: v.node.price,
@@ -130,10 +124,8 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     if (varientId.length === 0) {
       return json({ campaign, products: [] });
     }
-
-    // const formattedIds = productIds.map(id => id.replace(/"/g, "")).join('","');
     const response = await admin.graphql(GET_VARIENT_BY_IDS, {
-      variables: { ids: varientId }, // make sure this is an array of IDs
+      variables: { ids: varientId },
     });
 
     const data = await response.json();
@@ -142,25 +134,25 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       id: variant.id,
       title: variant.title,
       image: variant.product?.featuredImage?.url ?? null,
-      price: variant.price ?? null, // already scalar
+      price: variant.price ?? null, 
       inventory: variant.inventoryQuantity ?? null,
       maxUnit: variant.metafield?.value ?? null,
       productId: variant.product?.id ?? null,
       productTitle: variant.product?.title ?? null,
     }));
 
-    let designSettingsResponse = await fetchMetaobject(
-      admin,
-      params.id!,
-      "design_settings",
-    );
-    let parsedDesignSettingsResponse = await designSettingsResponse.json();
     let campaignSettingsResponse = await fetchMetaobject(
       admin,
       params.id!,
       "preordercampaign",
     );
     let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
+    const metaobject = parsedCampaignSettingsResponse.data.metaobjectByHandle;
+    const objectField = metaobject.fields.find((f:any) => f.key === "object");
+    const parsedObject = JSON.parse(objectField.value);
+    parsedCampaignSettingsResponse = parsedObject.campaignData;
+    let parsedDesignSettingsResponse = parsedObject.designFields;
+
     const products = variants.map((variant:any) => ({
       productId: variant.productId,
       variantId: variant.id,
@@ -196,9 +188,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
   if (intent === "update-campaign") {
     try {
-      // ------------------------
-      // Step 1: Update campaign basic data
-      // ------------------------
       await updateCampaign({
         id: params.id!,
         name: formData.get("name") as string,
@@ -216,18 +205,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         status: campaignCurrentStatus,
       });
 
-      // ------------------------
-      // Step 1b: Replace campaign products
-      // ------------------------
+   
       const updatedProducts = JSON.parse(
         (formData.get("products") as string) || "[]",
       );
       await replaceProductsInCampaign(String(params.id!), updatedProducts);
-      // console.log("Replaced products:", replace);
-
-      // ------------------------
-      // Step 2: Update campaign metaobject
-      // ------------------------
 
       const handleRes = await admin.graphql(GetCampaignId, {
         variables: {
@@ -243,11 +225,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           "Campaign metaobject not found for handle: " + params.id,
         );
       }
-
+      const designFields = JSON.parse(formData.get("designFields") as string);
       const campaignFields = [
         {
           key: "object",
           value: JSON.stringify({
+            campaignData :{
             campaign_id: String(params.id),
             name: (formData.get("name") as string) || "Untitled Campaign",
             status: "publish",
@@ -271,6 +254,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               (formData.get("orderTags") as string) || "[]",
             ).join(","),
             campaigntype: String(formData.get("campaignType") as string),
+          },
+          designFields: {
+                  ...designFields,
+            },
+
           }),
         },
       ];
@@ -299,56 +287,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
       }
 
-      // ------------------------
-      // Step 3: Update design metaobject
-      // ------------------------
-      const designFieldsInput = JSON.parse(
-        formData.get("designFields") as string,
-      );
-      const designFields = [
-        {
-          key: "object",
-          value: JSON.stringify({
-            ...designFieldsInput,
-            campaign_id: params.id,
-          }),
-        },
-      ];
-
-      const designRes = await admin.graphql(getDesignQuery, {
-        variables: { handle: params.id },
-      });
-      const designData = await designRes.json();
-
-      const designMetaobjectId = designData?.data?.metaobjectByHandle?.id;
-      if (!designMetaobjectId) {
-        throw new Error("Design metaobject not found for handle: " + params.id);
-      }
-
-      const designUpdateRes = await admin.graphql(updateDesignMutation, {
-        variables: {
-          id: designMetaobjectId,
-          metaobject: { fields: designFields },
-        },
-      });
-
-      const updatedDesign = await designUpdateRes.json();
-
-      if (updatedDesign?.data?.metaobjectUpdate?.userErrors?.length) {
-        console.error(
-          "Design Update Errors:",
-          updatedDesign.data.metaobjectUpdate.userErrors,
-        );
-      } else {
-        console.log(
-          "Updated Design Metaobject:",
-          JSON.stringify(
-            updatedDesign.data.metaobjectUpdate.metaobject,
-            null,
-            2,
-          ),
-        );
-      }
       const products = JSON.parse((formData.get("products") as string) || "[]");
 
       const metafields = products.flatMap((product: any) => [
@@ -780,10 +718,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         if (products.length > 0) {
           await addProductsToCampaign(campaign.id, products);
 
-          // -------------------------------
-          // PREORDER METAFIELDS UPDATE
-          // -------------------------------
-
           const campaignType = Number(formData.get("campaignType"));
           //if campaign type === 3 then inventory quantity need to update
           const metafields = products.flatMap((product: any) => [
@@ -838,7 +772,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
-              value: campaignType === 3 ? String(product.variantInventory) :String(product?.maxUnit || "0"),
+              value: campaignType == 3 ? String(product.variantInventory) :String(product?.maxUnit || "0"),
             },
           ]);
 
@@ -847,6 +781,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               variables: { metafields },
             });
             console.log("GraphQL response:", response);
+            const data = await response.json();
+            console.log(data,'{{{{{{{{{{{{{{{{');
+            console.log(JSON.stringify(data, null, 2));
+
           } catch (err) {
             console.error("GraphQL mutation failed:", err);
             throw err;
@@ -870,34 +808,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
 
         const designFields = JSON.parse(formData.get("designFields") as string);
-        const fields = [
-          {
-            key: "object",
-            value: JSON.stringify({
-              ...designFields, // all your design fields
-              campaign_id: campaign.id,
-            }),
-          },
-        ];
-
-        try {
-          const response = await admin.graphql(CREATE_DESIGN_SETTINGS, {
-            variables: {
-              fields: [
-                {
-                  key: "campaign_id",
-                  value: String(campaign.id),
-                },
-
-                ...fields,
-              ],
-            },
-          });
+        
 
           const campaignFields = [
             {
               key: "object",
               value: JSON.stringify({
+                campaignData :{
                 campaign_id: String(campaign.id),
                 name: (formData.get("name") as string) || "Untitled Campaign",
                 status: "publish",
@@ -923,6 +840,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                   (formData.get("orderTags") as string) || "[]",
                 ).join(","),
                 campaigntype: String(formData.get("campaignType") as string),
+              },
+                designFields: {
+                  ...designFields
+                },
               }),
             },
           ];
@@ -935,9 +856,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               ],
             },
           });
-        } catch (error) {
-          console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>", error);
-        }
+        
 
         await updateCampaignStatus(campaign.id, "PUBLISHED");
         await deleteCampaign(params.id!);
@@ -1030,43 +949,21 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function CampaignDetail() {
-  const {
-    campaign,
-    products,
-    parsedDesignSettingsResponse,
-    parsedCampaignSettingsResponse,
-    prod,
-  } = useLoaderData<typeof loader>();
+ const { campaign, products, parsedDesignSettingsResponse, parsedCampaignSettingsResponse } =
+  useLoaderData<typeof loader>() as {
+    campaign: any;
+    products: any[];
+    parsedDesignSettingsResponse: any;
+    parsedCampaignSettingsResponse: any;
+  };
+
   const navigation = useNavigation();
-
-  const designFieldsObj =
-    parsedDesignSettingsResponse?.data?.metaobjectByHandle?.fields;
-
-  const campaignSettingsObj =
-    parsedCampaignSettingsResponse?.data?.metaobjectByHandle?.fields;
-
-  const campaignSettingsMap = campaignSettingsObj?.reduce(
-    (acc: any, field: any) => {
-      acc[field.key] = field.value;
-      return acc;
-    },
-    {} as Record<string, string>,
-  );
-
-  const parsedCampaignData = JSON.parse(campaignSettingsMap?.object || "{}");
-
-  const designFieldsMap = designFieldsObj?.reduce(
-    (acc :any, field:any) => {
-      acc[field.key] = field.value;
-      return acc;
-    },
-    {} as Record<string, string>,
-  );
-
-  const parsedDesignFields = JSON.parse(designFieldsMap?.object || "{}");
+  const campaignSettingsMap =  parsedCampaignSettingsResponse
+  const parsedCampaignData = campaignSettingsMap
+  const designFieldsMap = parsedDesignSettingsResponse
+  const parsedDesignFields = designFieldsMap;
   const submit = useSubmit();
   const navigate = useNavigate();
-
   const [campaignName, setCampaignName] = useState(campaign?.name);
   const [selected, setSelected] = useState(0);
   const [productTagInput, setProductTagInput] = useState("");
@@ -1116,15 +1013,22 @@ export default function CampaignDetail() {
       ? new Date(parsedCampaignData?.campaign_end_date)
       : null,
   );
+  
   const [campaignEndPicker, setCampaignEndPicker] = useState({
-    month: new Date().getMonth(),
-    year: new Date().getFullYear(),
-    selected: { start: new Date(), end: new Date() },
-    popoverActive: false,
-    inputValue: new Date().toLocaleDateString(),
-  });
+  month: campaignEndDate?.getMonth(), 
+  year: campaignEndDate?.getFullYear(),
+  selected: {
+    start: campaignEndDate,
+    end: campaignEndDate, 
+  },
+  popoverActive: false,
+  inputValue: campaignEndDate?.toLocaleDateString(), 
+});
+const hours = campaignEndDate?.getHours().toString().padStart(2, "0");
+const minutes = campaignEndDate?.getMinutes().toString().padStart(2, "0");
+const formattedTime = `${hours}:${minutes}`;
   const [campaignEndTime, setCampaignEndTime] = useState(
-    campaign?.campaignEndDate ? campaign.campaignEndDate : "00:00",
+    formattedTime
   );
   const [criticalChange, setCriticalChange] = useState(false);
   const [partialPaymentText, setPartialPaymentText] =
@@ -1215,7 +1119,6 @@ export default function CampaignDetail() {
       { intent: "fetchProductsInCollection", collectionId: id },
       { method: "get" },
     );
-    console.log(prod, "prod");
 
     if (prod) {
       setSelectedProducts(prod);
@@ -1333,12 +1236,7 @@ export default function CampaignDetail() {
   };
 
   const handleSubmit = () => {
-    //  if (!campaignName || !partialPaymentPercentage || !DueDateinputValue || selectedProducts.length === 0) {
-    //   alert("Please fill all required fields and add at least one product.");
-    //   return;
-    // }
-
-    console.log("function hit");
+   
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("intent", "update-campaign");
@@ -1363,7 +1261,7 @@ export default function CampaignDetail() {
     setSelectedProducts((prev: any) =>
       prev.map((product:any) =>
         product.variantId === id
-          ? { ...product, maxUnit: value } // add/update maxUnit
+          ? { ...product, maxUnit: value } 
           : product,
       ),
     );
@@ -1549,16 +1447,11 @@ export default function CampaignDetail() {
             if (saveBarActive) {
               shopify.saveBar.leaveConfirmation();
 
-              // setSaveBarActive(false);
             } else {
               navigate("/app");
             }
-          }, // <-- Remix navigate
+          }, 
         }}
-        // primaryAction={{
-        //   content: "Publish",
-        //   onAction: handleSubmit,
-        // }}
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
           loading: navigation.state !== "idle",
@@ -1647,7 +1540,6 @@ export default function CampaignDetail() {
                 <Card>
                   <BlockStack>
                     <Text as="h1" variant="headingLg">
-                      {/* New Campaign */}
                     </Text>
                   </BlockStack>
                   <TextField

@@ -23,7 +23,7 @@ import {
   redirect,
   useLoaderData,
   useSubmit,
-  // useNavigate,
+  useNavigate,
   // useFetcher,
   // useActionData,
 } from "@remix-run/react";
@@ -90,10 +90,10 @@ export default function EmailPreorderConfirmationSettings() {
 
   const shopify = useAppBridge();
     const {shopId ,status }= useLoaderData<typeof loader>();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   // const fetcher = useFetcher();
   // const actionData = useActionData();
-  console.log("Shop ID in component:", shopId);
+  // console.log("Shop ID in component:", shopId);
 
   const submit = useSubmit();
   const options = [
@@ -103,8 +103,8 @@ export default function EmailPreorderConfirmationSettings() {
     { label: "Courier New", value: "Courier New" },
   ];
   const [subject, setSubject] = useState("Delivery update for order {order}");
-  const [emailSettings, setEmailSettings] = useState<EmailSettings>({
-    subject: "Delivery update for order {order}",
+  const initialEmailSettings: EmailSettings = {
+     subject: "Delivery update for order {order}",
     font: "inherit",
 
     storeName: "preorderstore",
@@ -147,7 +147,9 @@ export default function EmailPreorderConfirmationSettings() {
     cancelButtonGradientColor1: "#757575",
     cancelButtonGradientColor2: "#757575",
     cancelButtonBorderRadius: "8",
-  });
+  }
+  const [emailSettings, setEmailSettings] = useState<EmailSettings>(initialEmailSettings);
+  const [saveBarVisible, setSaveBarVisible] = useState(false);
 
   const [activePopover, setActivePopover] = useState<null | string>(null);
 
@@ -162,11 +164,13 @@ export default function EmailPreorderConfirmationSettings() {
     formdata.append("shopId",shopId); 
     submit(formdata, { method: "post" });
     shopify.saveBar.hide('my-save-bar');
+    setSaveBarVisible(false);
   };
 
   const handleDiscard = () => {
     console.log('Discarding');
     shopify.saveBar.hide('my-save-bar');
+    setSaveBarVisible(false);
   };
 
   const handleRangeSliderChange = (input: number) => {
@@ -203,7 +207,17 @@ export default function EmailPreorderConfirmationSettings() {
 
 
   useEffect(() => {
-    shopify.saveBar.show('my-save-bar');
+
+    const hasChanges =
+      subject !== initialEmailSettings.subject ||
+      JSON.stringify(emailSettings) !== JSON.stringify(initialEmailSettings);
+    if (hasChanges && !saveBarVisible) {
+      shopify.saveBar.show('my-save-bar');
+      setSaveBarVisible(true);
+    } else if (!hasChanges && saveBarVisible) {
+      shopify.saveBar.hide('my-save-bar');
+      setSaveBarVisible(false);
+    }
   }, [emailSettings, subject]);
 
    function handleSwitch(status: boolean) {
@@ -219,7 +233,17 @@ export default function EmailPreorderConfirmationSettings() {
   return (
     <Page
       title="Preorder confirmation email"
-      backAction={{ content: "Back", url: "/app/" }}
+      backAction={{ content: "Back",
+
+        onAction: () => {
+          if(saveBarVisible){
+            shopify.saveBar.leaveConfirmation();
+          }
+          else{
+          navigate("/app");
+          }
+
+        }}}
       // primaryAction={{
       //   content: status === false ? "Turn On" : "Turn Off",
       //   onAction: () => {

@@ -1,7 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   const variantSelect = document.querySelector('[name="id"]'); // Shopify default variant select
   const variantPrices = document.querySelectorAll(".variant-price");
-  console.log(variantPrices)
 
   function hideAllPrices() {
     variantPrices.forEach((el) => (el.style.display = "none"));

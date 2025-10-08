@@ -38,7 +38,6 @@ import {
 } from "app/models/campaign.server";
 import { FileIcon } from "@shopify/polaris-icons";
 import preorderCampaignDef from "app/utils/preorderCampaignDef";
-import designSettingsDef from "app/utils/designSettingsDef";
 import productMetafieldDefinitions, { variantMetafieldDefinitions } from "app/utils/productMetafieldDefinitions";
 import {
   confrimOrderTemplate,
@@ -92,25 +91,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
+    const APP_URL = process.env.APP_URL;
   
   await createWebhook(
     admin,
     "ORDERS_CREATE",
-    `https://incomplete-orleans-physically-irrigation.trycloudflare.com/webhooks/custom`,
+    `${APP_URL}/webhooks/custom`,
   );
   const orderPaidRes = await createWebhook(
     admin,
     "ORDERS_PAID",
-    `https://incomplete-orleans-physically-irrigation.trycloudflare.com/webhooks/order_paid`,
+    `${APP_URL}/webhooks/order_paid`,
   );
 
   const inventoryUpdateRes = await createWebhook(
     admin,
     "PRODUCTS_UPDATE",
-    `https://incomplete-orleans-physically-irrigation.trycloudflare.com/webhooks/products_update`,
+    `${APP_URL}/webhooks/products_update`,
   );
 
-  console.log("inventoryUpdateRes", inventoryUpdateRes);
 
   if (inventoryUpdateRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
     return json(
@@ -133,7 +132,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   await createMetaobjectDefinition(admin, preorderCampaignDef);
-  await createMetaobjectDefinition(admin, designSettingsDef);
+  // await createMetaobjectDefinition(admin, designSettingsDef);
 
   for (const def of productMetafieldDefinitions) {
     await createMetafieldDefinition(admin, def);
