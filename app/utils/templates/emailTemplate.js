@@ -78,3 +78,11 @@ export const ShippingEmailTemplate = {
   cancelButtonGradientColor2: "#a0a0a0",
   cancelButtonBorderRadius: "8"
 }
+
+export const preorderDisplaySetting = {
+    productPage:  true,
+    featuredProducts:  true,
+    quickBuy: true,
+    multiplePages:  true,
+    preOrderDiscount: true,
+  };

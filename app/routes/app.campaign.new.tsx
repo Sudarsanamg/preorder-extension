@@ -23,6 +23,7 @@ import {
   Banner,
   InlineStack,
   Checkbox,
+  Spinner,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -62,6 +63,7 @@ import { createSellingPlan } from "app/services/sellingPlan.server";
 import {
   CREATE_CAMPAIGN,
 } from "../graphql/mutation/metaobject";
+import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -81,8 +83,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     variables: { id: collectionId },
   });
 
-
-  // ✅ Instead use:
   const resData : any = await response.json ? await response.json() : response;
 
   const prod = resData.data.collection.products.edges.flatMap((edge: any) => {
@@ -306,6 +306,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           | "percentage"
           | "flat";
 
+        const varientIds = products.map((p: any) => p.variantId);
+        await applyDiscountToVariants(admin, varientIds, discountType, Number(formData.get("discountPercentage") || 0));
+
         const res = await createSellingPlan(
           admin,
           paymentMode,
@@ -355,6 +358,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               }),
             },
           ];
+
+
+          console.log("Campaign Fields >>>", JSON.stringify(campaignFields, null, 2));
 
           const response = await admin.graphql(CREATE_CAMPAIGN, {
             variables: {
@@ -487,11 +493,22 @@ export default function Newcampaign() {
   const payment = 3.92;
   const remaining = 35.28;
   const [loading, setLoading] = useState(false);
+  const [buttonLoading, SetButtonLoading] = useState({
+    add: false,
+    remove: false,
+    cancel: false,
+    addAll: false,
+  });
 
   const formattedText = partialPaymentInfoText
     .replace("{payment}", `$${payment}`)
     .replace("{remaining}", `$${remaining}`)
     .replace("{date}", DueDateinputValue);
+
+      const handleClick = async (action: string) => {
+        SetButtonLoading((prev: any) => ({ ...prev, [action]: !prev[action] }));
+      };
+
 
   const handleCampaignEndDateChange = useCallback((range:any) => {
     setCampaignEndPicker((prev) => ({
@@ -574,6 +591,7 @@ export default function Newcampaign() {
     const res = await fetch("/api/products");
     const allVariants = await res.json();
     setSelectedProducts(allVariants);
+    handleClick("addAll");
   };
 
   const togglePopover = useCallback(
@@ -995,6 +1013,7 @@ export default function Newcampaign() {
                               : flatDiscount.toString()
                           }
                           onChange={(val) => {
+                            if (isNaN(Number(val))) return;
                             if (activeButtonIndex === 0) {
                               setDiscountPercentage(Number(val));
                             } else {
@@ -1250,7 +1269,7 @@ export default function Newcampaign() {
                         <TextField
                           id="campaignEndTime"
                           autoComplete="off"
-                          type="time"                          
+                          type="time"
                           label="Time"
                           placeholder="Select time"
                           value={campaignEndTime}
@@ -1607,12 +1626,13 @@ export default function Newcampaign() {
                         </Button>
                         <Button
                           variant="primary"
+                          loading={buttonLoading.addAll}
                           onClick={() => {
-                            // setProductAddType("all")
+                            handleClick("addAll");
                             selectAllProducts();
                           }}
                         >
-                          Add all products
+                          Add All Products
                         </Button>
                       </ButtonGroup>
                     </div>
@@ -1739,11 +1759,13 @@ export default function Newcampaign() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredProducts.map((product:any) => (
+                        {filteredProducts.map((product: any) => (
                           <tr
                             key={product.variantId}
                             style={{
-                              backgroundColor: handleDuplication(product.variantId)
+                              backgroundColor: handleDuplication(
+                                product.variantId,
+                              )
                                 ? "#ea9898ff"
                                 : "",
                             }}
@@ -1756,10 +1778,7 @@ export default function Newcampaign() {
                               }}
                             >
                               <img
-                                src={
-                                  product.productImage ||
-                                  product.image
-                                }
+                                src={product.productImage || product.image}
                                 alt={product.variantTitle}
                                 style={{
                                   width: 50,
@@ -1799,14 +1818,11 @@ export default function Newcampaign() {
                                 <TextField
                                   type="number"
                                   min={0}
-                                  value={
-                                    product?.maxUnit?.toString()
-                                  }
+                                  value={product?.maxUnit?.toString()}
                                   onChange={(value) =>
                                     handleMaxUnitChange(
                                       product.variantId,
                                       Number(value),
-
                                     )
                                   }
                                 />
@@ -1825,6 +1841,7 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                cursor: "pointer",
                               }}
                             >
                               <div

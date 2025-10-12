@@ -1,0 +1,21 @@
+{% assign min_price = product.price %}
+
+{% for variant in product.variants %}
+  {% for allocation in variant.selling_plan_allocations %}
+    {% if allocation.price < min_price %}
+      {% assign min_price = allocation.price %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+
+<span class="product-price">
+   {{ min_price}}
+</span>
+
+{% schema %}
+{
+  "name": "product price block",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

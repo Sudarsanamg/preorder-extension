@@ -448,7 +448,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           for (const g of groups) {
             const groupId = g.node.id;
 
-            // Step 2: remove variant from group
             await admin.graphql(removeVariantMutation, {
               variables: {
                 groupId,
@@ -458,7 +457,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           }
         }
 
-        //remove metafields
 
         const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
           {
@@ -582,7 +580,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       });
 
 
-      //need to get campaign products and need to remove campaign_id metafield in them
 
       const products = JSON.parse((formData.get("products") as string) || "[]");
 
@@ -592,7 +589,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           namespace: "custom",
           key: "campaign_id",
           type: "single_line_text_field",
-          value: id,
+          value: 'null',
         },
         {
           ownerId: product.variantId,
@@ -606,7 +603,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           namespace: "custom",
           key: "campaign_id",
           type: "single_line_text_field",
-          value: id,
+          value: 'null',
         },
         {
           ownerId: product.productId,
@@ -728,6 +725,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               type: "single_line_text_field",
               value: String(campaign.id),
             },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: String(campaign.id),
+            },   
             {
               ownerId: product.variantId,
               namespace: "custom",
@@ -956,6 +960,10 @@ export default function CampaignDetail() {
     parsedDesignSettingsResponse: any;
     parsedCampaignSettingsResponse: any;
   };
+  const [buttonLoading, setButtonLoading] = useState({
+    publish: false,
+    delete: false,
+  });
 
   const navigation = useNavigation();
   const campaignSettingsMap =  parsedCampaignSettingsResponse
@@ -1281,6 +1289,7 @@ const formattedTime = `${hours}:${minutes}`;
 
 
   function handleUnpublish(id: string): void {
+    setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
     setIsSubmitting(true);
     formData.append("intent", "unpublish-campaign");
@@ -1343,6 +1352,7 @@ const formattedTime = `${hours}:${minutes}`;
   };
 
   function handlePublish(id: string): void {
+    setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
     setIsSubmitting(true);
     formData.append("intent", "publish-campaign");
@@ -1454,7 +1464,7 @@ const formattedTime = `${hours}:${minutes}`;
         }}
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
-          loading: navigation.state !== "idle",
+          loading: buttonLoading.publish,
           onAction: () =>
             campaign?.status === "PUBLISHED"
               ? handleUnpublish(String(campaign?.id))
@@ -1465,6 +1475,7 @@ const formattedTime = `${hours}:${minutes}`;
             content: "Delete",
             destructive: true,
             onAction: () => shopify.modal.show("delete-modal"),
+            loading: buttonLoading.delete,
           },
         ]}
       >
@@ -1482,14 +1493,15 @@ const formattedTime = `${hours}:${minutes}`;
               variant="primary"
               tone="critical"
               onClick={() => {
+                setButtonLoading((prev) => ({ ...prev, delete: true }));
                 handleDelete(String(campaign?.id));
                 shopify.modal.hide("delete-modal");
               }}
-              loading={navigation.state !== "idle"}
+              loading={buttonLoading.delete}
             >
               Delete
             </button>
-            <button onClick={() => shopify.modal.hide("delete-modal")}>
+            <button onClick={() => {shopify.modal.hide("delete-modal")}}>
               Cancel
             </button>
           </TitleBar>
@@ -2459,7 +2471,7 @@ const formattedTime = `${hours}:${minutes}`;
                               textAlign: "center",
                             }}
                           >
-                            {product.variantPrice}
+                            ${product.variantPrice}
                           </td>
                           <td
                             style={{

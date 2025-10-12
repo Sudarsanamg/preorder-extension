@@ -11,9 +11,9 @@ export async function createStore(data: {
   metaobjectsCreated: boolean;
   metaFieldsCreated: boolean;
   shopifyDomain: string;
-  ConfrimOrderEmailSettings: string;
-  ShippingEmailSettings: string;
-  GeneralSettings: string;
+  ConfrimOrderEmailSettings: Prisma.InputJsonValue;
+  ShippingEmailSettings: Prisma.InputJsonValue;
+  GeneralSettings: Prisma.InputJsonValue;
   EmailConfig: string;
 }) {
   return prisma.store.create({
@@ -493,36 +493,36 @@ export async function createDuePayment(
 //   });
 // }
 
-export async function EmailConfig(
-  storeId: string,
-  emailId: string,
-  senderType: string,
-  fromName: string,
-  replyName: string,
-) {
-  return prisma.emailConfig.upsert({
-    where: { storeId },
-    update: {
-      emailId,
-      senderType,
-      fromName,
-      replyName,
-    },
-    create: {
-      storeId,
-      emailId,
-      senderType,
-      fromName,
-      replyName,
-    },
-  });
-}
+// export async function EmailConfig(
+//   storeId: string,
+//   emailId: string,
+//   senderType: string,
+//   fromName: string,
+//   replyName: string,
+// ) {
+//   return prisma.emailConfig.upsert({
+//     where: { storeId },
+//     update: {
+//       emailId,
+//       senderType,
+//       fromName,
+//       replyName,
+//     },
+//     create: {
+//       storeId,
+//       emailId,
+//       senderType,
+//       fromName,
+//       replyName,
+//     },
+//   });
+// }
 
-export async function getPreorderEmailConfig(storeId: string) {
-  return prisma.emailConfig.findFirst({
-    where: { storeId },
-  });
-}
+// export async function getPreorderEmailConfig(storeId: string) {
+//   return prisma.emailConfig.findFirst({
+//     where: { storeId },
+//   });
+// }
 
 export async function getAllVariants(storeID: string) {
   // Get stored access token for this shop

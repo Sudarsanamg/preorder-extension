@@ -41,6 +41,7 @@ import preorderCampaignDef from "app/utils/preorderCampaignDef";
 import productMetafieldDefinitions, { variantMetafieldDefinitions } from "app/utils/productMetafieldDefinitions";
 import {
   confrimOrderTemplate,
+  preorderDisplaySetting,
   ShippingEmailTemplate,
 } from "../utils/templates/emailTemplate";
 import { GET_SHOP } from "app/graphql/queries/shop";
@@ -81,9 +82,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       metaobjectsCreated: true,
       metaFieldsCreated: true,
       shopifyDomain: storeDomain,
-      ConfrimOrderEmailSettings: JSON.stringify(confrimOrderTemplate),
-      ShippingEmailSettings: JSON.stringify(ShippingEmailTemplate),
-      GeneralSettings: "",
+      ConfrimOrderEmailSettings: confrimOrderTemplate,
+      ShippingEmailSettings: ShippingEmailTemplate,
+      GeneralSettings: preorderDisplaySetting,
       EmailConfig: "",
     });
   } catch (error) {

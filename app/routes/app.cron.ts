@@ -1,10 +1,8 @@
-// app/cron.server.ts
 import { json } from "@remix-run/node";
 import cron from "node-cron";
 import prisma from "../db.server";
-import { runPayment} from "./runPayment";
+import { runPayment} from "../helper/runPayment";
 
-// Runs every minute
 export const loader = async () => {
   console.log("⏰ Cron endpoint hit...");
 

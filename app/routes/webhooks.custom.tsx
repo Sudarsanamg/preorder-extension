@@ -5,13 +5,15 @@ import { v4 as uuidv4 } from "uuid";
 import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
 import nodemailer from "nodemailer";
 import { incrementUnitsSold } from "app/models/preorder.server";
+import { GetCampaignIdsQuery } from "app/graphql/queries/campaign";
+import { AddTagsToOrderMutation, draftOrderCreate, getOrderVaultedMethods } from "app/graphql/queries/orders";
+import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
+import { draftOrderInvoiceSendMutation } from "app/graphql/mutation/orders";
 
 export const action = async ({ request }: { request: Request }) => {
-  console.log("Webhook hitted");
+const { topic, shop, payload, admin } = await authenticate.webhook(request);
+const orderPaid = async (payload: any) => {
   try {
-    const { topic, shop, payload, admin } = await authenticate.webhook(request);
-    console.log("Webhook hitted");
-    // console.log(payload);
     const products = payload.line_items || [];
     const line_items = payload.line_items || [];
     const variantIds = line_items.map((item: any) => item.variant_id);
@@ -36,18 +38,7 @@ export const action = async ({ request }: { request: Request }) => {
       }
     }
 
-    const GetCampaignIdsQuery = `
-  query GetCampaignIds($ids: [ID!]!) {
-    nodes(ids: $ids) {
-      ... on Product {
-        id
-        metafield(namespace: "custom", key: "campaign_id") {
-          value
-        }
-      }
-    }
-  }
-`;
+   
 
     const GetCampaignIdsQueryResponse = await admin.graphql(
       GetCampaignIdsQuery,
@@ -108,20 +99,6 @@ export const action = async ({ request }: { request: Request }) => {
     }
     if (orderTags.length > 0 && orderContainsPreorderItem) {
       // add tags to order using mutation
-      const AddTagsToOrderMutation = `
-  mutation AddTagsToOrder($id: ID!, $tags: [String!]!) {
-    orderUpdate(input: {id: $id, tags: $tags}) {
-      order {
-        id
-        tags
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
       const uniqueTags = [...new Set(orderTags), ...new Set(customerTags)];
 
       const orderId = payload.admin_graphql_api_id;
@@ -149,20 +126,8 @@ export const action = async ({ request }: { request: Request }) => {
       const remaining = Number(secondSchedule?.amount);
 
       const uuid = uuidv4();
-      const storeIdQuery = `{
-    shop {
-      id
-      name
-      myshopifyDomain
-      plan {
-          displayName
-          partnerDevelopment
-          shopifyPlus
-        }
-    }
-  }`;
 
-      const storeIdQueryResponse = await admin.graphql(storeIdQuery);
+      const storeIdQueryResponse = await admin.graphql(GET_SHOP_WITH_PLAN);
       const storeIdQueryResponseData = await storeIdQueryResponse.json();
       const shopId = storeIdQueryResponseData.data.shop.id;
       const plusStore = storeIdQueryResponseData.data.shop.plan.shopifyPlus;
@@ -210,6 +175,7 @@ export const action = async ({ request }: { request: Request }) => {
         storeId: shopId,
       });
 
+      try {
       if (emailConsent?.sendCustomEmail) {
         const emailTemplate = generateEmailTemplate(
           ParsedemailSettings,
@@ -241,30 +207,14 @@ export const action = async ({ request }: { request: Request }) => {
           console.error("❌ Email send error:", error);
         }
       }
+         
+      } catch (error) {
+        console.error("❌ Email error:", error);
+      }
 
       // // Draft order mutation
       // the only way to match og order with draft order is note key
       if (remaining > 0 && vaultPayment === false) {
-        const mutation = `
-        mutation draftOrderCreate($input: DraftOrderInput!) {
-          draftOrderCreate(input: $input) {
-            draftOrder {
-              id
-              invoiceUrl
-              totalPriceSet {
-                presentmentMoney {
-                  amount
-                  currencyCode
-                }
-              }
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
 
         const variables = {
           input: {
@@ -281,10 +231,9 @@ export const action = async ({ request }: { request: Request }) => {
           },
         };
 
-        const response = await admin.graphql(mutation, { variables });
+        const response = await admin.graphql(draftOrderCreate, { variables });
         const data = await response.json();
 
-        console.log(data);
 
         if (data.data.draftOrderCreate.userErrors.length) {
           console.error(
@@ -304,23 +253,9 @@ export const action = async ({ request }: { request: Request }) => {
 
         const draftOrderId = data.data.draftOrderCreate.draftOrder.id;
 
-        const emailMutation = `
-        mutation sendInvoice($id: ID!, $email: EmailInput!) {
-          draftOrderInvoiceSend(id: $id, email: $email) {
-            draftOrder {
-              id
-              invoiceUrl
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
 
         // Call Shopify Admin API
-        const emailResponse = await admin.graphql(emailMutation, {
+        const emailResponse = await admin.graphql(draftOrderInvoiceSendMutation, {
           variables: {
             id: draftOrderId,
             email: {
@@ -341,32 +276,16 @@ export const action = async ({ request }: { request: Request }) => {
       }
       //if plus store and getDueByValt is true then create mandate
       else if (remaining > 0 && vaultPayment) {
-        console.log("🚀 Starting mandate creation process...");
+        // console.log("🚀 Starting mandate creation process...");
         // 1. Get customer's vaulted payment method
-        const QUERY = `
-    query getOrderVaultedMethods($id: ID!) {
-      order(id: $id) {
-        paymentCollectionDetails {
-          vaultedPaymentMethods {
-            id
-          }
-          additionalPaymentCollectionUrl
-        }
-      }
-    }
-  `;
 
-        const response = await admin.graphql(QUERY, {
+        const response = await admin.graphql(getOrderVaultedMethods, {
           variables: { id: orderId },
         });
 
         const { data } = await response.json();
-
-        console.log(data);
-
         const methods =
           data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
-        console.log("Vaulted payment methods:", JSON.stringify(methods));
         const mandateId = methods?.[0]?.id;
 
         const accessTokenRes = await prisma.session.findFirst({
@@ -402,13 +321,11 @@ export const action = async ({ request }: { request: Request }) => {
       });
     }
 
-    if (topic === "DRAFT_ORDERS_UPDATE") {
-      console.log("🛒 Draft payment update hitted");
-      // console.log(payload);
-    }
   } catch (error) {
     console.error("❌ Webhook error:", error);
   }
+};
+orderPaid(payload);
 
   return new Response("ok");
 };

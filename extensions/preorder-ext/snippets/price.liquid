@@ -1,0 +1,13 @@
+{% assign variant = product.variants.first %}
+{% assign allocation = variant.selling_plan_allocations.first %}
+
+{% if allocation %}
+  <span class="price">
+    {{ allocation.price_adjustments.first.price | money }}
+  </span>
+  <s class="compare-price">
+    {{ variant.price | money }}
+  </s>
+{% else %}
+  <span class="price">{{ variant.price | money }}</span>
+{% endif %}
