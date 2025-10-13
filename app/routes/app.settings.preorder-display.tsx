@@ -10,10 +10,8 @@ import {
 import { useEffect, useState } from "react";
 import {SaveBar, useAppBridge} from '@shopify/app-bridge-react';
 import { authenticate } from "../shopify.server";
-import { useLoaderData ,useSubmit} from "@remix-run/react";
+import { useLoaderData ,useSubmit,useNavigate} from "@remix-run/react";
 import { getPreorderDisplaySettings, savePreorderDisplay } from "app/models/campaign.server";
-
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // return storeId;
   const {admin} = await authenticate.admin(request);
@@ -64,41 +62,66 @@ export default function PreorderDisplay() {
 
   const { shopId ,settings} = useLoaderData<typeof loader>();
   const settingsData = settings?.settings ?? {};
-  const [checked, setChecked] = useState({
+  
+   const initialChecked = {
     productPage: settingsData.productPage ?? true,
-    featuredProducts:  settingsData.featuredProducts ?? true,
+    featuredProducts: settingsData.featuredProducts ?? true,
     quickBuy: settingsData.quickBuy ?? true,
     multiplePages: settingsData.multiplePages ?? true,
     preOrderDiscount: settingsData.preOrderDiscount ?? true,
-  });
+  };
+   const [checked, setChecked] = useState(initialChecked);
+
+  const navigate = useNavigate();
+  const [saveBarVisible, setSaveBarVisible] = useState(false);
 
     const shopify = useAppBridge();
     const submit = useSubmit();
 
-     const handleSave = () => {
-    console.log('Saving');
+    const handleSave = () => {
     const formdata = new FormData();
     formdata.append("intent", "save-preorder-display");
     formdata.append("settings", JSON.stringify(checked));
     formdata.append("shopId",shopId); 
     submit(formdata, { method: "post" });
-
     shopify.saveBar.hide('my-save-bar');
   };
 
   const handleDiscard = () => {
     console.log('Discarding');
     shopify.saveBar.hide('my-save-bar');
+    setSaveBarVisible(false);
   };
 
 
   useEffect(() => {
-    shopify.saveBar.show("my-save-bar");
+    const hasChanges =
+      JSON.stringify(checked) !== JSON.stringify(initialChecked);
+
+    if (hasChanges) {
+      shopify.saveBar.show("my-save-bar");
+      setSaveBarVisible(true);
+    } else {
+      shopify.saveBar.hide("my-save-bar");
+      setSaveBarVisible(false);
+    }
   }, [checked]);
 
 
   return (
-    <Page backAction={{ content: "Back", url: "/app/" }} title="Pages:Button">
+    <Page 
+    backAction={{ content: "Back", 
+      onAction: () => {
+        console.log(saveBarVisible,'saveBarVisible');
+        if(saveBarVisible){
+          shopify.saveBar.leaveConfirmation();
+        }
+        else{
+          navigate("/app");
+        }
+      }
+      }} 
+    title="Pages:Button">
       <SaveBar id="my-save-bar">
         <button variant="primary" onClick={handleSave}></button>
         <button onClick={handleDiscard}></button>

@@ -1,4 +1,11 @@
 name = "preorder-ext"
 uid = "d7f568d2-16ce-c000-7d71-795c5b947dfc0ad8acaa"
-type = "theme"
+type = "theme_app_extension"
+version = "1.0.0"
+author = "Your Name"
+description = "Automatically inject preorder embed"
 
+[[embeds]]
+type = "app"
+name = "Preorder Embed"
+source = "snippets/app-preorder-embed.liquid"

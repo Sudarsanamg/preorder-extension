@@ -2,7 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { Prisma ,PaymentStatus ,CampaignStatus } from "@prisma/client";
+import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType } from "@prisma/client";
 
 export async function createStore(data: {
   storeID: string;
@@ -11,9 +11,10 @@ export async function createStore(data: {
   metaobjectsCreated: boolean;
   metaFieldsCreated: boolean;
   shopifyDomain: string;
-  ConfrimOrderEmailSettings: string;
-  ShippingEmailSettings: string;
-  GeneralSettings: string;
+  currencyCode: string;
+  ConfrimOrderEmailSettings: Prisma.InputJsonValue;
+  ShippingEmailSettings: Prisma.InputJsonValue;
+  GeneralSettings: Prisma.InputJsonValue;
   EmailConfig: string;
 }) {
   return prisma.store.create({
@@ -23,6 +24,7 @@ export async function createStore(data: {
       webhookRegistered: data.webhookRegistered,
       metaobjectsCreated: data.metaobjectsCreated,
       metaFieldsCreated: data.metaFieldsCreated,
+      currencyCode: data.currencyCode,
       shopifyDomain: data.shopifyDomain,
       ConfrimOrderEmailSettings: data.ConfrimOrderEmailSettings,
       ShippingEmailSettings: data.ShippingEmailSettings,
@@ -72,7 +74,7 @@ export async function createPreorderCampaign(data: {
   campaignEndDate?: Date;
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
-  discountType?: string;
+  discountType: DiscountType;
   discountPercent?: number;
   discountFixed?: number;
   campaignType?: number;
@@ -94,7 +96,7 @@ export async function createPreorderCampaign(data: {
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
-      discountType: "NONE",
+      discountType: data.discountType,
       discountPercent: data.discountPercent,
       discountFixed: data.discountFixed,
       campaignType: data.campaignType,
@@ -493,33 +495,115 @@ export async function createDuePayment(
 //   });
 // }
 
-export async function EmailConfig(
-  storeId: string,
-  emailId: string,
-  senderType: string,
-  fromName: string,
-  replyName: string,
-) {
-  return prisma.emailConfig.upsert({
-    where: { storeId },
-    update: {
-      emailId,
-      senderType,
-      fromName,
-      replyName,
-    },
-    create: {
-      storeId,
-      emailId,
-      senderType,
-      fromName,
-      replyName,
-    },
-  });
-}
+// export async function EmailConfig(
+//   storeId: string,
+//   emailId: string,
+//   senderType: string,
+//   fromName: string,
+//   replyName: string,
+// ) {
+//   return prisma.emailConfig.upsert({
+//     where: { storeId },
+//     update: {
+//       emailId,
+//       senderType,
+//       fromName,
+//       replyName,
+//     },
+//     create: {
+//       storeId,
+//       emailId,
+//       senderType,
+//       fromName,
+//       replyName,
+//     },
+//   });
+// }
 
-export async function getPreorderEmailConfig(storeId: string) {
-  return prisma.emailConfig.findFirst({
-    where: { storeId },
+// export async function getPreorderEmailConfig(storeId: string) {
+//   return prisma.emailConfig.findFirst({
+//     where: { storeId },
+//   });
+// }
+
+export async function getAllVariants(storeID: string) {
+  // Get stored access token for this shop
+  const store = await prisma.store.findUnique({
+    where: { storeID: storeID },
+    select: { offlineToken: true ,
+      shopifyDomain: true
+    },
+
   });
+
+  if (!store?.offlineToken) {
+    throw new Error(`No access token found for shop: ${store?.shopifyDomain}`);
+  }
+
+  const endpoint = `https://${store?.shopifyDomain}/admin/api/2023-10/graphql.json`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": store.offlineToken,
+    },
+    body: JSON.stringify({
+      query: `
+        query GetProductsWithVariants {
+          products(first: 250) {
+            edges {
+              node {
+                id
+                images(first: 1) {
+                  edges {
+                    node {
+                      originalSrc
+                    }
+                  }
+                }
+                variants(first: 250) {
+                  edges {
+                    node {
+                      id
+                      displayName
+                      price
+                      inventoryQuantity
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (data.errors) {
+    console.error("Shopify GraphQL errors:", data.errors);
+    throw new Error("Failed to fetch variants from Shopify");
+  }
+
+  const variants = data.data.products.edges.flatMap((edge: any) => {
+    const p = edge.node;
+    const productImage = p.images?.edges?.[0]?.node?.originalSrc || null;
+
+    return p.variants.edges.map((variantEdge: any) => {
+      const v = variantEdge.node;
+      return {
+        productId: p.id,
+        productImage,
+        variantId: v.id,
+        variantTitle: v.displayName,
+        variantPrice: v.price,
+        variantInventory: v.inventoryQuantity ?? 0,
+        maxUnit: 0,
+      };
+    });
+  });
+
+  return variants;
 }

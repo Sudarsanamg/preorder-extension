@@ -23,7 +23,7 @@ import {
   redirect,
   useLoaderData,
   useSubmit,
-  // useNavigate,
+  useNavigate,
   // useFetcher,
   // useActionData,
 } from "@remix-run/react";
@@ -97,6 +97,7 @@ export const action = async ({ request }: { request: Request }) => {
 export default function EmailPreorderConfirmationSettings() {
 
   const shopify = useAppBridge();
+  const navigate = useNavigate();
   const {shopId ,status ,parsedConfrimOrderEmailSettingsData }= useLoaderData<typeof loader>();
   const parsedSettings = parsedConfrimOrderEmailSettingsData
   const submit = useSubmit();
@@ -107,8 +108,8 @@ export default function EmailPreorderConfirmationSettings() {
     { label: "Courier New", value: "Courier New" },
   ];
   const [subject, setSubject] = useState("Delivery update for order {order}");
- const [emailSettings, setEmailSettings] = useState<EmailSettings>({
-  subject: parsedSettings.subject,
+  const initialSettings  :EmailSettings= {
+subject: parsedSettings.subject,
   font: parsedSettings.font,
 
   storeName: parsedSettings.storeName,
@@ -150,7 +151,9 @@ export default function EmailPreorderConfirmationSettings() {
   cancelButtonGradientColor1: parsedSettings.cancelButtonGradientColor1,
   cancelButtonGradientColor2: parsedSettings.cancelButtonGradientColor2,
   cancelButtonBorderRadius: parsedSettings.cancelButtonBorderRadius,
-});
+  }
+ const [emailSettings, setEmailSettings] = useState<EmailSettings>(initialSettings);
+ const [saveBarVisible, setSaveBarVisible] = useState(false);
   const [activePopover, setActivePopover] = useState<null | string>(null);
 
   const handleSave = () => {
@@ -162,11 +165,13 @@ export default function EmailPreorderConfirmationSettings() {
     formdata.append("shopId",shopId); 
     submit(formdata, { method: "post" });
     shopify.saveBar.hide('my-save-bar');
+    setSaveBarVisible(false);
   };
 
   const handleDiscard = () => {
-    console.log('Discarding');
+    // console.log('Discarding');
     shopify.saveBar.hide('my-save-bar');
+    setSaveBarVisible(false);
   };
 
   const handleRangeSliderChange = (input: number) => {
@@ -203,7 +208,17 @@ export default function EmailPreorderConfirmationSettings() {
 
 
   useEffect(() => {
-    shopify.saveBar.show('my-save-bar');
+    const hasChanges =
+      JSON.stringify(emailSettings) !== JSON.stringify(initialSettings) ||
+      subject !== initialSettings.subject;
+
+    if (hasChanges) {
+      shopify.saveBar.show('my-save-bar');
+      setSaveBarVisible(true);
+    } else {
+      shopify.saveBar.hide('my-save-bar');
+      setSaveBarVisible(false);
+    }
   }, [emailSettings, subject]);
 
   function handleSwitch(status: boolean) {
@@ -219,7 +234,15 @@ export default function EmailPreorderConfirmationSettings() {
   return (
     <Page
       title="Preorder confirmation email"
-      backAction={{ content: "Back", url: "/app/" }}
+      backAction={{ content: "Back",
+        onAction: () => {
+          if(saveBarVisible){
+            shopify.saveBar.leaveConfirmation();
+          }
+          else{
+            navigate('/app')
+        }
+      }}}
       primaryAction={{
         content: status === false ? "Turn On" : "Turn Off",
         onAction: () => {
@@ -556,7 +579,7 @@ export default function EmailPreorderConfirmationSettings() {
               </BlockStack>
             </Card>
             <Card>
-              <BlockStack gap="300">
+              <BlockStack gap="500">
                 <Text variant="headingMd" as="h2">
                   Button
                 </Text>
@@ -579,10 +602,10 @@ export default function EmailPreorderConfirmationSettings() {
                   value={emailSettings.cancelButtonText}
                   onChange={(value) => {
                     handleEmailSettingsChange("cancelButtonText", value);
-                  }}
+                  }}               
                   autoComplete="off"
                 />
-                <Text as="p" variant="bodyMd">
+                <Text as="p" variant="bodyMd" >
                   Opens up order cancelation page. Use {"{order}"} for order
                   number
                 </Text>

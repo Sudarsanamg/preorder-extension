@@ -23,13 +23,13 @@ import {
   Banner,
   InlineStack,
   Checkbox,
+  Spinner,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
 import {
   useSubmit,
   useNavigate,
-  useFetcher,
   useActionData,
   Link,
   useLoaderData,
@@ -41,12 +41,11 @@ import {
   CashDollarIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
-import { ResourcePicker, Redirect } from "@shopify/app-bridge/actions";
+import { ResourcePicker } from "@shopify/app-bridge/actions";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
 import {
   createPreorderCampaign,
   addProductsToCampaign,
-  getAllProducts,
   updateCampaignStatus,
 } from "../models/campaign.server";
 import { useAppBridge } from "../components/AppBridgeProvider";
@@ -63,11 +62,12 @@ import {
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import {
   CREATE_CAMPAIGN,
-  CREATE_DESIGN_SETTINGS,
 } from "../graphql/mutation/metaobject";
+import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
+import { DiscountType } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
   const response = await admin.graphql(GET_SHOP_WITH_PLAN);
   const data = await response.json();
   const storeId = data.data.shop.id;
@@ -79,34 +79,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     case "fetchProductsInCollection": {
       const collectionId = url.searchParams.get("collectionId");
 
-      try {
-        const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
-          variables: { id: collectionId },
-        });
+     try {
+  const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
+    variables: { id: collectionId },
+  });
 
-        const res = await response.json();
+  const resData : any = await response.json ? await response.json() : response;
 
-        const prod = res.data.collection.products.edges.map((edge: any) => {
-          const node = edge.node;
+  const prod = resData.data.collection.products.edges.flatMap((edge: any) => {
+    const node = edge.node;
 
-          const totalInventory = node.variants.edges.reduce(
-            (sum: number, v: any) => sum + (v.node.inventoryQuantity || 0),
-            0,
-          );
+    return node.variants.edges.map((v: any) => ({
+      productId: node.id,
+      productTitle: node.title,
+      handle: node.handle,
+      productImage: node.images.edges[0]?.node?.url || null, // use `url` not `src` in GraphQL
+      variantId: v.node.id,
+      variantTitle: v.node.displayName,
+      variantPrice: v.node.price,
+      variantInventory: v.node.inventoryQuantity,
+      maxUnit: 0,
+    }));
+  });
 
-          return {
-            id: node.id,
-            title: node.title,
-            handle: node.handle,
-            image: node.images.edges[0]?.node?.src || null,
-            price: node.variants.edges[0]?.node?.price || null,
-            totalInventory,
-          };
-        });
-        return json({ prod });
-      } catch (error) {
-        console.log(error);
-      }
+  return json({ prod });
+} catch (error) {
+  console.error(error);
+}
+
     }
   }
 
@@ -114,7 +114,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log("Action hitted**************************");
 
   try {
     const formData = await request.formData();
@@ -124,14 +123,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       const auth = await authenticate.admin(request);
       admin = auth.admin;
-      console.log("Admin authenticated successfully");
     } catch (err) {
       console.error("Admin authentication failed:", err);
       return json({ error: "Admin authentication failed" }, { status: 500 });
     }
 
     switch (intent) {
-      case "create-campaign": {
+      case "create-campaign" :
+      case "SAVE": {
         const campaign = await createPreorderCampaign({
           name: formData.get("name") as string,
           storeId: formData.get("storeId") as string,
@@ -145,7 +144,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           customerTags: JSON.parse(
             (formData.get("customerTags") as string) || "[]",
           ),
-          discountType: formData.get("discountType") as string,
+          discountType: formData.get("discountType") as DiscountType,
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
@@ -157,7 +156,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           (formData.get("products") as string) || "[]",
         );
 
-        if (products.length > 0) {
+        if (products.length > 0 ) {
           await addProductsToCampaign(campaign.id, products);
 
           // -------------------------------
@@ -176,7 +175,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder",
               type: "boolean",
-              value: "true"
+              value: intent === "SAVE" ? "false" : "true",
             },
             {
               ownerId: product.variantId,
@@ -227,7 +226,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           ]);
 
           const productMetafields = products.flatMap((product: any) => [
-             {
+            {
               ownerId: product.productId,
               namespace: "custom",
               key: "campaign_id",
@@ -239,7 +238,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder",
               type: "boolean",
-              value: "true",
+              value: intent === "SAVE" ? "false" : "true",
             },
             {
               ownerId: product.productId,
@@ -287,103 +286,90 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               type: "number_integer",
               value: "0",
             },
-          ])
+          ]);
+          // if (intent !== "SAVE") {
+            try {
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields },
+              });
 
-          try {
-            const response = await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields },
-            });
-            
-            const response2 = await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields: productMetafields },
-            })
-            console.log("GraphQL response:", response);
-            console.log("GraphQL response2:", response2);
-          } catch (err) {
-            console.error("GraphQL mutation failed:", err);
-            throw err;
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields: productMetafields },
+              });
+            } catch (err) {
+              console.error("GraphQL mutation failed:", err);
+              throw err;
+            }
           }
-        }
+        // }
 
+        if(intent !== "SAVE") {
         const paymentMode = formData.get("paymentMode") as "partial" | "full";
-        const discountType = formData.get("discountType") as
-          | "none"
-          | "percentage"
-          | "flat";
+        const discountType = formData.get("discountType") as DiscountType;
+
+        const varientIds = products.map((p: any) => p.variantId);
+        await applyDiscountToVariants(
+          admin,
+          varientIds,
+          discountType,
+          Number(formData.get("discountPercentage") || 0),
+          Number(formData.get("flatDiscount") || 0)
+        );
 
         const res = await createSellingPlan(
           admin,
           paymentMode,
-          discountType,
           products,
           formData,
         );
         console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
+      }
 
         const designFields = JSON.parse(formData.get("designFields") as string);
-        console.log(designFields, "designFields >>>>>>>>>>>>>>>>>>>>>>");
-
-        const fields = [
-          {
-            key: "object",
-            value: JSON.stringify({
-              ...designFields,
-              campaign_id: campaign.id,
-            }),
-          },
-        ];
-
-        try {
-          const response = await admin.graphql(CREATE_DESIGN_SETTINGS, {
-            variables: {
-              fields: [
-                {
-                  key: "campaign_id",
-                  value: String(campaign.id),
-                },
-
-                ...fields,
-              ],
-            },
-          });
-
-          const result = await response.json();
-          console.log("design Metaobject:", JSON.stringify(result, null, 2));
-
-          const campaignFields = [
+        const campaignFields = [
             {
               key: "object",
               value: JSON.stringify({
-                campaign_id: String(campaign.id),
-                name: (formData.get("name") as string) || "Untitled Campaign",
-                status: "publish",
-                button_text:
-                  (formData.get("buttonText") as string) || "Preorder",
-                shipping_message:
-                  (formData.get("shippingMessage") as string) ||
-                  "Ship as soon as possible",
-                payment_type: (formData.get("paymentMode") as string) || "Full",
-                ppercent: String(formData.get("depositPercent") || "0"),
-                paymentduedate: new Date(
-                  (formData.get("balanceDueDate") as string) || Date.now(),
-                ).toISOString(),
-                campaign_end_date: new Date(
-                  (formData.get("campaignEndDate") as string) || Date.now(),
-                ).toISOString(),
-                discount_type:
-                  (formData.get("discountType") as string) || "none",
-                discountpercent:
-                  (formData.get("discountPercentage") as string) || "0",
-                discountfixed: (formData.get("flatDiscount") as string) || "0",
-                campaigntags: JSON.parse(
-                  (formData.get("orderTags") as string) || "[]",
-                ).join(","),
-                campaigntype: String(formData.get("campaignType") as string),
+                campaignData: {
+                  campaign_id: String(campaign.id),
+                  name: (formData.get("name") as string) || "Untitled Campaign",
+                  status: "publish",
+                  button_text:
+                    (formData.get("buttonText") as string) || "Preorder",
+                  shipping_message:
+                    (formData.get("shippingMessage") as string) ||
+                    "Ship as soon as possible",
+                  payment_type:
+                    (formData.get("paymentMode") as string) || "Full",
+                  ppercent: String(formData.get("depositPercent") || "0"),
+                  paymentduedate: new Date(
+                    (formData.get("balanceDueDate") as string) || Date.now(),
+                  ).toISOString(),
+                  campaign_end_date: new Date(
+                    (formData.get("campaignEndDate") as string) || Date.now(),
+                  ).toISOString(),
+                  discount_type:
+                    (formData.get("discountType") as string) || "none",
+                  discountpercent:
+                    (formData.get("discountPercentage") as string) || "0",
+                  discountfixed:
+                    (formData.get("flatDiscount") as string) || "0",
+                  campaigntags: JSON.parse(
+                    (formData.get("orderTags") as string) || "[]",
+                  ).join(","),
+                  campaigntype: String(formData.get("campaignType") as string),
+                },
+                designFields: {
+                  ...designFields,
+                },
               }),
             },
           ];
 
-          await admin.graphql(CREATE_CAMPAIGN, {
+
+          console.log("Campaign Fields >>>", JSON.stringify(campaignFields, null, 2));
+
+          const response = await admin.graphql(CREATE_CAMPAIGN, {
             variables: {
               fields: [
                 { key: "campaign_id", value: String(campaign.id) },
@@ -391,11 +377,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               ],
             },
           });
-        } catch (error) {
-          console.log("Error creating campaign:", error);
-        }
 
-        await updateCampaignStatus(campaign.id, "PUBLISHED");
+          const result = await response.json();
+          console.log("campaign Metaobject:", JSON.stringify(result, null, 2));
+
+        await updateCampaignStatus(campaign.id, intent === "SAVE" ? "DRAFT" :  "PUBLISHED");
 
         return redirect("/app");
       }
@@ -403,7 +389,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "productsWithPreorder": {
         let productIds = JSON.parse(formData.get("products") as string);
 
-        productIds = productIds.map((product) => product.id);
+        productIds = productIds.map((product:any) => product.variantId);
 
         const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER, {
           variables: { ids: productIds },
@@ -413,7 +399,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const productsWithPreorder = data.data.nodes.map((product: any) => ({
           id: product.id,
           title: product.title,
-          preorder: product?.metafield?.value === "true",
+          preorder: product?.metafield?.value == "true",
         }));
 
         return json({ productsWithPreorder });
@@ -478,7 +464,7 @@ export default function Newcampaign() {
     popoverActive: false,
     inputValue: new Date().toLocaleDateString(),
   });
-  const [campaignEndTime, setCampaignEndTime] = useState("");
+  const [campaignEndTime, setCampaignEndTime] = useState("00:00");
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: "16",
     messageColor: "#000000",
@@ -506,7 +492,7 @@ export default function Newcampaign() {
     "Pay {payment} now and {remaining} will be charged on {date}",
   );
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
-  const [discountType, setDiscountType] = useState("none");
+  const [discountType, setDiscountType] = useState<DiscountType>("NONE");
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [flatDiscount, setFlatDiscount] = useState(0);
   const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
@@ -514,13 +500,24 @@ export default function Newcampaign() {
   const payment = 3.92;
   const remaining = 35.28;
   const [loading, setLoading] = useState(false);
+  const [buttonLoading, SetButtonLoading] = useState({
+    add: false,
+    remove: false,
+    cancel: false,
+    addAll: false,
+  });
 
   const formattedText = partialPaymentInfoText
     .replace("{payment}", `$${payment}`)
     .replace("{remaining}", `$${remaining}`)
     .replace("{date}", DueDateinputValue);
 
-  const handleCampaignEndDateChange = useCallback((range) => {
+      const handleClick = async (action: string) => {
+        SetButtonLoading((prev: any) => ({ ...prev, [action]: !prev[action] }));
+      };
+
+
+  const handleCampaignEndDateChange = useCallback((range:any) => {
     setCampaignEndPicker((prev) => ({
       ...prev,
       selected: range,
@@ -535,7 +532,7 @@ export default function Newcampaign() {
     }
   }, []);
 
-  const handleCampaignEndMonthChange = useCallback((newMonth, newYear) => {
+  const handleCampaignEndMonthChange = useCallback((newMonth:any, newYear:any) => {
     setCampaignEndPicker((prev) => ({
       ...prev,
       month: newMonth,
@@ -552,54 +549,56 @@ export default function Newcampaign() {
     [],
   );
 
-  const handleCampaignEndTimeChange = useCallback((value) => {
+  const handleCampaignEndTimeChange = useCallback((value:any) => {
     setCampaignEndTime(value);
   }, []);
 
   const openResourcePicker = () => {
-    shopify.modal.hide("my-modal");
+  shopify.modal.hide("my-modal");
 
-    const picker = ResourcePicker.create(appBridge, {
-      resourceType:
-        productRadio === "option1"
-          ? ResourcePicker.ResourceType.Product
-          : ResourcePicker.ResourceType.Collection,
-      options: {
-        selectMultiple: true,
-        initialSelectionIds: selectedProducts.map((p) => ({ id: p.id })),
-      },
-    });
+  const picker = ResourcePicker.create(appBridge, {
+    resourceType:
+      productRadio === "option1"
+        ? ResourcePicker.ResourceType.Product
+        : ResourcePicker.ResourceType.Collection,
+    options: {
+      selectMultiple: true,
+      initialSelectionIds: selectedProducts.map((v:any) => ({ 
+        id: v.productId ,
+        variants: [{ id: v.variantId }]
+      })),
+    },
+  });
 
-    picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
-      if (productRadio === "option1") {
-        // console.log('Payload selection >>>>>>>>>>>>>>>>',payload.selection);
-       const products = payload.selection.flatMap((p :any) =>
-  p.variants.map((v :any) => ({
-    productId: p.id,
-    productImage: p.images?.[0]?.originalSrc,
-    variantId: v.id,
-    variantTitle: v.displayName,
-    variantPrice: v.price,
-    variantInventory: v.inventoryQuantity,
-    maxUnit:0
-  }))
-);
+  picker.subscribe(ResourcePicker.Action.SELECT, async (payload) => {
+    if (productRadio === "option1") {
+      const products = payload.selection.flatMap((p: any) =>
+        p.variants.map((v: any) => ({
+          productId: p.id,
+          productImage: p.images?.[0]?.originalSrc,
+          variantId: v.id,
+          variantTitle: v.displayName,
+          variantPrice: v.price,
+          variantInventory: v.inventoryQuantity,
+          maxUnit: 0,
+        }))
+      );
 
-        setSelectedProducts(products);
-        console.log(payload.selection);
-      } else {
-        await fetchProductsInCollection(payload.selection[0].id);
-      }
-    });
+      setSelectedProducts(products);
+    } else {
+      await fetchProductsInCollection(payload.selection[0].id);
+    }
+  });
 
-    picker.dispatch(ResourcePicker.Action.OPEN);
-  };
+  picker.dispatch(ResourcePicker.Action.OPEN);
+};
+
 
   const selectAllProducts = async () => {
     const res = await fetch("/api/products");
-    const allProducts = await res.json();
-    console.log(allProducts, "**********************All products fetched");
-    setSelectedProducts(allProducts);
+    const allVariants = await res.json();
+    setSelectedProducts(allVariants);
+    handleClick("addAll");
   };
 
   const togglePopover = useCallback(
@@ -607,11 +606,11 @@ export default function Newcampaign() {
     [],
   );
 
-  const handleMonthChange = useCallback((newMonth, newYear) => {
+  const handleMonthChange = useCallback((newMonth:any, newYear:any) => {
     setMonthYear({ month: newMonth, year: newYear });
   }, []);
 
-  const handleDateChange = useCallback((range) => {
+  const handleDateChange = useCallback((range:any) => {
     setSelectedDates(range);
     if (range && range.start) {
       setDueDateInputValue(range.start.toLocaleDateString());
@@ -637,7 +636,7 @@ export default function Newcampaign() {
     },
   ];
 
-  const filteredProducts = selectedProducts?.filter((product) =>
+  const filteredProducts = selectedProducts?.filter((product:any) =>
     product?.variantTitle.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
@@ -667,27 +666,23 @@ export default function Newcampaign() {
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
-      setDiscountType(index === 0 ? "percentage" : "flat");
+      setDiscountType(index === 0 ? "PERCENTAGE" : "FIXED");
     },
     [activeButtonIndex],
   );
 
-  const handleSubmit = () => {
-    // if (
-    //   !campaignName ||
-    //   !partialPaymentPercentage ||
-    //   !DueDateinputValue ||
-    //   selectedProducts.length === 0
-    // ) {
-    //   alert("Please fill all required fields and add at least one product.");
-    //   return;
-    // }
+  const formatedDate = ` ${new Date().toLocaleDateString('en-US', {
+  month: 'short', day: 'numeric', year: 'numeric'
+}).replace(',', '')}`;
 
-    console.log("function hit");
+
+  const handleSubmit = () => {
+  
     setLoading(true);
+    shopify.saveBar.hide('my-save-bar');
     const formData = new FormData();
     formData.append("intent", "create-campaign");
-    formData.append("name", campaignName);
+    formData.append("name", campaignName !== ''? campaignName : `Campaign ${formatedDate}`);
     formData.append("storeId", storeId);
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
@@ -713,7 +708,7 @@ export default function Newcampaign() {
   
   const handleMaxUnitChange = (id: string, value: number) => {
     setSelectedProducts((prev: any) =>
-      prev.map((product) =>
+      prev.map((product:any) =>
         product.variantId === id
           ? { ...product, maxUnit: value } 
           : product,
@@ -723,15 +718,7 @@ export default function Newcampaign() {
 
   const appBridge = useAppBridge();
 
-  const handleSave = () => {
-    console.log("Saving");
-    shopify.saveBar.hide("my-save-bar");
-  };
 
-  const handleDiscard = () => {
-    console.log("Discarding");
-    shopify.saveBar.hide("my-save-bar");
-  };
 
   useEffect(() => {
     if (selectedProducts.length > 0) {
@@ -793,6 +780,44 @@ export default function Newcampaign() {
     }
   }
 
+  const handleSave = () => {
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("intent", "SAVE");
+    formData.append("name", campaignName !== ''? campaignName : `Campaign ${formatedDate}`);
+    formData.append("storeId", storeId);
+    formData.append("depositPercent", String(partialPaymentPercentage));
+    formData.append("balanceDueDate", DueDateinputValue);
+    formData.append("refundDeadlineDays", "0");
+    formData.append("campaignEndDate", campaignEndDate.toISOString());
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignType", String(selectedOption));
+    formData.append("buttonText", String(buttonText));
+    formData.append("shippingMessage", String(shippingMessage));
+    formData.append("paymentMode", String(paymentMode));
+    formData.append("designFields", JSON.stringify(designFields));
+    formData.append("discountType", discountType);
+    formData.append("discountPercentage", String(discountPercentage));
+    formData.append("flatDiscount", String(flatDiscount));
+    formData.append("orderTags", JSON.stringify(productTags));
+    formData.append("customerTags", JSON.stringify(customerTags));
+    formData.append("campaignType", String(selectedOption));
+    formData.append("getDueByValt", String(getPaymentsViaValtedPayments));
+
+    submit(formData, { method: "post" });
+    
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  const handleDiscard = () => {
+    console.log('Discarding');
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  useEffect(() => {
+   shopify.saveBar.show('my-save-bar')
+  }, [designFields,selectedProducts, buttonText, shippingMessage, paymentMode, partialPaymentPercentage, DueDateinputValue, campaignEndDate, discountType, discountPercentage, flatDiscount]);
+
   return (
     <AppProvider i18n={enTranslations}>
       <Page
@@ -807,6 +832,10 @@ export default function Newcampaign() {
           loading: loading,
         }}
       >
+        <SaveBar id="my-save-bar">
+        <button variant="primary" onClick={handleSave}></button>
+        <button onClick={handleDiscard}></button>
+      </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
 
         <form method="post" onSubmit={handleSubmit}>
@@ -859,10 +888,10 @@ export default function Newcampaign() {
               Publish
             </button> */}
           </div>
-          <SaveBar id="my-save-bar">
+          {/* <SaveBar id="my-save-bar">
             <button variant="primary" onClick={handleSave}></button>
             <button onClick={handleDiscard}></button>
-          </SaveBar>
+          </SaveBar> */}
           <div
             style={{
               display: "flex",
@@ -1026,6 +1055,7 @@ export default function Newcampaign() {
                               : flatDiscount.toString()
                           }
                           onChange={(val) => {
+                            if (isNaN(Number(val))) return;
                             if (activeButtonIndex === 0) {
                               setDiscountPercentage(Number(val));
                             } else {
@@ -1638,12 +1668,13 @@ export default function Newcampaign() {
                         </Button>
                         <Button
                           variant="primary"
+                          loading={buttonLoading.addAll}
                           onClick={() => {
-                            // setProductAddType("all")
+                            handleClick("addAll");
                             selectAllProducts();
                           }}
                         >
-                          Add all products
+                          Add All Products
                         </Button>
                       </ButtonGroup>
                     </div>
@@ -1770,11 +1801,13 @@ export default function Newcampaign() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredProducts.map((product) => (
+                        {filteredProducts.map((product: any) => (
                           <tr
                             key={product.variantId}
                             style={{
-                              backgroundColor: handleDuplication(product.id)
+                              backgroundColor: handleDuplication(
+                                product.variantId,
+                              )
                                 ? "#ea9898ff"
                                 : "",
                             }}
@@ -1787,10 +1820,7 @@ export default function Newcampaign() {
                               }}
                             >
                               <img
-                                src={
-                                  product.productImage ||
-                                  product.image
-                                }
+                                src={product.productImage || product.image}
                                 alt={product.variantTitle}
                                 style={{
                                   width: 50,
@@ -1830,14 +1860,11 @@ export default function Newcampaign() {
                                 <TextField
                                   type="number"
                                   min={0}
-                                  value={
-                                    product?.maxUnit?.toString()
-                                  }
+                                  value={product?.maxUnit?.toString()}
                                   onChange={(value) =>
                                     handleMaxUnitChange(
                                       product.variantId,
                                       Number(value),
-
                                     )
                                   }
                                 />
@@ -1856,6 +1883,7 @@ export default function Newcampaign() {
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
+                                cursor: "pointer",
                               }}
                             >
                               <div

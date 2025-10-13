@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Shopify default buttons
   const buyNowBtn = document.querySelector("shopify-buy-it-now-button button");
   const addToCartBtn = document.querySelector(
-    "form[action*='/cart/add'] [type='submit']",
+    "form[action*='/cart/add'] [type='submit']"
   );
 
   // Product & campaign data
@@ -10,59 +10,64 @@ document.addEventListener("DOMContentLoaded", function () {
   const isPreorderProduct = productData?.dataset.preorder === "true";
   const campaignData = document.getElementById("campaign-data");
   const campaignType = parseInt(campaignData?.dataset.campaignType, 10);
-  const stockEl = document.getElementById("product-stock");
-  const inStock = stockEl?.dataset.inStock === "true";
-  const metaEl = document.getElementById("product-metafields");
   // Variant selection
   const variantSelect = document.querySelector("[name='id']");
   const preorderButtons = document.querySelectorAll(".preorder-button");
 
-  // Show/hide the correct preorder button based on selected variant
-  function updatePreorderButton(variantId) {
-    let showingPreorder = false;
+ function updatePreorderButton(variantId) {
+  let showingPreorder = false;
 
-    preorderButtons.forEach((btn) => {
-       
-      const isPreorder = btn.dataset.preorder == "true";
-      if (btn.dataset.variantId === variantId && isPreorder) {
-        btn.style.display = "flex";
-
-        // Check sold out
-        const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
-       const unitsSold = parseInt(btn.dataset.unitsSold || "0", 10);
-        if (unitsSold >= maxUnits) {
-          btn.style.opacity = "0.5";
-          btn.style.pointerEvents = "none";
-          btn.querySelector(".button-text").textContent = "Sold Out";
-        } else {
-          btn.style.opacity = "1";
-          btn.style.pointerEvents = "auto";
-          btn.querySelector(".button-text").textContent =
-            btn.dataset.originalText || "Pre-order";
-        }
-        showingPreorder = true;
-      } else {
-        btn.style.display = "none";
-      }
-    });
-
-    if (showingPreorder) {
-      if (buyNowBtn && addToCartBtn) {
-        buyNowBtn.style.display = "none";
-        addToCartBtn.style.display = "none";
-      }
-    } else {
-      if (buyNowBtn && addToCartBtn) {
-        buyNowBtn.style.display = "inline-block";
-        addToCartBtn.style.display = "inline-block";
-      }
+  preorderButtons.forEach((btn) => {
+    if (btn.dataset.variantId !== variantId) {
+      btn.style.display = "none";
+      return;
     }
+
+    const isPreorder = btn.dataset.preorder == "true";
+    const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
+    const unitsSold = parseInt(btn.dataset.unitsSold || "0", 10);
+    const inStock = unitsSold < maxUnits;
+    // Apply campaign rules
+    let showPreorder = false;
+    if (campaignType === 1 && !inStock) showPreorder = true;
+    else if (campaignType === 2) showPreorder = true;
+    else if (campaignType === 3 && inStock) showPreorder = true;
+
+    if (isPreorder && showPreorder) {
+      btn.style.display = "flex";
+
+      // Show Sold Out if stock is zero or maxUnits reached
+      if (!inStock) {
+        btn.style.opacity = "0.5";
+        btn.style.pointerEvents = "none";
+        btn.querySelector(".button-text").textContent = "Sold Out";
+      } else {
+        btn.style.opacity = "1";
+        btn.style.pointerEvents = "auto";
+        btn.querySelector(".button-text").textContent =
+          btn.dataset.originalText || "Pre-order";
+      }
+
+      showingPreorder = true;
+    } else {
+      btn.style.display = "none";
+    }
+  });
+
+  // Show/hide normal buttons
+  if (showingPreorder) {
+    if (buyNowBtn) buyNowBtn.style.display = "none";
+    if (addToCartBtn) addToCartBtn.style.display = "none";
+  } else {
+    if (buyNowBtn) buyNowBtn.style.display = "inline-block";
+    if (addToCartBtn) addToCartBtn.style.display = "inline-block";
   }
+}
+
 
   // Initial load
   if (variantSelect) {
     preorderButtons.forEach((btn) => {
-      // Save original button text
       btn.dataset.originalText = btn.querySelector(".button-text").textContent;
     });
 
@@ -74,40 +79,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Functions to hide/disable normal buttons
-  function hideNormalButtons() {
-    if (buyNowBtn && addToCartBtn) {
-      buyNowBtn.style.display = "none";
-      addToCartBtn.style.display = "none";
-    }
-  }
-
-  function hideAllPreorderButtons() {
-    preorderButtons.forEach((btn) => (btn.style.display = "none"));
-  }
-
-  function disableNormalButtons() {
-    if (buyNowBtn && addToCartBtn) {
-      buyNowBtn.disabled = true;
-      addToCartBtn.disabled = true;
-    }
-  }
-
-  // Campaign logic
-  if (campaignType === 1) {
-    if (!inStock) hideNormalButtons();
-    else hideAllPreorderButtons();
-  } else if (campaignType === 2) {
-    hideNormalButtons();
-  } else if (campaignType === 3) {
-    if (inStock) hideNormalButtons();
-    else {
-      disableNormalButtons();
-      hideAllPreorderButtons();
-    }
-  }
-
-  // Add to cart handler for all preorder buttons
+  // Preorder button click handler
   preorderButtons.forEach((btn) => {
     const sellingPlanData = document.getElementById("selling-plan-data");
     if (!sellingPlanData) return;

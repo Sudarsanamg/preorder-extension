@@ -38,10 +38,10 @@ import {
 } from "app/models/campaign.server";
 import { FileIcon } from "@shopify/polaris-icons";
 import preorderCampaignDef from "app/utils/preorderCampaignDef";
-import designSettingsDef from "app/utils/designSettingsDef";
 import productMetafieldDefinitions, { variantMetafieldDefinitions } from "app/utils/productMetafieldDefinitions";
 import {
   confrimOrderTemplate,
+  preorderDisplaySetting,
   ShippingEmailTemplate,
 } from "../utils/templates/emailTemplate";
 import { GET_SHOP } from "app/graphql/queries/shop";
@@ -71,6 +71,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const storeDataQuerydata = await storeDataQueryresponse.json();
   const storeId = storeDataQuerydata.data.shop.id;
   const storeDomain = storeDataQuerydata.data.shop.myshopifyDomain;
+  const cuurencyCode = storeDataQuerydata.data.shop.currencyCode;
   const accessTokenResponse = await getAccessToken(storeDomain);
   const accessToken = accessTokenResponse?.accessToken as string;
   //block
@@ -82,27 +83,46 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       metaobjectsCreated: true,
       metaFieldsCreated: true,
       shopifyDomain: storeDomain,
-      ConfrimOrderEmailSettings: JSON.stringify(confrimOrderTemplate),
-      ShippingEmailSettings: JSON.stringify(ShippingEmailTemplate),
-      GeneralSettings: "",
+      ConfrimOrderEmailSettings: confrimOrderTemplate,
+      ShippingEmailSettings: ShippingEmailTemplate,
+      GeneralSettings: preorderDisplaySetting,
       EmailConfig: "",
+      currencyCode: cuurencyCode,
     });
   } catch (error) {
     console.log(error);
   }
 
   try {
+    const APP_URL = process.env.APP_URL;
   
   await createWebhook(
     admin,
     "ORDERS_CREATE",
-    `https://findarticles-respect-anthropology-bulk.trycloudflare.com/webhooks/custom`,
+    `${APP_URL}/webhooks/custom`,
   );
   const orderPaidRes = await createWebhook(
     admin,
     "ORDERS_PAID",
-    `https://findarticles-respect-anthropology-bulk.trycloudflare.com/webhooks/order_paid`,
+    `${APP_URL}/webhooks/order_paid`,
   );
+
+  const inventoryUpdateRes = await createWebhook(
+    admin,
+    "PRODUCTS_UPDATE",
+    `${APP_URL}/webhooks/products_update`,
+  );
+
+
+  if (inventoryUpdateRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
+    return json(
+      {
+        success: false,
+        errors: inventoryUpdateRes.data.webhookSubscriptionCreate.userErrors,
+      },
+      { status: 400 },
+    );
+  }
 
   if (orderPaidRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
     return json(
@@ -115,7 +135,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   await createMetaobjectDefinition(admin, preorderCampaignDef);
-  await createMetaobjectDefinition(admin, designSettingsDef);
+  // await createMetaobjectDefinition(admin, designSettingsDef);
 
   for (const def of productMetafieldDefinitions) {
     await createMetafieldDefinition(admin, def);
@@ -128,6 +148,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return json({
     success: true,
     webhook: orderPaidRes.data?.webhookSubscriptionCreate?.webhookSubscription,
+    // webhook:true
   });
     
   } catch (error) {

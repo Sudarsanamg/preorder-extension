@@ -40,7 +40,7 @@ export const SET_PREORDER_METAFIELDS = `#graphql
 export const GET_PRODUCTS_WITH_PREORDER = `#graphql
   query getProductsMetafields($ids: [ID!]!) {
     nodes(ids: $ids) {
-      ... on Product {
+      ... on ProductVariant {
         id
         title
         metafield(namespace: "custom", key: "preorder") {

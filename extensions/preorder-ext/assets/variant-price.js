@@ -1,29 +1,56 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const variantSelect = document.querySelector('[name="id"]'); // Shopify default variant select
+  const variantSelect = document.querySelector('[name="id"]');
   const variantPrices = document.querySelectorAll(".variant-price");
-  console.log(variantPrices)
+  const campaignData = document.getElementById("campaign-data");
+
+  if (!variantSelect || !variantPrices.length) return;
+
+  const campaignType = campaignData ? parseInt(campaignData.dataset.campaignType, 10) : null;
 
   function hideAllPrices() {
-    variantPrices.forEach((el) => (el.style.display = "none"));
+    variantPrices.forEach(el => el.style.display = "none");
   }
 
   function showVariantPrice(variantId) {
     hideAllPrices();
+
     const el = document.getElementById(`variant-${variantId}`);
-    if (el) el.style.display = "block";
+    if (!el) return;
+
+    const inStock = el.dataset.instock === "true";
+
+    // Determine if we should show campaign prices
+    let showCampaignPrice = false;
+    if (campaignType) {
+      if (campaignType === 1 && !inStock) showCampaignPrice = true;
+      else if (campaignType === 2) showCampaignPrice = true;
+      else if (campaignType === 3 && inStock) showCampaignPrice = true;
+    }
+
+    el.style.display = "block";
+
+    const campaignPrice = el.querySelector(".campaign-price");
+    const campaignCompare = el.querySelector(".campaign-compare");
+    const fallbackPrice = el.querySelector(".fallback-price");
+
+    if (showCampaignPrice && campaignPrice) {
+      // Show campaign prices
+      campaignPrice.style.display = "inline-block";
+      if (campaignCompare) campaignCompare.style.display = "inline-block";
+      if (fallbackPrice) fallbackPrice.style.display = "none";
+    } else {
+      // Show fallback/normal price
+      if (campaignPrice) campaignPrice.style.display = "none";
+      if (campaignCompare) campaignCompare.style.display = "none";
+      if (fallbackPrice) fallbackPrice.style.display = "inline-block";
+    }
   }
 
-  // On page load, hide all prices
-  hideAllPrices();
+  // Initial load
+  showVariantPrice(variantSelect.value);
 
-  // Show price if a variant is pre-selected
-  if (variantSelect.value) {
-    showVariantPrice(variantSelect.value);
-  }
-
-  // Listen for variant change
+  // On variant change
   variantSelect.addEventListener("change", function (e) {
-    const variantId = e.target.value;
-    showVariantPrice(variantId);
+    showVariantPrice(e.target.value);
   });
 });

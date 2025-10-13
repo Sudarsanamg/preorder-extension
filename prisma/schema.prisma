@@ -1,16 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -34,25 +28,20 @@ model Session {
 model Store {
   id                        String   @id @default(uuid())
   storeID                   String   @unique
+  currencyCode              String   
   offlineToken              String?
   webhookRegistered         Boolean  @default(false)
   metaobjectsCreated        Boolean  @default(false)
   metaFieldsCreated         Boolean  @default(false)
   shopifyDomain             String   @unique
   sendCustomEmail           Boolean  @default(false)
+  appInstalled            Boolean  @default(true)
   ConfrimOrderEmailSettings Json?
   ShippingEmailSettings     Json?
   GeneralSettings           Json?
   EmailConfig               Json?
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  CANCELLED
 }
 
 model VaultedPayment {
@@ -69,6 +58,62 @@ model VaultedPayment {
   updatedAt      DateTime      @updatedAt
 }
 
+model PreorderCampaign {
+  id                 String                    @id @default(uuid())
+  storeId            String
+  name               String
+  campaignType       Int                       @default(2)
+  depositPercent     Int
+  balanceDueDate     DateTime
+  refundDeadlineDays Int?
+  releaseDate        DateTime?
+  status             CampaignStatus            @default(DRAFT)
+  campaignEndDate    DateTime
+  totalOrders        Int                       @default(0)
+  orderTags          Json?
+  customerTags       Json?
+  discountType       DiscountType              @default(NONE)
+  discountPercent    Int?
+  discountFixed      Int?
+  getDueByValt       Boolean                   @default(false)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  products           PreorderCampaignProduct[]
+}
+
+model PreorderCampaignProduct {
+  id           String           @id @default(uuid())
+  campaignId   String
+  productId    String
+  variantId    String?
+  variantTitle String?
+  price        Decimal?
+  imageUrl     String?
+  maxQuantity  Int?
+  soldQuantity Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model CampaignOrders {
+  id             String        @id @default(uuid())
+  storeId        String?
+  order_number   Int           @unique
+  order_id       String        @unique
+  draft_order_id String        @unique
+  dueDate        DateTime
+  balanceAmount  Int?
+  paymentStatus  PaymentStatus
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
 enum DiscountType {
   NONE
   FIXED
@@ -80,54 +125,3 @@ enum CampaignStatus {
   PUBLISHED
   UNPUBLISH
 }
-
-model PreorderCampaign {
-  id                 String                    @id @default(uuid())
-  storeId            String
-  name               String
-  campaignType       Int                       @default(2)
-  depositPercent     Int
-  balanceDueDate     DateTime
-  refundDeadlineDays Int?
-  releaseDate        DateTime?
-  status             CampaignStatus            @default(DRAFT)
-  products           PreorderCampaignProduct[]
-  campaignEndDate    DateTime
-  totalOrders        Int                       @default(0)
-  orderTags          Json?
-  customerTags       Json?
-  discountType       DiscountType              @default(NONE)
-  discountPercent    Int?
-  discountFixed      Int?
-  getDueByValt       Boolean                   @default(false)
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-}
-
-model PreorderCampaignProduct {
-  id           String           @id @default(uuid())
-  campaignId   String
-  campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  productId    String
-  variantId    String?
-  variantTitle String?
-  price        Decimal?
-  imageUrl     String?
-  maxQuantity  Int?
-  soldQuantity Int              @default(0)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-}
-
-//if payment mode is partial payment the only way to match original order with draft order is draft_order_id
-model CampaignOrders {
-  id             String   @id @default(uuid())
-  storeId        String?
-  order_number   Int      @unique
-  order_id       String   @unique
-  draft_order_id String   @unique 
-  dueDate        DateTime
-  balanceAmount  Int?
-  paymentStatus  PaymentStatus
-}
-

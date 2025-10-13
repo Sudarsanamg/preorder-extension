@@ -340,7 +340,7 @@ export default function AdditionalPage() {
           promotedBulkActions={promotedBulkActions}
           headings={[
             { title: "Order" },
-            { title: "Due Date" },
+            { title: "Date" },
             { title: "Balance Amount", alignment: "end" },
             { title: "Payment status" },
             { title: "Fulfillment status" },

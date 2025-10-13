@@ -1,0 +1,172 @@
+{% comment %} {% if template.name == 'product' %} {% endcomment %}
+<!-- load style & scripts-->
+<link rel="stylesheet" href="{{ 'countdown.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'badge.css' | asset_url }}">
+<link rel="stylesheet" href="{{ 'preorder-btn.css' | asset_url }}">
+<script src="{{ 'badge.js' | asset_url }}" defer></script>
+<script src="{{ 'countdown.js' | asset_url }}" defer></script>
+<script src="{{ 'preorder-btn.js' | asset_url }}" defer></script>
+<script src="{{ 'preorder-embed.js' | asset_url }}" defer></script>
+<script src="{{ 'preorder-payment-info.js' | asset_url }}" defer></script>
+<script src="{{ 'variant-price.js' | asset_url }}" defer></script>
+
+
+
+<div id="app-preorder-embed">
+
+  <!-- 1. Variant Preorder Data -->
+  {% for variant in product.variants %}
+  <div class="variant-preorder-data" data-variant-id="{{ variant.id }}"
+    data-preorder="{{ variant.metafields.custom.preorder.value }}"
+    data-preorder-end-date="{{ variant.metafields.custom.preorder_end_date.value }}">
+  </div>
+  {% comment %} <p> compare at: {{ variant.selling_plan_allocations.first.price }}</p> {% endcomment %}
+  {% endfor %}
+
+
+  <!-- 3. Preorder Payment Info (Partial Payment) -->
+
+  {% assign variant = product.selected_variant %}
+  {% assign selected_selling_plan_allocation = variant.selling_plan_allocations.first %}
+  {% assign compare_at_price = selected_selling_plan_allocation.compare_at_price %}
+  {% assign price = selected_selling_plan_allocation.price %}
+  {% assign campaignid = product.metafields.custom.campaign_id %}
+  {% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
+  {% assign campaignType = campaignprops.object.value.campaignData.campaigntype %}
+  {% assign parsedCampaignData = campaignprops.object.value.campaignData %}
+
+
+  <!-- Variant preorder status -->
+  <div id="variant-data" {% for variant in product.variants %} data-variant-{{ variant.id
+    }}="{{ variant.metafields.custom.preorder.value }}" {% endfor %}></div>
+
+  <!-- Badge Element -->
+  <span id="preorder-badge" style="display:none;" class="preorder-badge">Pre-order</span>
+
+  <!-- Variant Prices -->
+  <div id="variant-prices" style="margin-top: 10px; margin-bottom: 10px;">
+    {% for variant in product.variants %}
+    {% assign allocation = variant.selling_plan_allocations.first %}
+    <div class="variant-price" id="variant-{{ variant.id }}" data-instock="{{ variant.available }}"
+      style="display:none;">
+
+      {% if allocation %}
+      <!-- Campaign price (if campaign applies) -->
+      <span class="campaign-price" style="font-size: large;">{{ allocation.price | money }}</span>
+      <span class="compare-at campaign-compare" style="text-decoration: line-through; font-size: medium;">
+        {{ allocation.compare_at_price | money }}
+      </span>
+
+      <!-- Always fallback to normal price -->
+      <span class="fallback-price" style="display:none; font-size: large;">{{ allocation.compare_at_price | money
+        }}</span>
+
+      {% else %}
+      <!-- Variant not in any campaign, show normal price -->
+      <span class="fallback-price" style="font-size: large;">{{ variant.price | money }}</span>
+      {% if variant.compare_at_price > variant.price %}
+      <span class="compare-at" style="text-decoration: line-through; font-size: medium;">
+        {{ variant.compare_at_price | money }}
+      </span>
+      {% endif %}
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+
+
+
+  <!-- 5. Preorder Buttons -->
+  {% assign campaignSettings = campaignprops.object.value %}
+  <div id="product-data" data-preorder="{{ product.metafields.custom.preorder.value }}"></div>
+  <div id="product-metafields" data-max-units="{{ product.metafields.custom.preorder_max_units.value }}"
+    data-units-sold="{{ product.metafields.custom.preorder_units_sold.value }}">
+  </div>
+  <div id="selling-plan-data" data-selling-plan="{{ product.selling_plan_groups.first.selling_plans.first.id }}">
+  </div>
+  <div id="campaign-data" data-campaign-type="{{ campaignprops.object.value.campaignData.campaigntype }}">
+  </div>
+
+
+  {% for variant in product.variants %}
+  {% assign settings = shop.metaobjects.preordercampaign[variant.metafields.custom.campaign_id] %}
+  {% assign designSettings = settings.object.value.designFields %}
+  {% assign campaignData = settings.object.value.campaignData %}
+
+  <div class="preorder-button" data-variant-id="{{ variant.id }}"
+    data-preorder="{{ variant.metafields.custom.preorder.value }}"
+    data-max-units="{{ variant.metafields.custom.preorder_max_units.value }}"
+    data-units-sold="{{ variant.metafields.custom.preorder_units_sold.value }}" data-instock="{{ variant.available }}"
+    style="display:none;
+              border: {{ designSettings.borderSize }}px solid {{ designSettings.borderColor }};
+              border-radius: {{ designSettings.borderRadius }}px;
+              padding-top: {{ designSettings.spacingIT }}px;
+              padding-bottom: {{ designSettings.spacingIB }}px;
+              margin-top: {{ designSettings.spacingOT }}px;
+              margin-bottom: {{ designSettings.spacingOB }}px;
+              cursor:pointer;
+              justify-content:center;
+              align-items:center;
+              background: {% if designSettings.buttonStyle == 'single' %}
+                            {{ designSettings.buttonBackgroundColor }}
+                          {% else %}
+                            linear-gradient({{ designSettings.gradientDegree }}deg, {{ designSettings.gradientColor1 }}, {{ designSettings.gradientColor2 }})
+                          {% endif %}">
+    <p class="button-text" style="
+        color: {{ designSettings.buttonTextColor }};
+        font-size: {{ designSettings.buttonFontSize }}px;
+        font-family: {{ designSettings.fontFamily }};">
+      {{ campaignData.button_text }}
+    </p>
+  </div>
+  
+  {% endfor %}
+
+  <!-- Preorder Payment Info (Partial Payment) -->
+  {% for variant in product.variants %}
+  {% assign price = variant.price %}
+  {% assign allocation = variant.selling_plan_allocations.first %}
+  {% assign deposit_percent = variant.metafields.custom.deposit_percent.value | default: 0 %}
+  {% assign comparePrice = %}
+  <div class="preorder-variant" data-variant-id="{{ variant.id }}" style="display: none;">
+    {% if deposit_percent > 0
+    and variant.metafields.custom.preorder == true
+    and parsedCampaignData.payment_type == 'partial' %}
+    {% assign initial_payment = allocation.price | times: deposit_percent | divided_by: 100 %}
+    {% assign balance_payment = allocation.price | minus: initial_payment %}
+    {% assign balance_due_date = variant.metafields.custom.balance_due_date.value %}
+
+    <div class="preorder-payment-info" style="text-align: center;">
+      <p style="
+          font-size: {{ designSettings.messageFontSize }}px;
+          color: {{ designSettings.messageColor }};
+          font-family: {{ designSettings.fontFamily }};
+        ">
+        Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b
+        %Y" }}
+      </p>
+      <p
+        style="
+          font-size: {{ designSettings.messageFontSize }}px;
+          color: {{ designSettings.messageColor }};
+          font-family: {{ designSettings.fontFamily }};
+        "
+      >
+        {{ parsedCampaignData.shipping_message }}
+      </p>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% comment %} {% endif %} {% endcomment %}
+
+
+  {% schema %}
+  {
+  "name": "Preorder Embed",
+  "target": "body",
+  "settings": []
+  }
+  {% endschema %}

@@ -1,14 +1,38 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const countdownEl = document.getElementById("campaign-countdown");
-  const variantSelect = document.querySelector("[name='id']"); // adjust for your theme
+  const variantSelect = document.querySelector("[name='id']"); 
   const variantDataEls = document.querySelectorAll(".variant-preorder-data");
   let timer;
 
+  // Helper to get variant data by ID
   function getVariantData(variantId) {
     return Array.from(variantDataEls).find(el => el.dataset.variantId === variantId);
   }
 
-  function startCountdown(variantData) {
+  // Function to render countdown HTML
+  function renderCountdown() {
+    const countdownEl = document.createElement("div");
+    countdownEl.id = "campaign-countdown";
+    countdownEl.className = "countdown";
+    countdownEl.style.display = "none"; 
+
+    countdownEl.innerHTML = `
+      <div>
+        <p>Hurry! Sale gonna end in</p>
+      </div>
+      <div class="countdown-timer">
+        <div class="countdown-item"><span id="days">00</span><small>Days</small></div>
+        <div class="countdown-item"><span id="hours">00</span><small>Hours</small></div>
+        <div class="countdown-item"><span id="minutes">00</span><small>Minutes</small></div>
+        <div class="countdown-item"><span id="seconds">00</span><small>Seconds</small></div>
+      </div>
+    `;
+
+    document.getElementById("app-preorder-embed").prepend(countdownEl);
+    return countdownEl;
+  }
+
+  // Start countdown for a given variant
+  function startCountdown(variantData, countdownEl) {
     if (!variantData || variantData.dataset.preorder !== "true" || !variantData.dataset.preorderEndDate) {
       countdownEl.style.display = "none";
       clearInterval(timer);
@@ -44,15 +68,15 @@ document.addEventListener("DOMContentLoaded", () => {
     timer = setInterval(update, 1000);
   }
 
-  // Initialize countdown on page load
+  // Initialize
   if (variantSelect) {
+    const countdownEl = renderCountdown();
     const initialVariant = getVariantData(variantSelect.value);
-    startCountdown(initialVariant);
+    startCountdown(initialVariant, countdownEl);
 
-    // Update countdown on variant change
     variantSelect.addEventListener("change", (e) => {
       const variantData = getVariantData(e.target.value);
-      startCountdown(variantData);
+      startCountdown(variantData, countdownEl);
     });
   }
 });

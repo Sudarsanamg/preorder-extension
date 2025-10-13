@@ -40,7 +40,7 @@ export async function runPayment({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": accessToken, // from your session table
+      "X-Shopify-Access-Token": accessToken, 
     },
     body: JSON.stringify({
       query: CREATE_ORDER_PAYMENT,
