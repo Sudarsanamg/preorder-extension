@@ -71,6 +71,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const storeDataQuerydata = await storeDataQueryresponse.json();
   const storeId = storeDataQuerydata.data.shop.id;
   const storeDomain = storeDataQuerydata.data.shop.myshopifyDomain;
+  const cuurencyCode = storeDataQuerydata.data.shop.currencyCode;
   const accessTokenResponse = await getAccessToken(storeDomain);
   const accessToken = accessTokenResponse?.accessToken as string;
   //block
@@ -86,6 +87,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ShippingEmailSettings: ShippingEmailTemplate,
       GeneralSettings: preorderDisplaySetting,
       EmailConfig: "",
+      currencyCode: cuurencyCode,
     });
   } catch (error) {
     console.log(error);

@@ -1,6 +1,5 @@
 export const CREATE_SELLING_PLAN_BASE = (
   paymentMode: "partial" | "full",
-  discountType: "none" | "percentage" | "flat"
 ) => {
   const isPartial = paymentMode === "partial";
 

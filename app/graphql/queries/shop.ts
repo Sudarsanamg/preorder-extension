@@ -4,6 +4,7 @@ export const GET_SHOP = `#graphql
       id
       name
       myshopifyDomain
+      currencyCode
     }
   }
 `;

@@ -64,6 +64,7 @@ import {
   CREATE_CAMPAIGN,
 } from "../graphql/mutation/metaobject";
 import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
+import { DiscountType } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -142,7 +143,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           customerTags: JSON.parse(
             (formData.get("customerTags") as string) || "[]",
           ),
-          discountType: formData.get("discountType") as string,
+          discountType: formData.get("discountType") as DiscountType,
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
@@ -301,18 +302,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         const paymentMode = formData.get("paymentMode") as "partial" | "full";
-        const discountType = formData.get("discountType") as
-          | "none"
-          | "percentage"
-          | "flat";
+        const discountType = formData.get("discountType") as DiscountType;
 
         const varientIds = products.map((p: any) => p.variantId);
-        await applyDiscountToVariants(admin, varientIds, discountType, Number(formData.get("discountPercentage") || 0));
+        await applyDiscountToVariants(
+          admin,
+          varientIds,
+          discountType,
+          Number(formData.get("discountPercentage") || 0),
+          Number(formData.get("flatDiscount") || 0)
+        );
 
         const res = await createSellingPlan(
           admin,
           paymentMode,
-          discountType,
           products,
           formData,
         );
@@ -485,7 +488,7 @@ export default function Newcampaign() {
     "Pay {payment} now and {remaining} will be charged on {date}",
   );
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
-  const [discountType, setDiscountType] = useState("none");
+  const [discountType, setDiscountType] = useState<DiscountType>("NONE");
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [flatDiscount, setFlatDiscount] = useState(0);
   const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
@@ -659,7 +662,7 @@ export default function Newcampaign() {
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
-      setDiscountType(index === 0 ? "percentage" : "flat");
+      setDiscountType(index === 0 ? "PERCENTAGE" : "FIXED");
     },
     [activeButtonIndex],
   );

@@ -28,12 +28,14 @@ model Session {
 model Store {
   id                        String   @id @default(uuid())
   storeID                   String   @unique
+  currencyCode              String   
   offlineToken              String?
   webhookRegistered         Boolean  @default(false)
   metaobjectsCreated        Boolean  @default(false)
   metaFieldsCreated         Boolean  @default(false)
   shopifyDomain             String   @unique
   sendCustomEmail           Boolean  @default(false)
+  appInstalled            Boolean  @default(true)
   ConfrimOrderEmailSettings Json?
   ShippingEmailSettings     Json?
   GeneralSettings           Json?

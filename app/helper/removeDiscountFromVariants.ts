@@ -1,17 +1,14 @@
-import { DiscountType } from "@prisma/client";
-export async function applyDiscountToVariants(
+// import { DiscountType } from "@prisma/client";
+
+export async function removeDiscountFromVariants(
   admin: any,
-  variantIds: string[],
-  discountType: DiscountType,
-  discountValue: number,
-  flatDiscount: number,
-  keepCompareAt = true
+  variantIds: string[]
 ) {
-  const updatedVariants: any[] = [];
+  const updatedVariants = [];
 
   for (const variantId of variantIds) {
     try {
-      // 1. Fetch current variant data
+      // 1. Fetch variant data
       const variantQuery = `
         query getVariant($id: ID!) {
           productVariant(id: $id) {
@@ -34,25 +31,17 @@ export async function applyDiscountToVariants(
       if (!variant) throw new Error(`Variant not found: ${variantId}`);
 
       const productId = variant.product.id;
-      const basePrice = parseFloat(variant.compareAtPrice || variant.price);
-      let newPrice = basePrice;
-      console.log({ basePrice, discountType, discountValue });
+      const { price, compareAtPrice } = variant;
 
-      if (discountType === "FIXED" && discountValue < basePrice) {
-        newPrice = basePrice - flatDiscount;
-      } else if (discountType === "PERCENTAGE") {
-        newPrice = basePrice - (discountValue / 100) * basePrice;
+      // 2. Only reset if compareAtPrice exists
+      if (!compareAtPrice) {
+        console.log(`No discount to remove for variant ${variantId}`);
+        continue;
       }
 
-      if (newPrice < 0) newPrice = 0;
+      const restoredPrice = parseFloat(compareAtPrice);
 
-      // 3. Only set compareAtPrice if missing
-      const compareAtPrice =
-        keepCompareAt && !variant.compareAtPrice
-          ? basePrice.toFixed(2)
-          : variant.compareAtPrice || null;
-
-      // 4. Mutation
+      // 3. Mutation: restore price & clear compareAtPrice
       const mutation = `
         mutation updateVariants($id: ID!, $variants: [ProductVariantsBulkInput!]!) {
           productVariantsBulkUpdate(productId: $id, variants: $variants) {
@@ -78,8 +67,8 @@ export async function applyDiscountToVariants(
         variants: [
           {
             id: variantId,
-            price: newPrice.toFixed(2),
-            compareAtPrice,
+            price: restoredPrice.toFixed(2),
+            compareAtPrice: null, // remove discount reference
           },
         ],
       };
@@ -87,19 +76,26 @@ export async function applyDiscountToVariants(
       const mutationRes = await admin.graphql(mutation, { variables });
       const mutationJson = await mutationRes.json();
 
-      const errors = mutationJson.data?.productVariantsBulkUpdate?.userErrors || [];
+      const errors =
+        mutationJson.data?.productVariantsBulkUpdate?.userErrors || [];
       if (errors.length > 0) {
         console.error("User Errors:", errors);
       } else {
         updatedVariants.push(
           mutationJson.data?.productVariantsBulkUpdate?.productVariants[0]
         );
+        console.log(
+          `✅ Discount removed from variant ${variantId} (restored to $${restoredPrice})`
+        );
       }
     } catch (err) {
-      console.error(`Error updating variant ${variantId}:`, err);
+      console.error(`Error removing discount from variant ${variantId}:`, err);
     }
   }
 
-  console.log("✅ Updated Variants:", JSON.stringify(updatedVariants, null, 2));
+  console.log(
+    "✅ All Discounts Removed:",
+    JSON.stringify(updatedVariants, null, 2)
+  );
   return updatedVariants;
 }

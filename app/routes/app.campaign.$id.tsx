@@ -33,6 +33,7 @@ import {
   Banner,
   Badge,
   InlineStack,
+  Spinner,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -81,6 +82,9 @@ import {
 } from "app/graphql/queries/metaobject";
 import { GET_COLLECTION_PRODUCTS, GET_SHOP } from "app/graphql/queries/shop";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
+import { DiscountType } from "@prisma/client";
+import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
+import { removeDiscountFromVariants } from "app/helper/removeDiscountFromVariants";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -553,15 +557,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     }
 
     const paymentMode = formData.get("paymentMode") as "partial" | "full";
-    const discountType = formData.get("discountType") as
-      | "none"
-      | "percentage"
-      | "flat";
+    const discountType = formData.get("discountType") as DiscountType;
+    const variantIds = products.map((p: any) => p.variantId);
+    await applyDiscountToVariants(
+      admin,
+      variantIds,
+      discountType,
+      Number(formData.get("discountPercentage") || 0),
+      Number(formData.get("flatDiscount") || 0),
+    );
 
-    const res = await createSellingPlan(
+    await createSellingPlan(
       admin,
       paymentMode,
-      discountType,
       products,
       formData,
     );
@@ -667,6 +675,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }
 
       await updateCampaignStatus(params.id!, "UNPUBLISH");
+      if(secondaryIntent === "NONE"){
+        removeDiscountFromVariants(admin, products.map((product: any) => product.variantId));
+      }
 
       // get totalorders of the campaign
       const totalOrdersResponse = await prisma.preorderCampaign.findFirst({
@@ -678,7 +689,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const totalOrders = totalOrdersResponse?.totalOrders || 0;
 
       if (secondaryIntent === "delete-campaign") {
-        await deleteCampaign(params.id!);
+        await deleteCampaign(params.id!);   
       }
 
       const response = await admin.graphql(GET_SHOP);
@@ -698,7 +709,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           customerTags: JSON.parse(
             (formData.get("customerTags") as string) || "[]",
           ),
-          discountType: formData.get("discountType") as string,
+          discountType: formData.get("discountType") as DiscountType,
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
@@ -797,16 +808,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
         // if the payment option is partial
         const paymentMode = formData.get("paymentMode") as "partial" | "full";
-        const discountType = formData.get("discountType") as
-          | "none"
-          | "percentage"
-          | "flat";
-
+        const discountType = formData.get("discountType") as DiscountType;
+        const variantIds = products.map((p: any) => p.variantId);
+        await applyDiscountToVariants(
+          admin,
+          variantIds,
+          discountType,
+          Number(formData.get("discountPercentage") || 0),
+          Number(formData.get("flatDiscount") || 0)
+        );    
         // const products = JSON.parse(formData.get("products") as string);
          await createSellingPlan(
           admin,
           paymentMode,
-          discountType,
           products,
           formData,
         );
@@ -836,7 +850,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                   (formData.get("campaignEndDate") as string) || Date.now(),
                 ).toISOString(),
                 discount_type:
-                  (formData.get("discountType") as string) || "none",
+                  (formData.get("discountType") as DiscountType),
                 discountpercent:
                   (formData.get("discountPercentage") as string) || "0",
                 discountfixed: (formData.get("flatDiscount") as string) || "0",
@@ -963,6 +977,7 @@ export default function CampaignDetail() {
   const [buttonLoading, setButtonLoading] = useState({
     publish: false,
     delete: false,
+    save: false,
   });
 
   const navigation = useNavigation();
@@ -1069,13 +1084,13 @@ const formattedTime = `${hours}:${minutes}`;
   const [saveBarActive, setSaveBarActive] = useState(false);
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
-  const [discountType, setDiscountType] = useState(
+  const [discountType, setDiscountType] = useState<DiscountType>(
     parsedCampaignData?.discount_type,
   );
   useEffect(() => {
-    if (discountType === "percentage") {
+    if (discountType === "PERCENTAGE") {
       setActiveButtonIndex(0);
-    } else if (discountType === "fixed") {
+    } else if (discountType === "FIXED") {
       setActiveButtonIndex(1);
     }
   }, [discountType]);
@@ -1293,6 +1308,7 @@ const formattedTime = `${hours}:${minutes}`;
     const formData = new FormData();
     setIsSubmitting(true);
     formData.append("intent", "unpublish-campaign");
+    formData.append("secondaryIntent", "NONE");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("id", id);
 
@@ -1331,6 +1347,7 @@ const formattedTime = `${hours}:${minutes}`;
   }
 
   const handleSave = async () => {
+    setButtonLoading((prev) => ({ ...prev, save: true }));
     try {
       if (criticalChange === true) {
         await handleCriticalChange(String(campaign?.id));
@@ -1399,7 +1416,7 @@ const formattedTime = `${hours}:${minutes}`;
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
-      setDiscountType(index === 0 ? "percentage" : "flat");
+      setDiscountType(index === 0 ? "PERCENTAGE" : "FIXED");
     },
     [activeButtonIndex],
   );
@@ -1445,9 +1462,15 @@ const formattedTime = `${hours}:${minutes}`;
         title={`Update ${campaignName}`}
         titleMetadata={
           campaign?.status === "PUBLISHED" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <Badge tone="success">Published</Badge>
+             {navigation.state !== "idle" && <Spinner size="small" />}
+            </div>
           ) : (
+            <div>
             <Badge tone="info">Not published</Badge>
+             {navigation.state !== "idle" && <Spinner size="small" />}
+            </div>
           )
         }
         backAction={{

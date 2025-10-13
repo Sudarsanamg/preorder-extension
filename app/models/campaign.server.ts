@@ -2,7 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { Prisma ,PaymentStatus ,CampaignStatus } from "@prisma/client";
+import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType } from "@prisma/client";
 
 export async function createStore(data: {
   storeID: string;
@@ -11,6 +11,7 @@ export async function createStore(data: {
   metaobjectsCreated: boolean;
   metaFieldsCreated: boolean;
   shopifyDomain: string;
+  currencyCode: string;
   ConfrimOrderEmailSettings: Prisma.InputJsonValue;
   ShippingEmailSettings: Prisma.InputJsonValue;
   GeneralSettings: Prisma.InputJsonValue;
@@ -23,6 +24,7 @@ export async function createStore(data: {
       webhookRegistered: data.webhookRegistered,
       metaobjectsCreated: data.metaobjectsCreated,
       metaFieldsCreated: data.metaFieldsCreated,
+      currencyCode: data.currencyCode,
       shopifyDomain: data.shopifyDomain,
       ConfrimOrderEmailSettings: data.ConfrimOrderEmailSettings,
       ShippingEmailSettings: data.ShippingEmailSettings,
@@ -72,7 +74,7 @@ export async function createPreorderCampaign(data: {
   campaignEndDate?: Date;
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
-  discountType?: string;
+  discountType: DiscountType;
   discountPercent?: number;
   discountFixed?: number;
   campaignType?: number;
@@ -94,7 +96,7 @@ export async function createPreorderCampaign(data: {
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
-      discountType: "NONE",
+      discountType: data.discountType,
       discountPercent: data.discountPercent,
       discountFixed: data.discountFixed,
       campaignType: data.campaignType,
