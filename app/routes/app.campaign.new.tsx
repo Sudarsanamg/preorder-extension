@@ -129,7 +129,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     switch (intent) {
-      case "create-campaign": {
+      case "create-campaign" :
+      case "SAVE": {
         const campaign = await createPreorderCampaign({
           name: formData.get("name") as string,
           storeId: formData.get("storeId") as string,
@@ -155,7 +156,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           (formData.get("products") as string) || "[]",
         );
 
-        if (products.length > 0) {
+        if (products.length > 0 ) {
           await addProductsToCampaign(campaign.id, products);
 
           // -------------------------------
@@ -174,7 +175,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder",
               type: "boolean",
-              value: "true"
+              value: intent === "SAVE" ? "false" : "true",
             },
             {
               ownerId: product.variantId,
@@ -225,7 +226,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           ]);
 
           const productMetafields = products.flatMap((product: any) => [
-             {
+            {
               ownerId: product.productId,
               namespace: "custom",
               key: "campaign_id",
@@ -237,7 +238,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder",
               type: "boolean",
-              value: "true",
+              value: intent === "SAVE" ? "false" : "true",
             },
             {
               ownerId: product.productId,
@@ -285,22 +286,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               type: "number_integer",
               value: "0",
             },
-          ])
+          ]);
+          // if (intent !== "SAVE") {
+            try {
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields },
+              });
 
-          try {
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields },
-            });
-            
-             await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields: productMetafields },
-            });
-          } catch (err) {
-            console.error("GraphQL mutation failed:", err);
-            throw err;
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields: productMetafields },
+              });
+            } catch (err) {
+              console.error("GraphQL mutation failed:", err);
+              throw err;
+            }
           }
-        }
+        // }
 
+        if(intent !== "SAVE") {
         const paymentMode = formData.get("paymentMode") as "partial" | "full";
         const discountType = formData.get("discountType") as DiscountType;
 
@@ -320,6 +323,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           formData,
         );
         console.log("Selling Plan Response >>>", JSON.stringify(res, null, 2));
+      }
 
         const designFields = JSON.parse(formData.get("designFields") as string);
         const campaignFields = [
@@ -377,7 +381,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           const result = await response.json();
           console.log("campaign Metaobject:", JSON.stringify(result, null, 2));
 
-        await updateCampaignStatus(campaign.id, "PUBLISHED");
+        await updateCampaignStatus(campaign.id, intent === "SAVE" ? "DRAFT" :  "PUBLISHED");
 
         return redirect("/app");
       }
@@ -675,6 +679,7 @@ export default function Newcampaign() {
   const handleSubmit = () => {
   
     setLoading(true);
+    shopify.saveBar.hide('my-save-bar');
     const formData = new FormData();
     formData.append("intent", "create-campaign");
     formData.append("name", campaignName !== ''? campaignName : `Campaign ${formatedDate}`);
@@ -713,15 +718,7 @@ export default function Newcampaign() {
 
   const appBridge = useAppBridge();
 
-  const handleSave = () => {
-    console.log("Saving");
-    shopify.saveBar.hide("my-save-bar");
-  };
 
-  const handleDiscard = () => {
-    console.log("Discarding");
-    shopify.saveBar.hide("my-save-bar");
-  };
 
   useEffect(() => {
     if (selectedProducts.length > 0) {
@@ -783,6 +780,44 @@ export default function Newcampaign() {
     }
   }
 
+  const handleSave = () => {
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("intent", "SAVE");
+    formData.append("name", campaignName !== ''? campaignName : `Campaign ${formatedDate}`);
+    formData.append("storeId", storeId);
+    formData.append("depositPercent", String(partialPaymentPercentage));
+    formData.append("balanceDueDate", DueDateinputValue);
+    formData.append("refundDeadlineDays", "0");
+    formData.append("campaignEndDate", campaignEndDate.toISOString());
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignType", String(selectedOption));
+    formData.append("buttonText", String(buttonText));
+    formData.append("shippingMessage", String(shippingMessage));
+    formData.append("paymentMode", String(paymentMode));
+    formData.append("designFields", JSON.stringify(designFields));
+    formData.append("discountType", discountType);
+    formData.append("discountPercentage", String(discountPercentage));
+    formData.append("flatDiscount", String(flatDiscount));
+    formData.append("orderTags", JSON.stringify(productTags));
+    formData.append("customerTags", JSON.stringify(customerTags));
+    formData.append("campaignType", String(selectedOption));
+    formData.append("getDueByValt", String(getPaymentsViaValtedPayments));
+
+    submit(formData, { method: "post" });
+    
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  const handleDiscard = () => {
+    console.log('Discarding');
+    shopify.saveBar.hide('my-save-bar');
+  };
+
+  useEffect(() => {
+   shopify.saveBar.show('my-save-bar')
+  }, [designFields,selectedProducts, buttonText, shippingMessage, paymentMode, partialPaymentPercentage, DueDateinputValue, campaignEndDate, discountType, discountPercentage, flatDiscount]);
+
   return (
     <AppProvider i18n={enTranslations}>
       <Page
@@ -797,6 +832,10 @@ export default function Newcampaign() {
           loading: loading,
         }}
       >
+        <SaveBar id="my-save-bar">
+        <button variant="primary" onClick={handleSave}></button>
+        <button onClick={handleDiscard}></button>
+      </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
 
         <form method="post" onSubmit={handleSubmit}>
@@ -849,10 +888,10 @@ export default function Newcampaign() {
               Publish
             </button> */}
           </div>
-          <SaveBar id="my-save-bar">
+          {/* <SaveBar id="my-save-bar">
             <button variant="primary" onClick={handleSave}></button>
             <button onClick={handleDiscard}></button>
-          </SaveBar>
+          </SaveBar> */}
           <div
             style={{
               display: "flex",
