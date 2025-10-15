@@ -48,6 +48,7 @@ import { GET_SHOP } from "app/graphql/queries/shop";
 import { createWebhook } from "app/services/webhook.server";
 import { createMetaobjectDefinition } from "app/services/metaobject.server";
 import { createMetafieldDefinition } from "app/services/metafield.server";
+import {useWebVitals} from "app/helper/useWebVitals";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -158,6 +159,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 // ---------------- Component ----------------
 export default function Index() {
+
+   useWebVitals({ path: '/app' });
   const { campaigns, emailCampaignStatus } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -243,7 +246,8 @@ export default function Index() {
       {/* Campaigns List */}
       <div style={{ marginTop: 20 }}>
         <Card>
-          <Text as="h4" variant="headingMd">
+          <BlockStack gap="200">
+          <Text as="h4" variant="headingLg">
             Preorder campaigns
           </Text>
           <Text as="p" variant="bodyMd">
@@ -298,6 +302,7 @@ export default function Index() {
               <p>No campaigns found! Try creating a new Campaign</p>
             </div>
           )}
+          </BlockStack>
         </Card>
       </div>
 

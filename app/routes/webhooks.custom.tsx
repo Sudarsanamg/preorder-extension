@@ -290,7 +290,7 @@ const orderPaid = async (payload: any) => {
 
         const accessTokenRes = await prisma.session.findFirst({
           where: {
-            shop: "us-preorder-store.myshopify.com",
+            shop: "us-demo-store-2.myshopify.com",
           },
           select: {
             accessToken: true,

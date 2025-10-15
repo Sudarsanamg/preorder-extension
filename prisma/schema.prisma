@@ -28,14 +28,14 @@ model Session {
 model Store {
   id                        String   @id @default(uuid())
   storeID                   String   @unique
-  currencyCode              String   
+  currencyCode              String
   offlineToken              String?
   webhookRegistered         Boolean  @default(false)
   metaobjectsCreated        Boolean  @default(false)
   metaFieldsCreated         Boolean  @default(false)
   shopifyDomain             String   @unique
   sendCustomEmail           Boolean  @default(false)
-  appInstalled            Boolean  @default(true)
+  appInstalled              Boolean  @default(true)
   ConfrimOrderEmailSettings Json?
   ShippingEmailSettings     Json?
   GeneralSettings           Json?
@@ -59,26 +59,41 @@ model VaultedPayment {
 }
 
 model PreorderCampaign {
-  id                 String                    @id @default(uuid())
-  storeId            String
-  name               String
-  campaignType       Int                       @default(2)
-  depositPercent     Int
-  balanceDueDate     DateTime
-  refundDeadlineDays Int?
-  releaseDate        DateTime?
-  status             CampaignStatus            @default(DRAFT)
-  campaignEndDate    DateTime
-  totalOrders        Int                       @default(0)
-  orderTags          Json?
-  customerTags       Json?
-  discountType       DiscountType              @default(NONE)
-  discountPercent    Int?
-  discountFixed      Int?
-  getDueByValt       Boolean                   @default(false)
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-  products           PreorderCampaignProduct[]
+  id                      String                    @id @default(uuid())
+  storeId                 String
+  name                    String
+  campaignType            Int                       @default(2)
+  depositPercent          Int
+  balanceDueDate          DateTime
+  refundDeadlineDays      Int?
+  releaseDate             DateTime?
+  status                  CampaignStatus            @default(DRAFT)
+  campaignEndDate         DateTime
+  totalOrders             Int                       @default(0)
+  orderTags               Json?
+  customerTags            Json?
+  discountType            DiscountType              @default(NONE)
+  discountPercent         Int?
+  discountFixed           Int?
+  getDueByValt            Boolean                   @default(false)
+  fulfilmentmode          Fulfilmentmode?
+  scheduledFulfilmentType scheduledFulfilmentType?
+  fulfilmentDaysAfter     Int?
+  fulfilmentExactDate     DateTime?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  products                PreorderCampaignProduct[]
+}
+
+enum Fulfilmentmode {
+  ONHOLD
+  UNFULFILED
+  SCHEDULED
+}
+
+enum scheduledFulfilmentType {
+  DAYS_AFTER
+  EXACT_DATE
 }
 
 model PreorderCampaignProduct {
