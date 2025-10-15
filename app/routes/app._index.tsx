@@ -49,6 +49,7 @@ import { createWebhook } from "app/services/webhook.server";
 import { createMetaobjectDefinition } from "app/services/metaobject.server";
 import { createMetafieldDefinition } from "app/services/metafield.server";
 import {useWebVitals} from "app/helper/useWebVitals";
+import { SetupGuide } from "app/components/setupGuide";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -59,8 +60,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const status = await getEmailSettingsStatus(shopId);
   const emailCampaignStatus = status;
   const campaigns = await getAllCampaign(shopId);
+   const url = new URL(request.url);
+  const shop = url.searchParams.get("shop"); 
 
-  return json({ success: true, campaigns, shopId, emailCampaignStatus });
+  return json({ success: true, campaigns, shopId, emailCampaignStatus ,shop });
 };
 
 // ---------------- Action ----------------
@@ -161,14 +164,77 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function Index() {
 
    useWebVitals({ path: '/app' });
-  const { campaigns, emailCampaignStatus } = useLoaderData<typeof loader>();
+  const { campaigns, emailCampaignStatus,shop } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-
   const [search, setSearch] = useState("");
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const [showGuide, setShowGuide] = useState(true);
+   const ITEMS = [
+     {
+       id: 0,
+       title: "Create a Preorder Campaign",
+       description:
+         "Choose which products you want to sell as preorders. You can decide: when to show the “Preorder” button and if customers pay now, later, or in parts",
+
+       complete: campaigns.length > 0,
+       primaryButton: {
+         content: "Create a campaign",
+         props: {
+           url: "/app/campaign/new",
+           external: true,
+         },
+       },
+     },
+     {
+       id: 1,
+       title: "Activate app embed in Shopify",
+       description:
+         "You need to activate the app in your store’s theme settings. This makes the preorder button appear on your site.",
+       complete: false,
+       primaryButton: {
+         content: "Open Theme Editor",
+         props: {
+           onClick: () =>
+             window.open(
+               `https://${shop}/admin/themes/current/editor`,
+               "_blank",
+             ),
+         },
+       },
+
+       secondaryButton: {
+         content: "I have done it",
+         props: {
+           onClick: () => onStepComplete(1),
+         },
+       },
+     },
+     {
+       id: 2,
+       title: "Confirm preorder campaigns are working properly",
+       description:
+         "Finish the steps above, preview it in store to confirm that it’s working properly. Let us know if you run into issues or need design tweaks.",
+
+       complete: false,
+       primaryButton: {
+         content: "Everything looks great!",
+         props: {
+           onClick: () => onStepComplete(2),
+         },
+       },
+
+       secondaryButton: {
+         content: "Need help",
+         props: {
+           onClick: () => setShowGuide(true),
+         },
+       },
+     },
+   ];
+  const [items, setItems] = useState(ITEMS);
 
   const rows = campaigns.map((campaign) => ({
     id: campaign.id,
@@ -177,6 +243,22 @@ export default function Index() {
       navigate(`/app/campaign/${campaign.id}`);
     },
   }));
+
+  const onStepComplete = async (id :any) => {
+    try {
+      // API call to update completion state in DB, etc.
+      await new Promise((res) =>
+        setTimeout(() => {
+          res();
+        }, [1000])
+      );
+
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, complete: !item.complete } : item)));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
 
   const filteredRows = rows.filter((row) =>
     row.data.some((col) =>
@@ -220,6 +302,19 @@ export default function Index() {
           </Button>
         </Link>
       </div>
+      {showGuide && (
+        <div
+        >
+          <SetupGuide
+            onDismiss={() => {
+              setShowGuide(false);
+              setItems(ITEMS);
+            }}
+            onStepComplete={onStepComplete}
+            items={items}
+          />
+        </div>
+      )}
 
       {/* Register Webhook Button */}
       <Form method="post">
@@ -247,61 +342,61 @@ export default function Index() {
       <div style={{ marginTop: 20 }}>
         <Card>
           <BlockStack gap="200">
-          <Text as="h4" variant="headingLg">
-            Preorder campaigns
-          </Text>
-          <Text as="p" variant="bodyMd">
-            Create tailored campaigns for different products with customisable
-            payment, fulfilment, and inventory rules. Set discounts and
-            personalise preorder widget appearance for each campaign.
-          </Text>
+            <Text as="h4" variant="headingLg">
+              Preorder campaigns
+            </Text>
+            <Text as="p" variant="bodyMd">
+              Create tailored campaigns for different products with customisable
+              payment, fulfilment, and inventory rules. Set discounts and
+              personalise preorder widget appearance for each campaign.
+            </Text>
 
-          <div style={{ padding: "1rem" }}>
-            <TextField
-              label="Search"
-              value={search}
-              onChange={setSearch}
-              placeholder="Search by Campaign Name"
-              autoComplete="off"
-            />
-          </div>
-
-          {uniqueRows.length > 0 ? (
-            <DataTable
-              columnContentTypes={["text", "text", "numeric"]}
-              headings={["Name", "Status", "Orders"]}
-              rows={uniqueRows.map((row, index) => [
-                <Text
-                  as="span"
-                  variant="bodyMd"
-                  fontWeight="medium"
-                  key={index}
-                >
-                  <Link
-                    to={`/app/campaign/${row.id}`}
-                    style={{
-                      textDecoration: "none",
-                      color: "inherit",
-                      display: "block",
-                    }}
-                  >
-                    {row.data[0]}
-                  </Link>
-                </Text>,
-                <Badge
-                  key={`status-${index}`}
-                  tone={row.data[1] === "PUBLISHED" ? "success" : "subdued"}
-                >
-                  {row.data[1] === "PUBLISHED" ? "Published" : "Unpublished"}
-                </Badge>,
-                row.data[2],
-              ])}
-            />
-          ) : (
-            <div style={{ padding: "1rem", textAlign: "center" }}>
-              <p>No campaigns found! Try creating a new Campaign</p>
+            <div style={{ padding: "1rem" }}>
+              <TextField
+                label="Search"
+                value={search}
+                onChange={setSearch}
+                placeholder="Search by Campaign Name"
+                autoComplete="off"
+              />
             </div>
-          )}
+
+            {uniqueRows.length > 0 ? (
+              <DataTable
+                columnContentTypes={["text", "text", "numeric"]}
+                headings={["Name", "Status", "Orders"]}
+                rows={uniqueRows.map((row, index) => [
+                  <Text
+                    as="span"
+                    variant="bodyMd"
+                    fontWeight="medium"
+                    key={index}
+                  >
+                    <Link
+                      to={`/app/campaign/${row.id}`}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                      }}
+                    >
+                      {row.data[0]}
+                    </Link>
+                  </Text>,
+                  <Badge
+                    key={`status-${index}`}
+                    tone={row.data[1] === "PUBLISHED" ? "success" : "subdued"}
+                  >
+                    {row.data[1] === "PUBLISHED" ? "Published" : "Unpublished"}
+                  </Badge>,
+                  row.data[2],
+                ])}
+              />
+            ) : (
+              <div style={{ padding: "1rem", textAlign: "center" }}>
+                <p>No campaigns found! Try creating a new Campaign</p>
+              </div>
+            )}
           </BlockStack>
         </Card>
       </div>

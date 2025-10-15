@@ -14,7 +14,7 @@ const preorderCampaignDef = {
     {
       name:"object",
       key:"object",
-      type:"JSON"
+      type:"json"
     }
   ],
 };
