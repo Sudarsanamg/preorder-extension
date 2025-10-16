@@ -2,7 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType } from "@prisma/client";
+import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType } from "@prisma/client";
 
 export async function createStore(data: {
   storeID: string;
@@ -81,6 +81,10 @@ export async function createPreorderCampaign(data: {
   storeId?: string;
   getDueByValt: boolean;
   totalOrders: number;
+  fulfilmentmode?: Fulfilmentmode;
+  scheduledFulfilmentType? :scheduledFulfilmentType;
+  fulfilmentDaysAfter: number;
+  fulfilmentExactDate: Date;
 }) {
   return prisma.preorderCampaign.create({
     data: {
@@ -102,6 +106,10 @@ export async function createPreorderCampaign(data: {
       campaignType: data.campaignType,
       getDueByValt: data.getDueByValt,
       totalOrders: data.totalOrders,
+      fulfilmentmode: data.fulfilmentmode,
+      scheduledFulfilmentType: data.scheduledFulfilmentType,
+      fulfilmentDaysAfter: data.fulfilmentDaysAfter,
+      fulfilmentExactDate: data.fulfilmentExactDate
     },
   });
 }

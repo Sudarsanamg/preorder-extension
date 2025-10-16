@@ -1,45 +1,49 @@
 export const CREATE_SELLING_PLAN_BASE = (
   paymentMode: "partial" | "full",
+  fulfillmentMode: "ONHOLD" | "UNFULFILED" | "SCHEDULED" = "UNFULFILED",
+  collectionMode: "DAYS_AFTER" | "EXACT_DATE" = "DAYS_AFTER",
 ) => {
   const isPartial = paymentMode === "partial";
+  const isScheduledFulfillment = fulfillmentMode === "SCHEDULED";
+  const isExactDateCollection = collectionMode === "EXACT_DATE";
 
-  // Billing policy differs slightly
-  const billingPolicy = isPartial
-    ? `checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
-       remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
-       remainingBalanceChargeTimeAfterCheckout: $days`
-    : `checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
-       remainingBalanceChargeTrigger: NO_REMAINING_BALANCE`;
+  let billingPolicy;
+  if (isPartial) {
+    billingPolicy = isExactDateCollection
+      ? `checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+         remainingBalanceChargeTrigger: EXACT_TIME
+         remainingBalanceChargeExactTime: $exactDate`
+      : `checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+         remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+         remainingBalanceChargeTimeAfterCheckout: $days`;
+  } else {
+    billingPolicy = `checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+                     remainingBalanceChargeTrigger: NO_REMAINING_BALANCE`;
+  }
 
-  // Pricing policies differ based on discount type
+  let deliveryPolicy = `deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }`;
+
+  if (fulfillmentMode === "ONHOLD") {
+    deliveryPolicy = `deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }`;
+  } else if (fulfillmentMode === "UNFULFILED") {
+    deliveryPolicy = `deliveryPolicy: { fixed: { fulfillmentTrigger: ASAP } }`;
+  } else if (fulfillmentMode === "SCHEDULED") {
+    deliveryPolicy = `deliveryPolicy: { fixed: { fulfillmentTrigger: EXACT_TIME, fulfillmentExactTime: $fulfillmentDate } }`;
+  }
+
   let pricingPolicies = "";
-  // if (discountType === "percentage") {
-  //   pricingPolicies = `
-  //     pricingPolicies: [
-  //       {
-  //         fixed: {
-  //           adjustmentType: PERCENTAGE
-  //           adjustmentValue: { percentage: $discountPercentage }
-  //         }
-  //       }
-  //     ]`;
-  // } else if (discountType === "flat") {
-  //   pricingPolicies = `
-  //     pricingPolicies: [
-  //       {
-  //         fixed: {
-  //           adjustmentType: FIXED_AMOUNT
-  //           adjustmentValue: { amount: $fixedValue }
-  //         }
-  //       }
-  //     ]`;
-  // }
+  const variableDeclarations = [
+    "$variantIds: [ID!]!",
+    isPartial ? "$percentage: Float!" : "",
+    isPartial && !isExactDateCollection ? "$days: String!" : "",
+    isPartial && isExactDateCollection ? "$exactDate: DateTime!" : "",
+    isScheduledFulfillment ? "$fulfillmentDate: DateTime!" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return `#graphql
-    mutation CreateSellingPlan(
-      $variantIds: [ID!]!
-      ${isPartial ? "$percentage: Float!, $days: String!" : ""}
-    ) {
+    mutation CreateSellingPlan(${variableDeclarations}) {
       sellingPlanGroupCreate(
         input: {
           name: "${isPartial ? "Deposit Pre-order" : "Full Payment Pre-order"}"
@@ -51,7 +55,7 @@ export const CREATE_SELLING_PLAN_BASE = (
               category: PRE_ORDER
               options: ["${isPartial ? "Deposit, balance later" : "Full payment"}"]
               billingPolicy: { fixed: { ${billingPolicy} } }
-              deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+              ${deliveryPolicy}
               inventoryPolicy: { reserve: ON_FULFILLMENT }
               ${pricingPolicies}
             }
@@ -72,6 +76,82 @@ export const CREATE_SELLING_PLAN_BASE = (
     }
   `;
 };
+
+
+// export const CREATE_SELLING_PLAN_BASE = (
+//   paymentMode: "partial" | "full",
+// ) => {
+//   const isPartial = paymentMode === "partial";
+
+//   // Billing policy differs slightly
+//   const billingPolicy = isPartial
+//     ? `checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
+//        remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
+//        remainingBalanceChargeTimeAfterCheckout: $days`
+//     : `checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+//        remainingBalanceChargeTrigger: NO_REMAINING_BALANCE`;
+
+//   // Pricing policies differ based on discount type
+//   let pricingPolicies = "";
+//   // if (discountType === "percentage") {
+//   //   pricingPolicies = `
+//   //     pricingPolicies: [
+//   //       {
+//   //         fixed: {
+//   //           adjustmentType: PERCENTAGE
+//   //           adjustmentValue: { percentage: $discountPercentage }
+//   //         }
+//   //       }
+//   //     ]`;
+//   // } else if (discountType === "flat") {
+//   //   pricingPolicies = `
+//   //     pricingPolicies: [
+//   //       {
+//   //         fixed: {
+//   //           adjustmentType: FIXED_AMOUNT
+//   //           adjustmentValue: { amount: $fixedValue }
+//   //         }
+//   //       }
+//   //     ]`;
+//   // }
+
+//   return `#graphql
+//     mutation CreateSellingPlan(
+//       $variantIds: [ID!]!
+//       ${isPartial ? "$percentage: Float!, $days: String!" : ""}
+//     ) {
+//       sellingPlanGroupCreate(
+//         input: {
+//           name: "${isPartial ? "Deposit Pre-order" : "Full Payment Pre-order"}"
+//           merchantCode: "${isPartial ? "pre-order-deposit" : "pre-order-full"}"
+//           options: ["Pre-order"]
+//           sellingPlansToCreate: [
+//             {
+//               name: "${isPartial ? "Deposit, balance later" : "Pay full upfront"}"
+//               category: PRE_ORDER
+//               options: ["${isPartial ? "Deposit, balance later" : "Full payment"}"]
+//               billingPolicy: { fixed: { ${billingPolicy} } }
+//               deliveryPolicy: { fixed: { fulfillmentTrigger: UNKNOWN } }
+//               inventoryPolicy: { reserve: ON_FULFILLMENT }
+//               ${pricingPolicies}
+//             }
+//           ]
+//         }
+//         resources: { productVariantIds: $variantIds }
+//       ) {
+//         sellingPlanGroup {
+//           id
+//           sellingPlans(first: 1) {
+//             edges {
+//               node { id }
+//             }
+//           }
+//         }
+//         userErrors { field message }
+//       }
+//     }
+//   `;
+// };
 
 export const GET_VARIANT_SELLING_PLANS = `
   query GetVariantSellingPlans($id: ID!) {

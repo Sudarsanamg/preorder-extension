@@ -16,7 +16,7 @@ export const loader = async () => {
   for (const payment of duePayments) {
     try {
       await cancelPendingOrder({
-        shop: "us-preorder-store.myshopify.com",
+        shop: "us-demo-store-2.myshopify.com",
         accessToken: payment.accessToken ?? "",
         orderId: payment.orderId,
         refund: false,

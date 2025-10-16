@@ -47,14 +47,15 @@
   <div id="variant-prices" style="margin-top: 10px; margin-bottom: 10px;">
     {% for variant in product.variants %}
     {% assign allocation = variant.selling_plan_allocations.first %}
+    {% assign preorder = variant.metafields.custom.preorder.value %}
     <div class="variant-price" id="variant-{{ variant.id }}" data-instock="{{ variant.available }}"
       style="display:none;">
 
-      {% if allocation %}
+      {% if allocation and preorder%}
       <!-- Campaign price (if campaign applies) -->
-      <span class="campaign-price" style="font-size: large;">{{ allocation.price | money }}</span>
+      <span class="campaign-price" style="font-size: large;">{{ variant.price | money }}</span>
       <span class="compare-at campaign-compare" style="text-decoration: line-through; font-size: medium;">
-        {{ allocation.compare_at_price | money }}
+        {{ variant.compare_at_price | money }}
       </span>
 
       <!-- Always fallback to normal price -->
@@ -133,8 +134,8 @@
     {% if deposit_percent > 0
     and variant.metafields.custom.preorder == true
     and parsedCampaignData.payment_type == 'partial' %}
-    {% assign initial_payment = allocation.price | times: deposit_percent | divided_by: 100 %}
-    {% assign balance_payment = allocation.price | minus: initial_payment %}
+    {% assign initial_payment = price | times: deposit_percent | divided_by: 100 %}
+    {% assign balance_payment = price | minus: initial_payment %}
     {% assign balance_due_date = variant.metafields.custom.balance_due_date.value %}
 
     <div class="preorder-payment-info" style="text-align: center;">

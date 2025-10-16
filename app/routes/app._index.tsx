@@ -8,9 +8,8 @@ import {
   useLocation,
   Link,
   useNavigate,
-  Form,
-  useActionData,
   useNavigation,
+  useFetcher,
 } from "@remix-run/react";
 import {
   Page,
@@ -29,7 +28,7 @@ import {
 
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createStore,
   getAccessToken,
@@ -38,134 +37,228 @@ import {
 } from "app/models/campaign.server";
 import { FileIcon } from "@shopify/polaris-icons";
 import preorderCampaignDef from "app/utils/preorderCampaignDef";
-import productMetafieldDefinitions, { variantMetafieldDefinitions } from "app/utils/productMetafieldDefinitions";
+import productMetafieldDefinitions, {
+  variantMetafieldDefinitions,
+} from "app/utils/productMetafieldDefinitions";
 import {
   confrimOrderTemplate,
   preorderDisplaySetting,
   ShippingEmailTemplate,
 } from "../utils/templates/emailTemplate";
 import { GET_SHOP } from "app/graphql/queries/shop";
-import { createWebhook } from "app/services/webhook.server";
+// import { createWebhook } from "app/services/webhook.server";
 import { createMetaobjectDefinition } from "app/services/metaobject.server";
 import { createMetafieldDefinition } from "app/services/metafield.server";
+import { useWebVitals } from "app/helper/useWebVitals";
+import { SetupGuide } from "app/components/setupGuide";
+import prisma from "app/db.server";
+import PreorderSettingsSkeleton from "app/utils/loader/homeLoader";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const response = await admin.graphql(GET_SHOP);
   const data = await response.json();
   const shopId = data.data.shop.id;
+  const shop = session.shop;
+  const storeDomain = data.data.shop.myshopifyDomain;
+  const cuurencyCode = data.data.shop.currencyCode;
+
+  let storeData = await prisma.store.findUnique({
+    where: { shopifyDomain: shop },
+  });
+  const accessTokenResponse = await getAccessToken(storeDomain);
+  const accessToken = accessTokenResponse?.accessToken as string;
+  if (storeData) {
+    if (storeData.appInstalled === false) {
+      await prisma.store.update({
+        where: { id: storeData.id },
+        data: { appInstalled: true },
+      });
+    }
+  } else {
+    try {
+      await createStore({
+        storeID: shopId,
+        offlineToken: accessToken,
+        webhookRegistered: true,
+        metaobjectsCreated: true,
+        metaFieldsCreated: true,
+        shopifyDomain: storeDomain,
+        ConfrimOrderEmailSettings: confrimOrderTemplate,
+        ShippingEmailSettings: ShippingEmailTemplate,
+        GeneralSettings: preorderDisplaySetting,
+        EmailConfig: "",
+        currencyCode: cuurencyCode,
+      });
+
+      await createMetaobjectDefinition(admin, preorderCampaignDef);
+      for (const def of productMetafieldDefinitions) {
+        await createMetafieldDefinition(admin, def);
+      }
+      for (const def of variantMetafieldDefinitions) {
+        await createMetafieldDefinition(admin, def);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  const SetupGuide = await prisma.store.findUnique({
+    where: { shopifyDomain: storeDomain },
+    select: {
+      SetupCompleted: true,
+    },
+  });
+  const setupGuide = SetupGuide?.SetupCompleted;
   const status = await getEmailSettingsStatus(shopId);
   const emailCampaignStatus = status;
   const campaigns = await getAllCampaign(shopId);
 
-  return json({ success: true, campaigns, shopId, emailCampaignStatus });
-};
-
-// ---------------- Action ----------------
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-
-  //Getting Data to create store
-  const storeDataQueryresponse = await admin.graphql(GET_SHOP);
-  const storeDataQuerydata = await storeDataQueryresponse.json();
-  const storeId = storeDataQuerydata.data.shop.id;
-  const storeDomain = storeDataQuerydata.data.shop.myshopifyDomain;
-  const cuurencyCode = storeDataQuerydata.data.shop.currencyCode;
-  const accessTokenResponse = await getAccessToken(storeDomain);
-  const accessToken = accessTokenResponse?.accessToken as string;
-  //block
-  try {
-    await createStore({
-      storeID: storeId,
-      offlineToken: accessToken,
-      webhookRegistered: true,
-      metaobjectsCreated: true,
-      metaFieldsCreated: true,
-      shopifyDomain: storeDomain,
-      ConfrimOrderEmailSettings: confrimOrderTemplate,
-      ShippingEmailSettings: ShippingEmailTemplate,
-      GeneralSettings: preorderDisplaySetting,
-      EmailConfig: "",
-      currencyCode: cuurencyCode,
-    });
-  } catch (error) {
-    console.log(error);
-  }
-
-  try {
-    const APP_URL = process.env.APP_URL;
-  
-  await createWebhook(
-    admin,
-    "ORDERS_CREATE",
-    `${APP_URL}/webhooks/custom`,
-  );
-  const orderPaidRes = await createWebhook(
-    admin,
-    "ORDERS_PAID",
-    `${APP_URL}/webhooks/order_paid`,
-  );
-
-  const inventoryUpdateRes = await createWebhook(
-    admin,
-    "PRODUCTS_UPDATE",
-    `${APP_URL}/webhooks/products_update`,
-  );
-
-
-  if (inventoryUpdateRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
-    return json(
-      {
-        success: false,
-        errors: inventoryUpdateRes.data.webhookSubscriptionCreate.userErrors,
-      },
-      { status: 400 },
-    );
-  }
-
-  if (orderPaidRes.data?.webhookSubscriptionCreate?.userErrors?.length) {
-    return json(
-      {
-        success: false,
-        errors: orderPaidRes.data.webhookSubscriptionCreate.userErrors,
-      },
-      { status: 400 },
-    );
-  }
-
-  await createMetaobjectDefinition(admin, preorderCampaignDef);
-  // await createMetaobjectDefinition(admin, designSettingsDef);
-
-  for (const def of productMetafieldDefinitions) {
-    await createMetafieldDefinition(admin, def);
-  }
-  for(const def of variantMetafieldDefinitions){
-    await createMetafieldDefinition(admin, def);
-  }
-  
-
   return json({
     success: true,
-    webhook: orderPaidRes.data?.webhookSubscriptionCreate?.webhookSubscription,
-    // webhook:true
+    campaigns,
+    shopId,
+    emailCampaignStatus,
+    shop,
+    setupGuide,
   });
-    
-  } catch (error) {
-    console.log(error);
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const {  session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const formData = await request.json();
+  const intent = formData.intent;
+
+  if (intent === "complete_setup_guide") {
+    try {
+      await prisma.store.update({
+        where: { shopifyDomain: shop },
+        data: { SetupCompleted: true },
+      });
+
+      return json({
+        success: true,
+        SetupGuide: true,
+        message: "Setup guide completed",
+      });
+    } catch (error) {
+      console.error("Error updating setup guide:", error);
+      return json(
+        { success: false, error: "Failed to update setup guide" },
+        { status: 500 },
+      );
+    }
   }
+
+  return json({ success: false, message: "Invalid intent" });
 };
 
 // ---------------- Component ----------------
 export default function Index() {
-  const { campaigns, emailCampaignStatus } = useLoaderData<typeof loader>();
+  useWebVitals({ path: "/app" });
+  const { campaigns, emailCampaignStatus, shop, setupGuide } =
+    useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-
   const [search, setSearch] = useState("");
-  const actionData = useActionData<typeof action>();
+  const [showGuide, setShowGuide] = useState(!setupGuide);
+  const fetcher = useFetcher();
+  const [loading,setLoading] = useState({
+    create: false,
+    widget: false,
+    orderEmail :false,
+    shippingEmail :false,
+    customizeEmail :false,
+    page :true
+  })
+
+  useEffect(() => {
+  const init = async () => {
+    if (setupGuide === true) {
+      setShowGuide(false);
+    }
+
+    setLoading((prev) => ({ ...prev, page: false }));
+  };
+
+  init();
+}, [setupGuide]);
+
   const navigation = useNavigation();
+  const ITEMS = [
+    {
+      id: 0,
+      title: "Create a Preorder Campaign",
+      description:
+        "Choose which products you want to sell as preorders. You can decide: when to show the “Preorder” button and if customers pay now, later, or in parts",
+
+      complete: campaigns.length > 0,
+      primaryButton: {
+        content: "Create a campaign",
+        props: {
+          url: "/app/campaign/new",
+          external: true,
+        },
+      },
+    },
+    {
+      id: 1,
+      title: "Activate app embed in Shopify",
+      description:
+        "You need to activate the app in your store’s theme settings. This makes the preorder button appear on your site.",
+      complete: false,
+      primaryButton: {
+        content: "Open Theme Editor",
+        props: {
+          onClick: () =>
+            window.open(
+              `https://${shop}/admin/themes/current/editor`,
+              "_blank",
+            ),
+        },
+      },
+
+      secondaryButton: {
+        content: "I have done it",
+        props: {
+          onClick: () => onStepComplete(1),
+        },
+      },
+    },
+    {
+      id: 2,
+      title: "Confirm preorder campaigns are working properly",
+      description:
+        "Finish the steps above, preview it in store to confirm that it’s working properly. Let us know if you run into issues or need design tweaks.",
+
+      complete: false,
+      primaryButton: {
+        content: "Everything looks great!",
+        props: {
+          onClick: async () => {
+              onStepComplete(2);
+
+            fetcher.submit(JSON.stringify({ intent: "complete_setup_guide" }), {
+              method: "post",
+              action: "",
+              encType: "application/json",
+            });
+
+            
+          },
+        },
+      },
+
+      secondaryButton: {
+        content: "Need help",
+        props: {
+          onClick: () => setShowGuide(true),
+        },
+      },
+    },
+  ];
+  const [items, setItems] = useState(ITEMS);
 
   const rows = campaigns.map((campaign) => ({
     id: campaign.id,
@@ -174,6 +267,21 @@ export default function Index() {
       navigate(`/app/campaign/${campaign.id}`);
     },
   }));
+
+  const onStepComplete = async (id: any) => {
+    try {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, complete: !item.complete } : item,
+        ),
+      );
+      if(id === 2){
+        setShowGuide(false);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const filteredRows = rows.filter((row) =>
     row.data.some((col) =>
@@ -186,6 +294,9 @@ export default function Index() {
       filteredRows.map((row) => [JSON.stringify(row.data), row]),
     ).values(),
   );
+  if(loading.page){
+    return <PreorderSettingsSkeleton />
+  }
 
   return (
     <Page>
@@ -212,92 +323,86 @@ export default function Index() {
           to={{ pathname: "campaign/new", search: location.search }}
           prefetch="intent"
         >
-          <Button variant="primary" onClick={() => setLoading(true)}>
-            Create Campaign
-          </Button>
+          <Button variant="primary" 
+          loading ={loading.create}
+          onClick={() => setLoading((prev) => ({ ...prev, create: true }))}
+          >Create Campaign</Button>
         </Link>
       </div>
-
-      {/* Register Webhook Button */}
-      <Form method="post">
-        <Button
-          submit
-          variant="primary"
-          // loading={navigation.state !== "idle"}
-        >
-          Register Webhook
-        </Button>
-      </Form>
-
-      {actionData?.success && (
-        <p style={{ color: "green", marginTop: "10px" }}>
-          ✅ Webhook registered!
-        </p>
+      {showGuide && (
+        <div>
+          <SetupGuide
+            onDismiss={() => {
+              setShowGuide(false);
+              setItems(ITEMS);
+            }}
+            onStepComplete={onStepComplete}
+            items={items}
+          />
+        </div>
       )}
-      {actionData?.errors && (
-        <p style={{ color: "red", marginTop: "10px" }}>
-          ❌ {JSON.stringify(actionData.errors)}
-        </p>
-      )}
+
 
       {/* Campaigns List */}
       <div style={{ marginTop: 20 }}>
         <Card>
-          <Text as="h4" variant="headingMd">
-            Preorder campaigns
-          </Text>
-          <Text as="p" variant="bodyMd">
-            Create tailored campaigns for different products with customisable
-            payment, fulfilment, and inventory rules. Set discounts and
-            personalise preorder widget appearance for each campaign.
-          </Text>
+          <BlockStack gap="200">
+            <Text as="h4" variant="headingLg">
+              Preorder campaigns
+            </Text>
+            <Text as="p" variant="bodyMd">
+              Create tailored campaigns for different products with customisable
+              payment, fulfilment, and inventory rules. Set discounts and
+              personalise preorder widget appearance for each campaign.
+            </Text>
 
-          <div style={{ padding: "1rem" }}>
-            <TextField
-              label="Search"
-              value={search}
-              onChange={setSearch}
-              placeholder="Search by Campaign Name"
-              autoComplete="off"
-            />
-          </div>
-
-          {uniqueRows.length > 0 ? (
-            <DataTable
-              columnContentTypes={["text", "text", "numeric"]}
-              headings={["Name", "Status", "Orders"]}
-              rows={uniqueRows.map((row, index) => [
-                <Text
-                  as="span"
-                  variant="bodyMd"
-                  fontWeight="medium"
-                  key={index}
-                >
-                  <Link
-                    to={`/app/campaign/${row.id}`}
-                    style={{
-                      textDecoration: "none",
-                      color: "inherit",
-                      display: "block",
-                    }}
-                  >
-                    {row.data[0]}
-                  </Link>
-                </Text>,
-                <Badge
-                  key={`status-${index}`}
-                  tone={row.data[1] === "PUBLISHED" ? "success" : "subdued"}
-                >
-                  {row.data[1] === "PUBLISHED" ? "Published" : "Unpublished"}
-                </Badge>,
-                row.data[2],
-              ])}
-            />
-          ) : (
-            <div style={{ padding: "1rem", textAlign: "center" }}>
-              <p>No campaigns found! Try creating a new Campaign</p>
+            <div style={{ padding: "1rem" }}>
+              <TextField
+                label="Search"
+                value={search}
+                onChange={setSearch}
+                placeholder="Search by Campaign Name"
+                autoComplete="off"
+              />
             </div>
-          )}
+
+            {uniqueRows.length > 0 ? (
+              <DataTable
+                columnContentTypes={["text", "text", "numeric"]}
+                headings={["Name", "Status", "Orders"]}
+                rows={uniqueRows.map((row, index) => [
+                  <Text
+                    as="span"
+                    variant="bodyMd"
+                    fontWeight="medium"
+                    key={index}
+                  >
+                    <Link
+                      to={`/app/campaign/${row.id}`}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                      }}
+                    >
+                      {row.data[0]}
+                    </Link>
+                  </Text>,
+                  <Badge
+                    key={`status-${index}`}
+                    tone={row.data[1] === "PUBLISHED" ? "success" : "info"}
+                  >
+                    {row.data[1] === "PUBLISHED" ? "Published" : "Unpublished"}
+                  </Badge>,
+                  row.data[2],
+                ])}
+              />
+            ) : (
+              <div style={{ padding: "1rem", textAlign: "center" }}>
+                <p>No campaigns found! Try creating a new Campaign</p>
+              </div>
+            )}
+          </BlockStack>
         </Card>
       </div>
 
@@ -332,8 +437,10 @@ export default function Index() {
                 </InlineStack>
                 <Button
                   onClick={() => {
+                    setLoading((prev) => ({ ...prev, widget: true }));
                     navigate("/app/settings/preorder-display");
                   }}
+                  loading={loading.widget}
                 >
                   Manage
                 </Button>
@@ -379,8 +486,10 @@ export default function Index() {
                     <Button
                       size="slim"
                       onClick={() => {
+                        setLoading((prev) => ({ ...prev, orderEmail: true }));
                         navigate("/app/settings/email-preorder-confirmation");
                       }}
+                      loading={loading.orderEmail}
                     >
                       Customize
                     </Button>
@@ -411,10 +520,12 @@ export default function Index() {
                     <Button
                       size="slim"
                       onClick={() => {
+                        setLoading((prev) => ({ ...prev, shippingEmail: true }));
                         navigate(
                           "/app/settings/email-preorder-shipping-update",
                         );
                       }}
+                      loading={loading.shippingEmail}
                     >
                       Customize
                     </Button>

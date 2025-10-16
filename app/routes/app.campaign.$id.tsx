@@ -152,10 +152,10 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     );
     let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
     const metaobject = parsedCampaignSettingsResponse.data.metaobjectByHandle;
-    const objectField = metaobject.fields.find((f: any) => f.key === "object");
-    const parsedObject = JSON.parse(objectField.value);
-    parsedCampaignSettingsResponse = parsedObject.campaignData;
-    let parsedDesignSettingsResponse = parsedObject.designFields;
+    const objectField = metaobject?.fields.find((f: any) => f.key === "object");
+    const parsedObject = JSON.parse(objectField?.value);
+    parsedCampaignSettingsResponse = parsedObject?.campaignData;
+    let parsedDesignSettingsResponse = parsedObject?.designFields;
 
     const products = variants.map((variant: any) => ({
       productId: variant.productId,
@@ -947,7 +947,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           },
         });
 
-        await updateCampaignStatus(campaign.id, "PUBLISHED");
+        await updateCampaignStatus(campaign.id,campaignCurrentStatus==='PUBLISHED'?"PUBLISHED":"UNPUBLISH");
         await deleteCampaign(params.id!);
         const removedVarients = formData.get("removedVarients") as string;
         const parsedRemovedVarients = removedVarients
@@ -1442,6 +1442,7 @@ export default function CampaignDetail() {
     formData.append("paymentMode", String(paymentMode));
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
+    formData.append("campaignEndDate", campaignEndDate ? campaignEndDate.toISOString() : "");
     formData.append("discountType", discountType);
     formData.append("discountPercentage", String(discountPercentage));
     formData.append("flatDiscount", String(flatDiscount));

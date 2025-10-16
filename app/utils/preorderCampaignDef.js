@@ -14,9 +14,14 @@ const preorderCampaignDef = {
     {
       name:"object",
       key:"object",
-      type:"JSON"
+      type:"json"
     }
   ],
+   capabilities: {
+      publishable: {
+        enabled: true
+      }
+    },
 };
 
 export default preorderCampaignDef;
