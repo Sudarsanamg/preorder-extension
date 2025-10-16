@@ -5,6 +5,11 @@ export const CREATE_METAOBJECT_DEFINITION = `#graphql
         id
         name
         type
+        capabilities {
+          publishable {
+            enabled
+          }
+        }
       }
       userErrors {
         field

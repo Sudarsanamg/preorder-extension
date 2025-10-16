@@ -17,6 +17,11 @@ const preorderCampaignDef = {
       type:"json"
     }
   ],
+   capabilities: {
+      publishable: {
+        enabled: true
+      }
+    },
 };
 
 export default preorderCampaignDef;

@@ -152,10 +152,10 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     );
     let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
     const metaobject = parsedCampaignSettingsResponse.data.metaobjectByHandle;
-    const objectField = metaobject.fields.find((f: any) => f.key === "object");
-    const parsedObject = JSON.parse(objectField.value);
-    parsedCampaignSettingsResponse = parsedObject.campaignData;
-    let parsedDesignSettingsResponse = parsedObject.designFields;
+    const objectField = metaobject?.fields.find((f: any) => f.key === "object");
+    const parsedObject = JSON.parse(objectField?.value);
+    parsedCampaignSettingsResponse = parsedObject?.campaignData;
+    let parsedDesignSettingsResponse = parsedObject?.designFields;
 
     const products = variants.map((variant: any) => ({
       productId: variant.productId,
