@@ -27,7 +27,7 @@ model Session {
 
 model Store {
   id                        String   @id @default(uuid())
-  storeID                   String   @unique
+  shopId                    String   @unique
   currencyCode              String
   offlineToken              String?
   webhookRegistered         Boolean  @default(false)
@@ -43,12 +43,14 @@ model Store {
   SetupCompleted            Boolean  @default(false)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
+  vaultedPayment            VaultedPayment[]
 }
 
 model VaultedPayment {
   id             String        @id @default(uuid())
   orderId        String        @unique
-  storeDomain    String?
+  storeDomain    String        @default("")
+  storeId        String     
   idempotencyKey String
   amount         Decimal
   currencyCode   String
@@ -58,6 +60,7 @@ model VaultedPayment {
   accessToken    String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  store          Store         @relation(fields: [storeId], references: [id])
 }
 
 model PreorderCampaign {

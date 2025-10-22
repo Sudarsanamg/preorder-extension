@@ -5,7 +5,7 @@ import { authenticate } from "../shopify.server";
 import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType } from "@prisma/client";
 
 export async function createStore(data: {
-  storeID: string;
+  shopId: string;
   offlineToken: string;
   webhookRegistered: boolean;
   metaobjectsCreated: boolean;
@@ -19,7 +19,7 @@ export async function createStore(data: {
 }) {
   return prisma.store.create({
     data: {
-      storeID: data.storeID,
+      shopId: data.shopId,
       offlineToken: data.offlineToken,
       webhookRegistered: data.webhookRegistered,
       metaobjectsCreated: data.metaobjectsCreated,
@@ -407,7 +407,7 @@ export async function orderStatusUpdateByOrderId(orderId: string) {
 
 export async function getEmailSettingsStatus(shopId: string) {
   const settings = await prisma.store.findUnique({
-    where: { storeID :shopId}
+    where: { shopId :shopId}
     ,
   });
   
@@ -416,7 +416,7 @@ export async function getEmailSettingsStatus(shopId: string) {
 
 export async function getPreorderConfirmationEmailSettings(shopId: string) {
   const settings = await prisma.store.findUnique({
-    where: { storeID: shopId },
+    where: { shopId: shopId },
   });
   return settings?.ConfrimOrderEmailSettings ?? {};
 }
@@ -426,14 +426,14 @@ export async function updateConfrimOrderEmailSettings(
   settings: any,
 ) {
   return prisma.store.update({
-    where: { storeID: shopId },
+    where: { shopId: shopId },
     data: { ConfrimOrderEmailSettings: settings },
   });
 }
 
 export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
   return prisma.store.update({
-    where: { storeID: shopId },
+    where: { shopId: shopId },
     data: { sendCustomEmail: enable },
   });
 }
@@ -462,6 +462,16 @@ export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
 //   });
 // }
 
+export async function getStoreID(storeDomain: string) {
+  return prisma.store.findUnique({
+    where: { shopifyDomain: storeDomain },
+    select:{
+      id :true
+    }
+  }
+);
+}
+
 export async function createDuePayment(
   orderId: string,
   idempotencyKey: string,
@@ -483,7 +493,8 @@ export async function createDuePayment(
       dueDate,
       paymentStatus,
       accessToken,
-      storeDomain
+      storeDomain,
+      storeId: (await getStoreID(storeDomain))?.id ?? "",
     },
   });
 }
@@ -542,7 +553,7 @@ export async function createDuePayment(
 export async function getAllVariants(storeID: string) {
   // Get stored access token for this shop
   const store = await prisma.store.findUnique({
-    where: { storeID: storeID },
+    where: { shopId: storeID },
     select: { offlineToken: true ,
       shopifyDomain: true
     },

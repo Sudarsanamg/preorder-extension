@@ -1,4 +1,4 @@
-import { createDuePayment, createOrder } from "app/models/campaign.server";
+import { createDuePayment, createOrder, getStoreID } from "app/models/campaign.server";
 import { authenticate } from "../shopify.server";
 import prisma from "app/db.server";
 import { v4 as uuidv4 } from "uuid";
@@ -153,7 +153,7 @@ const orderPaid = async (payload: any) => {
 
       // get email template
       const emailSettings = await prisma.store.findFirst({
-        where: { storeID: shopId },
+        where: { shopId: shopId },
         select: {
           ConfrimOrderEmailSettings: true,
         },
@@ -162,7 +162,7 @@ const orderPaid = async (payload: any) => {
       const ParsedemailSettings = emailSettings?.ConfrimOrderEmailSettings;
 
       const emailConsent = await prisma.store.findFirst({
-        where: { storeID: shopId },
+        where: { shopId: shopId },
         select: {
           sendCustomEmail: true,
         },

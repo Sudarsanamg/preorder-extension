@@ -79,7 +79,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } else {
     try {
       await createStore({
-        storeID: shopId,
+        shopId: shopId,
         offlineToken: accessToken,
         webhookRegistered: true,
         metaobjectsCreated: true,
