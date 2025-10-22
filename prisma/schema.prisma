@@ -46,6 +46,7 @@ model Store {
   vaultedPayment            VaultedPayment[]
   preorderCampaign          PreorderCampaign[]
   campaignOrders            CampaignOrders[]
+  campaignProducts          PreorderCampaignProduct[]
 }
 
 model VaultedPayment {
@@ -99,6 +100,7 @@ model PreorderCampaign {
 model PreorderCampaignProduct {
   id           String           @id @default(uuid())
   campaignId   String
+  storeId      String           @default("Invalid store")
   productId    String
   variantId    String?
   variantTitle String?
@@ -109,6 +111,7 @@ model PreorderCampaignProduct {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  store        Store            @relation(fields: [storeId],references: [id])
 }
 
 model CampaignOrders {

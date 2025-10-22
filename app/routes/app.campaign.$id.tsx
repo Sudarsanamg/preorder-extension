@@ -851,7 +851,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          await addProductsToCampaign(campaign.id, products);
+          await addProductsToCampaign(campaign.id, products,shopId);
 
           const campaignType = Number(formData.get("campaignType"));
           //if campaign type === 3 then inventory quantity need to update

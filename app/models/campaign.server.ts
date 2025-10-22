@@ -153,7 +153,10 @@ export async function updateCampaign(data: {
 export async function addProductsToCampaign(
   campaignId: string,
   products: { productId: string; productImage?: string,variantTitle?: string; variantId?: string; variantInventory: number ;variantPrice?: number ;maxUnit?: number}[],
+  shopId: string
 ) {
+  const store = await getStoreIdByShopId(shopId);
+  const storeId = store?.id ?? "";
   return prisma.preorderCampaignProduct.createMany({
     data: products.map((p) => ({
       campaignId,
@@ -161,8 +164,9 @@ export async function addProductsToCampaign(
       variantId: p.variantId,
       variantTitle: p.variantTitle,
       maxQuantity: Number(p.maxUnit),
-      price: p.variantPrice  ,
-      imageUrl: p.productImage,    
+      price: p.variantPrice,
+      imageUrl: p.productImage,
+      storeId: storeId,
     })),
   });
 }
@@ -171,6 +175,10 @@ export async function replaceProductsInCampaign(
   campaignId: string,
   products: { id: string; variantId?: string; totalInventory: number }[],
 ) {
+  const storeId = await prisma.preorderCampaign.findUnique({
+    where: { id: campaignId },
+    select: { storeId: true },
+  })
   return prisma.$transaction([
     // 1. Delete all existing products for this campaign
 
@@ -185,6 +193,7 @@ export async function replaceProductsInCampaign(
         productId: p.id,
         variantId: p.variantId,
         maxQuantity: p.totalInventory,
+        storeId: storeId?.storeId
       })),
     }),
   ]);

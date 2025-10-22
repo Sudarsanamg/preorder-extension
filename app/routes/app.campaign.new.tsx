@@ -174,7 +174,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          await addProductsToCampaign(campaign.id, products);
+          await addProductsToCampaign(campaign.id, products ,formData.get("shopId") as string);
 
           // -------------------------------
           // PREORDER METAFIELDS UPDATE
