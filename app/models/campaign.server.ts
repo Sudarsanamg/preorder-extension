@@ -1,6 +1,6 @@
 import prisma from "app/db.server";
 // routes/api.products.ts
-import { json } from "@remix-run/node";
+// import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType } from "@prisma/client";
 
@@ -48,7 +48,7 @@ export async function getAccessToken(shopifyDomain: string) {
 export async function getAllCampaign(shopId?: string) {
   return prisma.preorderCampaign.findMany({
     where: {
-      storeId: shopId,
+      shopId: shopId,
     },
   });
 }
@@ -78,7 +78,7 @@ export async function createPreorderCampaign(data: {
   discountPercent?: number;
   discountFixed?: number;
   campaignType?: number;
-  storeId?: string;
+  shopId?: string;
   getDueByValt: boolean;
   totalOrders: number;
   fulfilmentmode?: Fulfilmentmode;
@@ -89,7 +89,8 @@ export async function createPreorderCampaign(data: {
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
-      storeId: data.storeId ?? "",
+      storeId: (await getStoreIdByShopId(data.shopId ?? ""))?.id ?? "",
+      shopId: data.shopId ?? "",
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -239,7 +240,7 @@ export async function getAllProducts(request: Request) {
 export async function getCampaigns(storeId: string) {
   return prisma.preorderCampaign.findMany({
     where: {
-      storeId,
+      shopId: storeId,
     },
     include: { products: true },
   });
@@ -271,7 +272,7 @@ export async function updateCampaignStatus(id: string, status: CampaignStatus) {
 export async function getOrders(shopId: string) {
   return prisma.campaignOrders.findMany({
     where: {
-      storeId: shopId,
+      shopId: shopId,
     },
     select: {
       order_id: true,
@@ -307,7 +308,8 @@ export async function createOrder({
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
-        storeId,
+        storeId : ( await getStoreIdByShopId(storeId))?.id ?? "",
+        shopId : storeId,
         order_id,
         draft_order_id,
         dueDate,
@@ -470,6 +472,15 @@ export async function getStoreID(storeDomain: string) {
     }
   }
 );
+}
+
+export async function getStoreIdByShopId(shopId: string) {
+  return prisma.store.findUnique({
+    where: { shopId },
+    select: {
+      id: true,
+    },
+  });
 }
 
 export async function createDuePayment(

@@ -77,7 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const response = await admin.graphql(GET_SHOP_WITH_PLAN);
   const data = await response.json();
-  const storeId = data.data.shop.id;
+  const shopId = data.data.shop.id;
   const plusStore = data.data.shop.plan.shopifyPlus;
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
@@ -120,7 +120,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true, storeId, plusStore });
+  return json({ success: true, shopId, plusStore });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -142,7 +142,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "SAVE": {
         const campaign = await createPreorderCampaign({
           name: formData.get("name") as string,
-          storeId: formData.get("storeId") as string,
+          shopId: formData.get("shopId") as string,
           depositPercent: Number(formData.get("depositPercent")),
           balanceDueDate: new Date(formData.get("balanceDueDate") as string),
           refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
@@ -480,7 +480,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  let { prod, storeId, plusStore } = useLoaderData<typeof loader>();
+  let { prod, shopId, plusStore } = useLoaderData<typeof loader>();
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
@@ -798,7 +798,7 @@ export default function Newcampaign() {
       "name",
       campaignName !== "" ? campaignName : `Campaign ${formatedDate}`,
     );
-    formData.append("storeId", storeId);
+    formData.append("shopId", shopId);
     formData.append("depositPercent", String(partialPaymentPercentage));
     
     formData.append("refundDeadlineDays", "0");
@@ -920,7 +920,7 @@ export default function Newcampaign() {
       "name",
       campaignName !== "" ? campaignName : `Campaign ${formatedDate}`,
     );
-    formData.append("storeId", storeId);
+    formData.append("shopId", shopId);
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append(
       "balanceDueDate",

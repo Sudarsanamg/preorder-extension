@@ -816,7 +816,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       const response = await admin.graphql(GET_SHOP);
       const data = await response.json();
-      const storeId = data.data.shop.id;
+      const shopId = data.data.shop.id;
 
       if (secondaryIntent === "delete-campaign-create-new") {
         const campaign = await createPreorderCampaign({
@@ -835,7 +835,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
-          storeId: storeId,
+          shopId: shopId,
           getDueByValt: false,
           totalOrders: totalOrders,
           status: campaignCurrentStatus,

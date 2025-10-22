@@ -44,12 +44,14 @@ model Store {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   vaultedPayment            VaultedPayment[]
+  preorderCampaign          PreorderCampaign[]
+  campaignOrders            CampaignOrders[]
 }
 
 model VaultedPayment {
   id             String        @id @default(uuid())
   orderId        String        @unique
-  storeDomain    String        @default("")
+  storeDomain    String        
   storeId        String     
   idempotencyKey String
   amount         Decimal
@@ -65,7 +67,8 @@ model VaultedPayment {
 
 model PreorderCampaign {
   id                      String                    @id @default(uuid())
-  storeId                 String
+  shopId                  String                    @default("Invalid shop ID")
+  storeId                 String                   
   name                    String
   campaignType            Int                       @default(2)
   depositPercent          Int
@@ -88,6 +91,7 @@ model PreorderCampaign {
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   products                PreorderCampaignProduct[]
+  store                   Store    @relation(fields: [storeId] , references: [id])
 }
 
 
@@ -109,7 +113,8 @@ model PreorderCampaignProduct {
 
 model CampaignOrders {
   id             String        @id @default(uuid())
-  storeId        String?
+  shopId         String
+  storeId        String
   order_number   Int         
   order_id       String        @unique
   draft_order_id String        @unique
@@ -117,6 +122,7 @@ model CampaignOrders {
   dueDate        DateTime
   balanceAmount  Int?
   paymentStatus  PaymentStatus
+  store          Store         @relation(fields: [storeId] ,references: [id])
 }
 
 enum PaymentStatus {
