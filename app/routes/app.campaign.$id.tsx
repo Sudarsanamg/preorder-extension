@@ -34,6 +34,7 @@ import {
   Badge,
   InlineStack,
   Spinner,
+  Tag,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -49,6 +50,7 @@ import {
   CalendarCheckIcon,
   DeleteIcon,
   CashDollarIcon,
+  ClockIcon,
 } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker } from "@shopify/app-bridge/actions";
@@ -69,6 +71,7 @@ import {
 import { GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
 import {
+  allowOutOfStockForVariants,
   DELETE_SELLING_PLAN_GROUP,
   GET_VARIANT_SELLING_PLANS,
   removeVariantMutation,
@@ -80,9 +83,10 @@ import {
 } from "app/graphql/queries/metaobject";
 import { GET_COLLECTION_PRODUCTS, GET_SHOP } from "app/graphql/queries/shop";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
-import { DiscountType } from "@prisma/client";
+import { DiscountType, Fulfilmentmode, scheduledFulfilmentType } from "@prisma/client";
 import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
 import { removeDiscountFromVariants } from "app/helper/removeDiscountFromVariants";
+import { formatDate } from "app/utils/formatDate";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -241,6 +245,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                 (formData.get("shippingMessage") as string) ||
                 "Ship as soon as possible",
               payment_type: (formData.get("paymentMode") as string) || "Full",
+               payment_schedule: {
+                  type: formData.get(
+                    "collectionMode",
+                  ) as scheduledFulfilmentType,
+                  value:
+                    (formData.get(
+                      "collectionMode",
+                    ) as scheduledFulfilmentType) === "DAYS_AFTER"
+                      ? formData.get("paymentAfterDays")
+                      : new Date(
+                          formData.get("balanceDueDate") as string,
+                        ).toISOString(),
+                },
               ppercent: String(formData.get("depositPercent") || "0"),
               paymentduedate: new Date(
                 (formData.get("balanceDueDate") as string) || Date.now(),
@@ -256,6 +273,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                 (formData.get("orderTags") as string) || "[]",
               ).join(","),
               campaigntype: String(formData.get("campaignType") as string),
+               fulfillment: {
+                  type: formData.get("fulfilmentmode") as Fulfilmentmode,
+                  schedule: {
+                    type: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType ,
+                    value: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType  === "DAYS_AFTER" ? formData.get("fulfilmentDaysAfter") : new Date(formData.get("fullfilmentDate") as string).toISOString(),
+                  },
+                },
             },
             designFields: {
               ...designFields,
@@ -662,7 +686,28 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       Number(formData.get("flatDiscount") || 0),
     );
 
-    await createSellingPlan(admin, paymentMode, products, formData);
+    // await createSellingPlan(admin, paymentMode, products, formData);
+    await createSellingPlan(
+            admin,
+            formData.get("paymentMode") as "partial" | "full",
+            products,
+            formData,
+            {
+              fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
+              collectionMode: formData.get('collectionMode') as scheduledFulfilmentType, // partial payment type
+              fulfillmentDate: new Date(
+                formData.get("fulfilmentDate") as string,
+              ).toISOString(),
+              customDays: Number(formData.get('paymentAfterDays') as string),
+              balanceDueDate:
+                new Date(formData.get("balanceDueDate") as string).toISOString()
+                  ,
+            },
+          );
+          if(formData.get('campaignType') == '1' || formData.get('campaignType') == '2'){
+            allowOutOfStockForVariants(admin, products);
+          }
+
     await updateCampaignStatus(params.id!, "PUBLISHED");
     return redirect(`/app/`);
   }
@@ -794,6 +839,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           getDueByValt: false,
           totalOrders: totalOrders,
           status: campaignCurrentStatus,
+          fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
+          scheduledFulfilmentType: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType,
+          fulfilmentDaysAfter: Number(formData.get("fulfilmentDaysAfter")),
+          fulfilmentExactDate: new Date(formData.get("fulfilmentExactDate") as string),
+
         });
 
         const products = JSON.parse(
@@ -897,8 +947,32 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           Number(formData.get("flatDiscount") || 0),
         );
         // const products = JSON.parse(formData.get("products") as string);
-        await createSellingPlan(admin, paymentMode, products, formData);
-
+        // await createSellingPlan(admin, paymentMode, products, formData);
+        await createSellingPlan(
+          admin,
+          formData.get("paymentMode") as "partial" | "full",
+          products,
+          formData,
+          {
+            fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
+            collectionMode: formData.get(
+              "collectionMode",
+            ) as scheduledFulfilmentType, // partial payment type
+            fulfillmentDate: new Date(
+              formData.get("fulfilmentDate") as string,
+            ).toISOString(),
+            customDays: Number(formData.get("paymentAfterDays") as string),
+            balanceDueDate: new Date(
+              formData.get("balanceDueDate") as string,
+            ).toISOString(),
+          },
+        );
+        if (
+          formData.get("campaignType") == "1" ||
+          formData.get("campaignType") == "2"
+        ) {
+          allowOutOfStockForVariants(admin, products);
+        }
         const designFields = JSON.parse(formData.get("designFields") as string);
 
         const campaignFields = [
@@ -915,6 +989,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                   (formData.get("shippingMessage") as string) ||
                   "Ship as soon as possible",
                 payment_type: (formData.get("paymentMode") as string) || "Full",
+                payment_schedule: {
+                  type: formData.get(
+                    "collectionMode",
+                  ) as scheduledFulfilmentType,
+                  value:
+                    (formData.get(
+                      "collectionMode",
+                    ) as scheduledFulfilmentType) === "DAYS_AFTER"
+                      ? formData.get("paymentAfterDays")
+                      : new Date(
+                          formData.get("balanceDueDate") as string,
+                        ).toISOString(),
+                },
                 ppercent: String(formData.get("depositPercent") || "0"),
                 paymentduedate: new Date(
                   (formData.get("balanceDueDate") as string) || Date.now(),
@@ -930,6 +1017,22 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                   (formData.get("orderTags") as string) || "[]",
                 ).join(","),
                 campaigntype: String(formData.get("campaignType") as string),
+                fulfillment: {
+                  type: formData.get("fulfilmentmode") as Fulfilmentmode,
+                  schedule: {
+                    type: formData.get(
+                      "scheduledFulfilmentType",
+                    ) as scheduledFulfilmentType,
+                    value:
+                      (formData.get(
+                        "scheduledFulfilmentType",
+                      ) as scheduledFulfilmentType) === "DAYS_AFTER"
+                        ? 7
+                        : new Date(
+                            formData.get("fulfilmentDate") as string,
+                          ).toISOString(),
+                  },
+                },
               },
               designFields: {
                 ...designFields,
@@ -1084,16 +1187,24 @@ export default function CampaignDetail() {
     parsedCampaignData?.payment_type === "full" ? "full" : "partial",
   );
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
-  const [duePaymentType, setDuePaymentType] = useState(2);
+  const [duePaymentType, setDuePaymentType] = useState(
+    parsedCampaignData?.payment_schedule.type === 'DAYS_AFTER' ? 1 : 2,);
   const [{ month, year }, setMonthYear] = useState({
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
   });
+
+  const MetaObjectDuePaymentData = parsedCampaignData.payment_schedule;
+  const MetaObjectFullfillmentSchedule = parsedCampaignData.fulfillment;
   const [selectedDates, setSelectedDates] = useState({
     start: new Date(),
     end: new Date(),
+    duePaymentDate: MetaObjectDuePaymentData.type === 'DAYS_AFTER' ? new Date() : MetaObjectDuePaymentData.value ,
+    campaignEndDate: new Date(),
+    fullfillmentSchedule: MetaObjectFullfillmentSchedule.schedule.type === 'DAYS_AFTER' ? new Date() : MetaObjectFullfillmentSchedule.schedule.value,
   });
-  const [popoverActive, setPopoverActive] = useState(false);
+
+  // const [popoverActive, setPopoverActive] = useState(false);
   const [DueDateinputValue, setDueDateInputValue] = useState(
     new Date(
       campaign?.balanceDueDate ? campaign.balanceDueDate : new Date(),
@@ -1123,6 +1234,18 @@ export default function CampaignDetail() {
   const formattedTime = `${hours}:${minutes}`;
   const [campaignEndTime, setCampaignEndTime] = useState(formattedTime);
   const [criticalChange, setCriticalChange] = useState(false);
+   const [fulfilmentMode, setfulfilmentMode] = useState<
+      "UNFULFILED" | "SCHEDULED" | "ONHOLD"
+    >(parsedCampaignData?.fulfillment.type);
+    
+    console.log(parsedCampaignData?.fulfillment, "parsedCampaignData?.fulfillment.type");
+    const [scheduledFullfillmentType, setScheduledFullfillmentType] = useState<
+      1 | 2
+    >(parsedCampaignData?.fulfillment.type === "SCHEDULED" ? 
+      parsedCampaignData?.fulfillment.schedule.type === 'EXACT_DATE' ? 2 :1
+       : 1);
+    const [scheduledDay, setScheduledDays] = useState(parsedCampaignData?.fulfillment.schedule.type === 'EXACT_DATE' ? 0 : parsedCampaignData?.fulfillment.schedule.value);
+    const [paymentAfterDays, setPaymentAfterDays] = useState(parsedCampaignData?.payment_schedule?.type === 'DAYS_AFTER' ? parsedCampaignData?.payment_schedule.value : 0);
   const [partialPaymentText, setPartialPaymentText] =
     useState("Partial payment");
   const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
@@ -1272,22 +1395,45 @@ export default function CampaignDetail() {
     picker.dispatch(ResourcePicker.Action.OPEN);
   };
 
-  const togglePopover = useCallback(
-    () => setPopoverActive((active) => !active),
-    [],
-  );
+  // const togglePopover = useCallback(
+  //   () => setPopoverActive((active) => !active),
+  //   [],
+  // );
 
   const handleMonthChange = useCallback((newMonth: any, newYear: any) => {
     setMonthYear({ month: newMonth, year: newYear });
   }, []);
 
-  const handleDateChange = useCallback((range: any) => {
-    setSelectedDates(range);
-    if (range && range.start) {
-      setDueDateInputValue(range.start.toLocaleDateString());
-    }
-    setPopoverActive(false);
-  }, []);
+  // const handleDateChange = useCallback((range: any) => {
+  //   setSelectedDates(range);
+  //   if (range && range.start) {
+  //     setDueDateInputValue(range.start.toLocaleDateString());
+  //   }
+  //   setPopoverActive(false);
+  // }, []);
+
+   const handleDateChange = (field: string, range: any) => {
+    const localDate = new Date(
+      range.start.getFullYear(),
+      range.start.getMonth(),
+      range.start.getDate(),
+    );
+    console.log(localDate,'>>>>>>>>>>>>>>>>>>');
+    setSelectedDates((prev) => ({ ...prev, [field]: localDate }));
+    setPopoverActive((prev) => ({ ...prev, [field]: false }));
+  };
+
+  const [popoverActive, setPopoverActive] = useState({
+    duePaymentDate: false,
+    fullfillmentSchedule: false,
+    campaignEndDate: false,
+  });
+   const togglePopover = useCallback((field: string) => {
+      setPopoverActive((prev: any) => ({
+        ...prev,
+        [field]: !prev[field],
+      }));
+    }, []);
 
   const tabs = [
     {
@@ -1389,7 +1535,7 @@ export default function CampaignDetail() {
     formData.append("id", id);
     formData.append("name", String(campaignName));
     formData.append("depositPercent", String(partialPaymentPercentage));
-    formData.append("balanceDueDate", DueDateinputValue);
+    // formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
     formData.append(
       "campaignEndDate",
@@ -1407,6 +1553,23 @@ export default function CampaignDetail() {
     formData.append("orderTags", JSON.stringify(productTags));
     formData.append("customerTags", JSON.stringify(customerTags));
     formData.append("campaignType", String(selectedOption));
+    formData.append("fulfilmentmode", String(fulfilmentMode));
+    formData.append('collectionMode',duePaymentType === 1 ? 'DAYS_AFTER' : 'EXACT_DATE');
+    formData.append ('paymentAfterDays',String(paymentAfterDays));
+    formData.append(
+      "balanceDueDate",
+      selectedDates.duePaymentDate,
+    );
+    formData.append(
+      "scheduledFulfilmentType",
+      scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
+    );
+    formData.append("fulfilmentDaysAfter", String(scheduledDay));
+    formData.append(
+      "fulfilmentDate",
+      selectedDates.fullfillmentSchedule.toISOString(),
+    );
+    
 
     submit(formData, { method: "post" });
   }
@@ -1771,10 +1934,15 @@ export default function CampaignDetail() {
                           suffix={activeButtonIndex === 0 ? "%" : "$"}
                           id="discount"
                           type="number"
-                          value={
+                          value={(
                             activeButtonIndex === 0
                               ? discountPercentage
                               : flatDiscount
+                          ).toString()}
+                          placeholder={
+                            activeButtonIndex === 0
+                              ? "Enter discount percentage"
+                              : "Enter flat discount"
                           }
                           onChange={(val) => {
                             if (activeButtonIndex === 0) {
@@ -1887,12 +2055,26 @@ export default function CampaignDetail() {
                               <div style={{ flex: 1 }}>
                                 <TextField
                                   autoComplete="off"
+                                  label="Partial payment text"
+                                  labelHidden
                                   suffix={` ${partialPaymentType === "percent" ? "%" : "$"}`}
                                   value={String(partialPaymentPercentage)}
-                                  onChange={setPartialPaymentPercentage}
+                                  onChange={(val) =>{
+                                    if(isNaN(Number(val))) return
+                                     setPartialPaymentPercentage(Number(val));
+                                  }
+                                   }
+                                   error={partialPaymentPercentage <= 0 || partialPaymentPercentage > 99}
                                 />
                               </div>
+                          
                             </div>
+                            <div style={{ marginTop: 10 }}>
+                            {partialPaymentPercentage <= 0 || partialPaymentPercentage > 99 && <Text as="p" variant="bodyMd" tone="critical">
+                          Please enter valid percentage between 1 and
+                          99
+                        </Text>}
+                        </div>
                             <div
                               style={{
                                 marginTop: 10,
@@ -1902,11 +2084,11 @@ export default function CampaignDetail() {
                             >
                               <div>
                                 <ButtonGroup variant="segmented">
-                                  {/* <Button
+                                  <Button
                                         pressed={duePaymentType === 1}
                                         onClick={() => setDuePaymentType(1)}
                                         icon={ClockIcon}
-                                      ></Button> */}
+                                      ></Button>
                                   <Button
                                     pressed={duePaymentType === 2}
                                     onClick={() => setDuePaymentType(2)}
@@ -1917,34 +2099,57 @@ export default function CampaignDetail() {
                               <div style={{ flex: 1 }}>
                                 {duePaymentType === 1 && (
                                   <TextField
+                                  label="Select date for due payment"
+                                  labelHidden
                                     id="partialPaymentNote"
                                     autoComplete="off"
                                     suffix="days after checkout"
+                                    value={paymentAfterDays}
+                                    onChange={(val) => setPaymentAfterDays(val)}
                                   />
                                 )}
                                 {duePaymentType === 2 && (
                                   <div>
                                     <Popover
-                                      active={popoverActive}
+                                      active={popoverActive.duePaymentDate}
                                       activator={
                                         <div style={{ flex: 1 }}>
                                           <TextField
                                             label="Select date for due payment"
-                                            value={DueDateinputValue}
-                                            onFocus={togglePopover}
+                                            labelHidden
+                                            value={formatDate(selectedDates.duePaymentDate)}
+                                            onFocus={() =>
+                                            togglePopover("duePaymentDate")
+                                          }
                                             onChange={() => {}}
                                             autoComplete="off"
+                                             prefix={"Due on "}
                                           />
                                         </div>
                                       }
-                                      onClose={() => setPopoverActive(false)}
+                                     onClose={() =>
+                                        togglePopover("duePaymentDate")
+                                      }
                                     >
                                       <DatePicker
                                         month={month}
                                         year={year}
-                                        onChange={handleDateChange}
+                                        onChange={(range) =>
+                                          handleDateChange(
+                                            "duePaymentDate",
+                                            range,
+                                          )
+                                        }
                                         onMonthChange={handleMonthChange}
-                                        selected={selectedDates}
+                                        selected={{
+                                          start: selectedDates.duePaymentDate,
+                                          end: selectedDates.duePaymentDate,
+                                        }}
+                                        disableDatesBefore={
+                                          new Date(
+                                            new Date().setHours(0, 0, 0, 0),
+                                          )
+                                        }
                                       />
                                     </Popover>
                                   </div>
@@ -1986,14 +2191,16 @@ export default function CampaignDetail() {
                     <div
                       style={{ display: "flex", gap: 10, alignItems: "center" }}
                     >
-                      <div style={{ flex: 1 }}>
+                      {/* <div style={{ flex: 1 }}>
                         <Popover
                           active={campaignEndPicker.popoverActive}
                           activator={
                             <div style={{ flex: 1 }}>
                               <TextField
                                 label="Select end date"
-                                value={campaignEndPicker.inputValue}
+                                value={formatDate(
+                                  campaignEndPicker.inputValue ?? new Date(),
+                                )}
                                 onFocus={toggleCampaignEndPopover}
                                 onChange={() => {}}
                                 autoComplete="off"
@@ -2008,6 +2215,43 @@ export default function CampaignDetail() {
                             onChange={handleCampaignEndDateChange}
                             onMonthChange={handleCampaignEndMonthChange}
                             selected={campaignEndPicker.selected}
+                          />
+                        </Popover>
+                      </div> */}
+                      <div style={{ flex: 1 }}>
+                        <Popover
+                          active={popoverActive.campaignEndDate}
+                          activator={
+                            <div style={{ flex: 1 }}>
+                              <TextField
+                                label="Select end date"
+                                // value={campaignEndPicker.inputValue}
+                                value={formatDate(selectedDates.campaignEndDate.toLocaleDateString(
+                                  "en-CA",
+                                ))}
+                                // onFocus={toggleCampaignEndPopover}
+                                onFocus={() => togglePopover("campaignEndDate")}
+                                onChange={() => {}}
+                                autoComplete="off"
+                              />
+                            </div>
+                          }
+                          onClose={() => togglePopover("campaignEndDate")}
+                        >
+                          <DatePicker
+                            month={campaignEndPicker.month}
+                            year={campaignEndPicker.year}
+                            onChange={(range) =>
+                              handleDateChange("campaignEndDate", range)
+                            }
+                            onMonthChange={handleCampaignEndMonthChange}
+                            selected={{
+                              start: selectedDates.campaignEndDate,
+                              end: selectedDates.campaignEndDate,
+                            }}
+                            disableDatesBefore={
+                              new Date(new Date().setHours(0, 0, 0, 0))
+                            }
                           />
                         </Popover>
                       </div>
@@ -2030,6 +2274,133 @@ export default function CampaignDetail() {
                 </div>
                 <div style={{ marginTop: 20 }}>
                   <Card>
+                    <Text as="h4" variant="headingSm">
+                      Set fulfilment status for orders with preorder items
+                    </Text>
+                    <BlockStack gap={"100"}>
+                      <RadioButton
+                        label="Unfulfilled"
+                        checked={fulfilmentMode === "UNFULFILED"}
+                        id="unfulfilled"
+                        name="unfulfilled"
+                        onChange={() => setfulfilmentMode("UNFULFILED")}
+                      />
+                      <RadioButton
+                        label="Scheduled"
+                        checked={fulfilmentMode === "SCHEDULED"}
+                        id="Scheduled"
+                        name="Scheduled"
+                        onChange={() => setfulfilmentMode("SCHEDULED")}
+                      />
+                      {fulfilmentMode === "SCHEDULED" && (
+                        <div
+                          style={{
+                            paddingLeft: 20,
+                            gap: 10,
+                            alignItems: "center",
+                          }}
+                        >
+                          <BlockStack gap={"200"}>
+                            <Text as="p" variant="bodyMd">
+                              Only works with Shopify Payments
+                            </Text>
+                            <Text as="h5" variant="bodySm">
+                              Automatically change to unfulfiled:
+                            </Text>
+                            <InlineStack gap="200">
+                              <ButtonGroup variant="segmented">
+                                <Button
+                                  pressed={scheduledFullfillmentType === 1}
+                                  onClick={() =>
+                                    setScheduledFullfillmentType(1)
+                                  }
+                                  icon={ClockIcon}
+                                ></Button>
+                                <Button
+                                  pressed={scheduledFullfillmentType === 2}
+                                  onClick={() =>
+                                    setScheduledFullfillmentType(2)
+                                  }
+                                  icon={CalendarCheckIcon}
+                                ></Button>
+                              </ButtonGroup>
+                              <div style={{}}>
+                                {scheduledFullfillmentType === 1 && (
+                                  <TextField
+                                    label="Set to unfulfilled"
+                                    labelHidden
+                                    id="scheduledFullfillmentType"
+                                    autoComplete="off"
+                                    suffix="days after checkout"
+                                    value={scheduledDay}
+                                    onChange={setScheduledDays}
+                                  />
+                                )}
+                                {scheduledFullfillmentType === 2 && (
+                                  <div>
+                                    <Popover
+                                      active={
+                                        popoverActive.fullfillmentSchedule
+                                      }
+                                      activator={
+                                        // <div style={{ flex: 1 }}>
+                                        <TextField
+                                          label="Select date for fullfillment"
+                                          value={formatDate(
+                                            selectedDates.fullfillmentSchedule,
+                                          )}
+                                          type="text"
+                                          onFocus={() => {
+                                            togglePopover(
+                                              "fullfillmentSchedule",
+                                            );
+                                          }}
+                                          onChange={() => {}}
+                                          autoComplete="off"
+                                          labelHidden
+                                        />
+                                        // </div>
+                                      }
+                                      onClose={() => {
+                                        togglePopover("fullfillmentSchedule");
+                                      }}
+                                    >
+                                      <DatePicker
+                                        month={month}
+                                        year={year}
+                                        onChange={(range) =>
+                                          handleDateChange(
+                                            "fullfillmentSchedule",
+                                            range,
+                                          )
+                                        }
+                                        onMonthChange={handleMonthChange}
+                                        selected={{
+                                          start:
+                                            selectedDates.fullfillmentSchedule,
+                                          end: selectedDates.fullfillmentSchedule,
+                                        }}
+                                      />
+                                    </Popover>
+                                  </div>
+                                )}
+                              </div>
+                            </InlineStack>
+                          </BlockStack>
+                        </div>
+                      )}
+                      <RadioButton
+                        label="On Hold"
+                        checked={fulfilmentMode === "ONHOLD"}
+                        id="onhold"
+                        name="onhold"
+                        onChange={() => setfulfilmentMode("ONHOLD")}
+                      />
+                    </BlockStack>
+                  </Card>
+                </div>
+                <div style={{ marginTop: 20 }}>
+                  <Card>
                     <BlockStack gap={"200"}>
                       <Text as="h4" variant="headingSm">
                         Order tags
@@ -2048,7 +2419,7 @@ export default function CampaignDetail() {
                       <div>
                         {productTags.map((tag, index) => (
                           <div key={index} style={{ display: "inline-block" }}>
-                            <span
+                            <Tag
                               key={index}
                               style={{
                                 marginRight: 5,
@@ -2061,7 +2432,8 @@ export default function CampaignDetail() {
                               {tag}
                               <button
                                 style={{
-                                  backgroundColor: "gray",
+                                  // backgroundColor: "gray",
+                                  background: "transparent",
                                   padding: 5,
                                   border: "none",
                                 }}
@@ -2069,7 +2441,7 @@ export default function CampaignDetail() {
                               >
                                 X
                               </button>
-                            </span>
+                            </Tag>
                           </div>
                         ))}
                       </div>
@@ -2096,20 +2468,12 @@ export default function CampaignDetail() {
                       <div>
                         {customerTags.map((tag, index) => (
                           <div key={index} style={{ display: "inline-block" }}>
-                            <span
-                              key={index}
-                              style={{
-                                marginRight: 5,
-                                backgroundColor: "gray",
-                                padding: 5,
-                                borderRadius: 5,
-                                position: "relative",
-                              }}
-                            >
+                            <Tag key={index}>
                               {tag}
                               <button
                                 style={{
-                                  backgroundColor: "gray",
+                                  // backgroundColor: "gray",
+                                  background: "transparent",
                                   padding: 5,
                                   border: "none",
                                 }}
@@ -2119,7 +2483,7 @@ export default function CampaignDetail() {
                               >
                                 X
                               </button>
-                            </span>
+                            </Tag>
                           </div>
                         ))}
                       </div>
@@ -2292,7 +2656,7 @@ export default function CampaignDetail() {
                       >
                         <Text as="h1" variant="headingMd">
                           Pay $3.92 now and $35.28 will be charged on{" "}
-                          {DueDateinputValue}
+                          {formatDate(DueDateinputValue)}
                         </Text>
                       </div>
                     )}

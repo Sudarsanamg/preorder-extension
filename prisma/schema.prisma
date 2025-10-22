@@ -48,6 +48,7 @@ model Store {
 model VaultedPayment {
   id             String        @id @default(uuid())
   orderId        String        @unique
+  storeDomain    String?
   idempotencyKey String
   amount         Decimal
   currencyCode   String
@@ -86,16 +87,7 @@ model PreorderCampaign {
   products                PreorderCampaignProduct[]
 }
 
-enum Fulfilmentmode {
-  ONHOLD
-  UNFULFILED
-  SCHEDULED
-}
 
-enum scheduledFulfilmentType {
-  DAYS_AFTER
-  EXACT_DATE
-}
 
 model PreorderCampaignProduct {
   id           String           @id @default(uuid())
@@ -115,9 +107,10 @@ model PreorderCampaignProduct {
 model CampaignOrders {
   id             String        @id @default(uuid())
   storeId        String?
-  order_number   Int           @unique
+  order_number   Int         
   order_id       String        @unique
   draft_order_id String        @unique
+  customerEmail  String        @default("")
   dueDate        DateTime
   balanceAmount  Int?
   paymentStatus  PaymentStatus
@@ -140,4 +133,15 @@ enum CampaignStatus {
   DRAFT
   PUBLISHED
   UNPUBLISH
+}
+
+enum Fulfilmentmode {
+  ONHOLD
+  UNFULFILED
+  SCHEDULED
+}
+
+enum scheduledFulfilmentType {
+  DAYS_AFTER
+  EXACT_DATE
 }

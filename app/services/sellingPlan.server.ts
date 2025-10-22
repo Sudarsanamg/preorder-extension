@@ -123,7 +123,7 @@ export async function createSellingPlan(
     variables.percentage = Number(formData.get("depositPercent"));
 
     if (collectionMode === "DAYS_AFTER") {
-      variables.days = `P${customDays}D`;
+      variables.days = `P${String(customDays)}D`;
     } else if (collectionMode === "EXACT_DATE") {
       const exactDateValue = balanceDueDate || formData.get("balanceDueDate")?.toString();
       if (!exactDateValue) throw new Error("balanceDueDate is required for EXACT_DATE collection mode");
