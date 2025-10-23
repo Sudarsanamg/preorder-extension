@@ -127,10 +127,13 @@ const orderPaid = async (payload: any) => {
 
       const uuid = uuidv4();
 
-      const storeIdQueryResponse = await admin.graphql(GET_SHOP_WITH_PLAN);
-      const storeIdQueryResponseData = await storeIdQueryResponse.json();
-      const shopId = storeIdQueryResponseData.data.shop.id;
-      const plusStore = storeIdQueryResponseData.data.shop.plan.shopifyPlus;
+     const response = await admin.graphql(GET_SHOP_WITH_PLAN);
+     const data = await response.json();
+     const shop = data.data.shop;
+     const shopId = shop.id;
+     const plusStore = shop.plan.shopifyPlus;
+     const storeDomain = shop.primaryDomain?.host; 
+
       // getDueByValt is true
       // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
       let vaultPayment = false;
@@ -173,6 +176,7 @@ const orderPaid = async (payload: any) => {
         balanceAmount: remaining,
         paymentStatus: "PENDING",
         storeId: shopId,
+        customerEmail : customerEmail
       });
 
       try {
@@ -290,7 +294,7 @@ const orderPaid = async (payload: any) => {
 
         const accessTokenRes = await prisma.session.findFirst({
           where: {
-            shop: "us-demo-store-2.myshopify.com",
+            shop: storeDomain,
           },
           select: {
             accessToken: true,
@@ -308,6 +312,7 @@ const orderPaid = async (payload: any) => {
           new Date(),
           "PENDING",
           accessToken,
+          storeDomain
         );
 
         console.log("Due payment created:", duePaymentCreation);

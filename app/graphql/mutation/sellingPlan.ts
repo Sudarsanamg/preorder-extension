@@ -276,3 +276,115 @@ export const DELETE_SELLING_PLAN_GROUP = `
 //   `;
 // };
 
+export async function allowOutOfStockForVariants(admin:any,products: string[]) {
+  if (!products?.length) {
+    console.warn("⚠️ No products provided to allowOutOfStockForProducts");
+    return;
+  }
+
+  // 🧩 Group variants by product ID
+  const grouped: Record<string, string[]> = {};
+  for (const p of products as any[]) {
+    if (!p.productId || !p.variantId) continue;
+    if (!grouped[p.productId]) grouped[p.productId] = [];
+    grouped[p.productId].push(p.variantId);
+  }
+
+  const mutation = `
+    mutation updateVariants($id: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkUpdate(productId: $id, variants: $variants) {
+        productVariants {
+          id
+          inventoryPolicy
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  // 🧠 Loop each product (1 mutation per product)
+  for (const [productId, variantIds] of Object.entries(grouped)) {
+    const variables = {
+      id: productId,
+      variants: variantIds.map((variantId) => ({
+        id: variantId,
+        inventoryPolicy: "CONTINUE",
+      })),
+    };
+
+    try {
+      const response = await admin.graphql(mutation, { variables });
+      const result = await response.json();
+      const data = result.data?.productVariantsBulkUpdate;
+
+      if (data?.userErrors?.length) {
+        console.error(`❌ Errors for product ${productId}:`, data.userErrors);
+      } else {
+        console.log(
+          `✅ Updated ${variantIds.length} variant(s) for product ${productId}`
+        );
+      }
+    } catch (error) {
+      console.error(`⚠️ Failed to update product ${productId}:`, error);
+    }
+  }
+}
+
+export async function revertOutOfStockForVariants(admin: any, products: string[]) {
+  if (!products?.length) {
+    console.warn("⚠️ No products provided to revertOutOfStockForVariants");
+    return;
+  }
+
+  // 🧩 Group variants by product ID
+  const grouped: Record<string, string[]> = {};
+  for (const p of products as any[]) {
+    if (!p.productId || !p.variantId) continue;
+    if (!grouped[p.productId]) grouped[p.productId] = [];
+    grouped[p.productId].push(p.variantId);
+  }
+
+  const mutation = `
+    mutation updateVariants($id: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkUpdate(productId: $id, variants: $variants) {
+        productVariants {
+          id
+          inventoryPolicy
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  for (const [productId, variantIds] of Object.entries(grouped)) {
+    const variables = {
+      id: productId,
+      variants: variantIds.map((variantId) => ({
+        id: variantId,
+        inventoryPolicy: "DENY", // 👈 revert to not allowing out-of-stock
+      })),
+    };
+
+    try {
+      const response = await admin.graphql(mutation, { variables });
+      const result = await response.json();
+      const data = result.data?.productVariantsBulkUpdate;
+
+      if (data?.userErrors?.length) {
+        console.error(`❌ Errors for product ${productId}:`, data.userErrors);
+      } else {
+        console.log(
+          `🔁 Reverted ${variantIds.length} variant(s) for product ${productId}`
+        );
+      }
+    } catch (error) {
+      console.error(`⚠️ Failed to revert product ${productId}:`, error);
+    }
+  }
+}

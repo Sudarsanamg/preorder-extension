@@ -11,17 +11,20 @@ export const GET_SHOP = `#graphql
 
 export const GET_SHOP_WITH_PLAN = `#graphql
   {
-    shop {
-      id
-      name
-      myshopifyDomain
-      plan {
-        displayName
-        partnerDevelopment
-        shopifyPlus
-      }
+  shop {
+    id
+    name
+    plan {
+      displayName
+      partnerDevelopment
+      shopifyPlus
+    }
+    primaryDomain {
+      url
+      host
     }
   }
+}
 `;
 
 

@@ -15,7 +15,7 @@ export const loader = async () => {
   for (const payment of duePayments) {
     try {
       await runPayment({
-        shop: "us-demo-store-2.myshopify.com",
+        shop: payment.storeDomain?? "",
         accessToken: payment.accessToken ?? "",
         orderId: payment.orderId,
         mandateId: payment.mandateId,

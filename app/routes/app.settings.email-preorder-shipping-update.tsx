@@ -610,7 +610,7 @@ export default function EmailPreorderConfirmationSettings() {
                   Opens up order cancelation page. Use {"{order}"} for order
                   number
                 </Text>
-                <Text variant="headingMd" as="h2">
+                <Text variant="headingMd" as="h2" >
                   Background
                 </Text>
                 <RadioButton

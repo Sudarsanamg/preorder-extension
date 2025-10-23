@@ -13,7 +13,6 @@ import {
   Text,
   TextField,
   Page,
-  LegacyStack,
   RadioButton,
   Card,
   DatePicker,
@@ -24,6 +23,7 @@ import {
   InlineStack,
   Checkbox,
   Tag,
+  Spinner,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -33,6 +33,7 @@ import {
   useActionData,
   Link,
   useLoaderData,
+  useNavigation,
 } from "@remix-run/react";
 import {
   DiscountIcon,
@@ -69,6 +70,8 @@ import {
   scheduledFulfilmentType,
 } from "@prisma/client";
 import { formatCurrency } from "app/helper/currencyFormatter";
+import { formatDate } from "app/utils/formatDate";
+import { allowOutOfStockForVariants } from "app/graphql/mutation/sellingPlan";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -336,28 +339,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           // console.log("scheduledFulfilmentType", formData.get("scheduledFulfilmentType"));
           // console.log("fulfilmentDate", new Date(formData.get("fulfilmentDate") as string));
           // console.log('paymentAfterDays', formData.get('paymentAfterDays'));
-          const res = await createSellingPlan(
+          await createSellingPlan(
             admin,
             formData.get("paymentMode") as "partial" | "full",
             products,
             formData,
             {
               fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
-              collectionMode: formData.get('collectionMode') as scheduledFulfilmentType, // partial payment type
+              collectionMode: formData.get(
+                "collectionMode",
+              ) as scheduledFulfilmentType, // partial payment type
               fulfillmentDate: new Date(
                 formData.get("fulfilmentDate") as string,
               ).toISOString(),
-              customDays: Number(formData.get('paymentAfterDays') as string),
-              balanceDueDate:
-                new Date(formData.get("balanceDueDate") as string).toISOString()
-                  ,
+              customDays: Number(formData.get("paymentAfterDays") as string),
+              balanceDueDate: new Date(
+                formData.get("balanceDueDate") as string,
+              ).toISOString(),
             },
           );
+          if (
+            formData.get("campaignType") == "1" ||
+            formData.get("campaignType") == "2"
+          ) {
+            allowOutOfStockForVariants(admin, products);
+          }
 
-          console.log(
-            "Selling Plan Response >>>",
-            JSON.stringify(res, null, 2),
-          );
+          // console.log(
+          //   "Selling Plan Response >>>",
+          //   JSON.stringify(res, null, 2),
+          // );
         }
 
         const designFields = JSON.parse(formData.get("designFields") as string);
@@ -375,6 +386,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   (formData.get("shippingMessage") as string) ||
                   "Ship as soon as possible",
                 payment_type: (formData.get("paymentMode") as string) || "Full",
+                payment_schedule: {
+                  type: formData.get(
+                    "collectionMode",
+                  ) as scheduledFulfilmentType,
+                  value:
+                    (formData.get(
+                      "collectionMode",
+                    ) as scheduledFulfilmentType) === "DAYS_AFTER"
+                      ? formData.get("paymentAfterDays")
+                      : new Date(
+                          formData.get("balanceDueDate") as string,
+                        ).toISOString(),
+                },
                 ppercent: String(formData.get("depositPercent") || "0"),
                 paymentduedate: new Date(
                   (formData.get("balanceDueDate") as string) || Date.now(),
@@ -391,6 +415,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   (formData.get("orderTags") as string) || "[]",
                 ).join(","),
                 campaigntype: String(formData.get("campaignType") as string),
+                fulfillment: {
+                  type: formData.get("fulfilmentmode") as Fulfilmentmode,
+                  schedule: {
+                    type: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType ,
+                    value: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType  === "DAYS_AFTER" ? formData.get("fulfilmentDaysAfter")  : new Date(formData.get("fulfilmentDate") as string).toISOString(),
+                  },
+                },
               },
               designFields: {
                 ...designFields,
@@ -398,11 +429,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }),
           },
         ];
-
-        console.log(
-          "Campaign Fields >>>",
-          JSON.stringify(campaignFields, null, 2),
-        );
 
         const response = await admin.graphql(CREATE_CAMPAIGN, {
           variables: {
@@ -458,6 +484,7 @@ export default function Newcampaign() {
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
+  const navigation = useNavigation();
   const [collectionProducts, setCollectionProducts] = useState(prod);
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -562,11 +589,15 @@ export default function Newcampaign() {
     cancel: false,
     addAll: false,
   });
+  const [saveBarVisible, setSaveBarVisible] = useState(false);
 
   const formattedText = partialPaymentInfoText
     .replace("{payment}", `$${payment}`)
     .replace("{remaining}", `$${remaining}`)
-    .replace("{date}", selectedDates.duePaymentDate.toLocaleDateString());
+    .replace(
+      "{date}",
+      formatDate(selectedDates.duePaymentDate.toLocaleDateString()),
+    );
 
   const handleClick = async (action: string) => {
     SetButtonLoading((prev: any) => ({ ...prev, [action]: !prev[action] }));
@@ -758,13 +789,9 @@ export default function Newcampaign() {
     .replace(",", "")}`;
 
   const handleSubmit = () => {
-    console.log(
-      "/////////////////////",
-      selectedDates.campaignEndDate.toISOString(),
-    );
-
     setLoading(true);
     shopify.saveBar.hide("my-save-bar");
+    setSaveBarVisible(false);
     const formData = new FormData();
     formData.append("intent", "create-campaign");
     formData.append(
@@ -793,8 +820,11 @@ export default function Newcampaign() {
     formData.append("campaignType", String(selectedOption));
     formData.append("getDueByValt", String(getPaymentsViaValtedPayments));
     formData.append("fulfilmentmode", String(fulfilmentMode));
-    formData.append('collectionMode',duePaymentType === 1 ? 'DAYS_AFTER' : 'EXACT_DATE');
-    formData.append ('paymentAfterDays',String(paymentAfterDays));
+    formData.append(
+      "collectionMode",
+      duePaymentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
+    );
+    formData.append("paymentAfterDays", String(paymentAfterDays));
     formData.append(
       "balanceDueDate",
       selectedDates.duePaymentDate.toISOString(),
@@ -927,15 +957,18 @@ export default function Newcampaign() {
     submit(formData, { method: "post" });
 
     shopify.saveBar.hide("my-save-bar");
+    setSaveBarVisible(false);
   };
 
   const handleDiscard = () => {
     console.log("Discarding");
     shopify.saveBar.hide("my-save-bar");
+    setSaveBarVisible(false);
   };
 
   useEffect(() => {
     shopify.saveBar.show("my-save-bar");
+    setSaveBarVisible(true);
   }, [
     designFields,
     selectedProducts,
@@ -951,13 +984,27 @@ export default function Newcampaign() {
     flatDiscount,
   ]);
 
+  useEffect(() => {
+    setSaveBarVisible(false);
+  }, []);
+
   return (
     <AppProvider i18n={enTranslations}>
       <Page
         title="Create Preorder campaign"
+        titleMetadata={
+          <div>{navigation.state !== "idle" && <Spinner size="small" />}</div>
+        }
         backAction={{
           content: "Back",
-          onAction: () => navigate("/app"),
+          onAction: () => {
+            console.log(saveBarVisible, "saveBarVisible");
+            if (saveBarVisible) {
+              shopify.saveBar.leaveConfirmation();
+            } else {
+              navigate("/app");
+            }
+          },
         }}
         primaryAction={{
           content: "Publish",
@@ -1248,7 +1295,8 @@ export default function Newcampaign() {
                       Payment
                     </Text>
                     <div>
-                      <LegacyStack vertical>
+                      {/* <LegacyStack vertical> */}
+                      <BlockStack gap={"300"}>
                         <RadioButton
                           label="Full payment"
                           checked={paymentMode === "full"}
@@ -1302,14 +1350,21 @@ export default function Newcampaign() {
                                   autoComplete="off"
                                   suffix={` ${partialPaymentType === "percent" ? "%" : "$"} as inital payment`}
                                   value={partialPaymentPercentage}
-                                  onChange={setPartialPaymentPercentage}
+                                  onChange={(val) => {
+                                    if (isNaN(Number(val))) return;
+                                    setPartialPaymentPercentage(val);
+                                  }}
+                                  error={
+                                    Number(partialPaymentPercentage) <= 0 ||
+                                    Number(partialPaymentPercentage) > 99
+                                  }
                                 />
                               </div>
                             </div>
 
                             <div
                               style={{
-                                marginTop: 10,
+                                marginTop: 15,
                                 display: "flex",
                                 gap: 10,
                                 alignContent: "center",
@@ -1353,8 +1408,10 @@ export default function Newcampaign() {
                                         <TextField
                                           label="Select date for due payment"
                                           // value={DueDateinputValue}
-                                          value={selectedDates.duePaymentDate.toLocaleDateString(
-                                            "en-CA",
+                                          value={formatDate(
+                                            selectedDates.duePaymentDate.toLocaleDateString(
+                                              "en-CA",
+                                            ),
                                           )}
                                           onFocus={() =>
                                             togglePopover("duePaymentDate")
@@ -1395,7 +1452,7 @@ export default function Newcampaign() {
                                 )}
                               </div>
                             </div>
-                            <div>
+                            <div style={{ marginTop: 10, marginBottom: 10 }}>
                               {plusStore && (
                                 <Checkbox
                                   label="Get Due payments via Valted credit cards Note:Works only with Shopify Payments"
@@ -1417,22 +1474,25 @@ export default function Newcampaign() {
                             <Text as="p" variant="bodyMd">
                               Visible in cart, checkout, transactional emails
                             </Text>
-                            <div>
-                              <TextField
-                                autoComplete="off"
-                                label="Text"
-                                value={partialPaymentInfoText}
-                                onChange={setPartialPaymentInfoText}
-                              />
-                              <Text as="p" variant="bodyMd">
-                                Use {"{payment}"} and {"{remaining}"} to display
-                                partial payment amounts and {"{date}"} for full
-                                amount charge date.
-                              </Text>
+                            <div style={{ marginTop: 10 }}>
+                              <BlockStack gap="200">
+                                <TextField
+                                  autoComplete="off"
+                                  label="Text"
+                                  value={partialPaymentInfoText}
+                                  onChange={setPartialPaymentInfoText}
+                                />
+                                <Text as="p" variant="bodyMd">
+                                  Use {"{payment}"} and {"{remaining}"} to
+                                  display partial payment amounts and {"{date}"}{" "}
+                                  for full amount charge date.
+                                </Text>
+                              </BlockStack>
                             </div>
                           </div>
                         )}
-                      </LegacyStack>
+                        {/* </LegacyStack> */}
+                      </BlockStack>
                     </div>
                   </Card>
                 </div>
@@ -1452,8 +1512,10 @@ export default function Newcampaign() {
                               <TextField
                                 label="Select end date"
                                 // value={campaignEndPicker.inputValue}
-                                value={selectedDates.campaignEndDate.toLocaleDateString(
-                                  "en-CA",
+                                value={formatDate(
+                                  selectedDates.campaignEndDate.toLocaleDateString(
+                                    "en-CA",
+                                  ),
                                 )}
                                 // onFocus={toggleCampaignEndPopover}
                                 onFocus={() => togglePopover("campaignEndDate")}
@@ -1503,7 +1565,7 @@ export default function Newcampaign() {
                     <Text as="h4" variant="headingSm">
                       Set fulfilment status for orders with preorder items
                     </Text>
-                    <BlockStack gap={"200"}>
+                    <BlockStack gap={"100"}>
                       <RadioButton
                         label="Unfulfilled"
                         checked={fulfilmentMode === "UNFULFILED"}
@@ -1572,8 +1634,10 @@ export default function Newcampaign() {
                                         // <div style={{ flex: 1 }}>
                                         <TextField
                                           label="Select date for fullfillment"
-                                          value={selectedDates.fullfillmentSchedule.toLocaleDateString(
-                                            "en-CA",
+                                          value={formatDate(
+                                            selectedDates.fullfillmentSchedule.toLocaleDateString(
+                                              "en-CA",
+                                            ),
                                           )}
                                           type="text"
                                           onFocus={() => {
