@@ -41,8 +41,8 @@ model Store {
   GeneralSettings           Json?
   EmailConfig               Json?
   SetupCompleted            Boolean  @default(false)
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  createdAt                 BigInt 
+  updatedAt                 BigInt 
   vaultedPayment            VaultedPayment[]
   preorderCampaign          PreorderCampaign[]
   campaignOrders            CampaignOrders[]
@@ -61,8 +61,8 @@ model VaultedPayment {
   dueDate        DateTime
   paymentStatus  PaymentStatus
   accessToken    String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      BigInt
+  updatedAt      BigInt
   store          Store         @relation(fields: [storeId], references: [id])
 }
 
@@ -89,8 +89,8 @@ model PreorderCampaign {
   scheduledFulfilmentType scheduledFulfilmentType?
   fulfilmentDaysAfter     Int?
   fulfilmentExactDate     DateTime?
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
+  createdAt               BigInt                 
+  updatedAt               BigInt                
   products                PreorderCampaignProduct[]
   store                   Store    @relation(fields: [storeId] , references: [id])
 }
@@ -108,8 +108,8 @@ model PreorderCampaignProduct {
   imageUrl     String?
   maxQuantity  Int?
   soldQuantity Int              @default(0)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    BigInt         
+  updatedAt    BigInt        
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   store        Store            @relation(fields: [storeId],references: [id])
 }
@@ -126,6 +126,8 @@ model CampaignOrders {
   balanceAmount  Int?
   paymentStatus  PaymentStatus
   store          Store         @relation(fields: [storeId] ,references: [id])
+  createdAt      BigInt
+  updatedAt      BigInt
 }
 
 enum PaymentStatus {

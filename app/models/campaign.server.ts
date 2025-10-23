@@ -30,6 +30,8 @@ export async function createStore(data: {
       ShippingEmailSettings: data.ShippingEmailSettings,
       GeneralSettings: data.GeneralSettings,
       EmailConfig: data.EmailConfig,
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
@@ -110,7 +112,9 @@ export async function createPreorderCampaign(data: {
       fulfilmentmode: data.fulfilmentmode,
       scheduledFulfilmentType: data.scheduledFulfilmentType,
       fulfilmentDaysAfter: data.fulfilmentDaysAfter,
-      fulfilmentExactDate: data.fulfilmentExactDate
+      fulfilmentExactDate: data.fulfilmentExactDate,
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
@@ -145,6 +149,7 @@ export async function updateCampaign(data: {
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
@@ -167,6 +172,8 @@ export async function addProductsToCampaign(
       price: p.variantPrice,
       imageUrl: p.productImage,
       storeId: storeId,
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     })),
   });
 }
@@ -193,7 +200,9 @@ export async function replaceProductsInCampaign(
         productId: p.id,
         variantId: p.variantId,
         maxQuantity: p.totalInventory,
-        storeId: storeId?.storeId
+        storeId: storeId?.storeId,
+        updatedAt: BigInt(Date.now()),
+        createdAt: BigInt(Date.now())
       })),
     }),
   ]);
@@ -324,7 +333,9 @@ export async function createOrder({
         dueDate,
         balanceAmount,
         paymentStatus,
-        customerEmail
+        customerEmail,
+        createdAt: BigInt(Date.now()),
+        updatedAt: BigInt(Date.now()),
       },
     });
 
@@ -341,7 +352,10 @@ export async function orderStatusUpdate(
 ) {
   return prisma.campaignOrders.update({
     where: { draft_order_id: orderdraft_order_id },
-    data: { paymentStatus },
+    data: {
+       paymentStatus, 
+       updatedAt: BigInt(Date.now())
+      },
   });
 }
 
@@ -438,14 +452,21 @@ export async function updateConfrimOrderEmailSettings(
 ) {
   return prisma.store.update({
     where: { shopId: shopId },
-    data: { ConfrimOrderEmailSettings: settings },
+    data: {
+       ConfrimOrderEmailSettings: settings, 
+       updatedAt: BigInt(Date.now())
+      },
   });
 }
 
 export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
   return prisma.store.update({
     where: { shopId: shopId },
-    data: { sendCustomEmail: enable },
+    data: { 
+      sendCustomEmail: enable, 
+      updatedAt: BigInt(Date.now())
+
+    },
   });
 }
 
@@ -515,6 +536,8 @@ export async function createDuePayment(
       accessToken,
       storeDomain,
       storeId: (await getStoreID(storeDomain))?.id ?? "",
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
