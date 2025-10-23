@@ -690,24 +690,25 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       Number(formData.get("flatDiscount") || 0),
     );
 
-    // await createSellingPlan(admin, paymentMode, products, formData);
-    await createSellingPlan(
-            admin,
-            formData.get("paymentMode") as "partial" | "full",
-            products,
-            formData,
-            {
-              fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
-              collectionMode: formData.get('collectionMode') as scheduledFulfilmentType, // partial payment type
-              fulfillmentDate: new Date(
-                formData.get("fulfilmentDate") as string,
-              ).toISOString(),
-              customDays: Number(formData.get('paymentAfterDays') as string),
-              balanceDueDate:
-                new Date(formData.get("balanceDueDate") as string).toISOString()
-                  ,
-            },
-          );
+     await createSellingPlan(
+          admin,
+          formData.get("paymentMode") as "partial" | "full",
+          products,
+          formData,
+          {
+            fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
+            collectionMode: formData.get(
+              "collectionMode",
+            ) as scheduledFulfilmentType, 
+            fulfillmentDate: new Date(
+              formData.get("fulfilmentDate") as string,
+            ).toISOString(),
+            customDays: Number(formData.get("paymentAfterDays") as string),
+            balanceDueDate: new Date(
+              formData.get("balanceDueDate") as string,
+            ).toISOString(),
+          },
+        );
           if(formData.get('campaignType') == '1' || formData.get('campaignType') == '2'){
             allowOutOfStockForVariants(admin, products);
           }
@@ -1613,6 +1614,22 @@ export default function CampaignDetail() {
     formData.append("orderTags", JSON.stringify(productTags));
     formData.append("customerTags", JSON.stringify(customerTags));
     formData.append("id", id);
+    formData.append("fulfilmentmode", String(fulfilmentMode));
+    formData.append('collectionMode',duePaymentType === 1 ? 'DAYS_AFTER' : 'EXACT_DATE');
+    formData.append ('paymentAfterDays',String(paymentAfterDays));
+    formData.append(
+      "balanceDueDate",
+      selectedDates.duePaymentDate,
+    );
+    formData.append(
+      "scheduledFulfilmentType",
+      scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
+    );
+    formData.append("fulfilmentDaysAfter", String(scheduledDay));
+    formData.append(
+      "fulfilmentDate",
+      selectedDates.fullfillmentSchedule.toISOString(),
+    );
 
     submit(formData, { method: "post" });
   }

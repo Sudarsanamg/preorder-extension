@@ -299,6 +299,7 @@ export async function getOrders(shopId: string) {
       balanceAmount: true,
       paymentStatus: true,
       storeId: true,
+      customerEmail: true
     }
   });
 }

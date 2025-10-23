@@ -1,7 +1,11 @@
-export function generateEmailTemplate(emailSettings: any, products: any,orderId: any) {
+export function generateEmailTemplate(
+  emailSettings: any,
+  products: any,
+  orderId: any,
+) {
   const formattedDescription = emailSettings.description.replace(
     "{order}",
-    orderId
+    orderId,
   );
 
   const productSection = products
@@ -11,14 +15,17 @@ export function generateEmailTemplate(emailSettings: any, products: any,orderId:
       <td>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
           <tr>
-            <td valign="top" style="padding-left:10px;">
+            <td valign="top" style="padding-right: 10px; width: 100px;">
+              <img src="${product.productImage}" alt="${product.productTitle}" style="width: 100px; height: auto; border-radius: 8px;" />
+            </td>
+            <td valign="top" style="padding-left: 10px;">
               <div style="font-size:${emailSettings.productTitleFontSize}px; font-weight:${
-        emailSettings.productTitleBold ? "bold" : "normal"
-      }; color:${emailSettings.productTitleColor}; padding-bottom:5px;">
+                emailSettings.productTitleBold ? "bold" : "normal"
+              }; color:${emailSettings.productTitleColor}; padding-bottom:5px;">
                 ${product.title}
               </div>
               <div style="font-size:14px; color:#555555; line-height:20px;">
-                ${product.price}
+                Price: $ ${product.price}
               </div>
               <div style="font-size:14px; color:#555555; line-height:20px;">
                 Qty: ${product.quantity}
@@ -28,7 +35,7 @@ export function generateEmailTemplate(emailSettings: any, products: any,orderId:
         </table>
       </td>
     </tr>
-  `
+  `,
     )
     .join("");
 
@@ -49,8 +56,8 @@ export function generateEmailTemplate(emailSettings: any, products: any,orderId:
             <!-- Store Name -->
             <tr>
               <td align="center" style="font-size:${emailSettings.storeNameFontSize}px; font-weight:${
-    emailSettings.storeNameBold ? "bold" : "normal"
-  }; color:${emailSettings.storeNameColor}; padding-bottom:10px;">
+                emailSettings.storeNameBold ? "bold" : "normal"
+              }; color:${emailSettings.storeNameColor}; padding-bottom:10px;">
                 ${emailSettings.storeName}
               </td>
             </tr>
@@ -58,8 +65,8 @@ export function generateEmailTemplate(emailSettings: any, products: any,orderId:
             <!-- Subheading -->
             <tr>
               <td align="center" style="font-size:${emailSettings.subheadingFontSize}px; font-weight:${
-    emailSettings.subheadingBold ? "bold" : "normal"
-  }; color:${emailSettings.subheadingColor}; padding-bottom:15px;">
+                emailSettings.subheadingBold ? "bold" : "normal"
+              }; color:${emailSettings.subheadingColor}; padding-bottom:15px;">
                 ${emailSettings.subheading}
               </td>
             </tr>
@@ -67,8 +74,8 @@ export function generateEmailTemplate(emailSettings: any, products: any,orderId:
             <!-- Description -->
             <tr>
               <td align="left" style="font-size:${emailSettings.descriptionFontSize}px; font-weight:${
-    emailSettings.descriptionBold ? "bold" : "normal"
-  }; color:${emailSettings.descriptionColor}; line-height:22px; padding-bottom:20px;">
+                emailSettings.descriptionBold ? "bold" : "normal"
+              }; color:${emailSettings.descriptionColor}; line-height:22px; padding-bottom:20px;">
                 ${formattedDescription}
               </td>
             </tr>
@@ -77,40 +84,7 @@ export function generateEmailTemplate(emailSettings: any, products: any,orderId:
             ${productSection}
 
             <!-- Cancel Button -->
-            ${
-              emailSettings.showCancelButton
-                ? `
-            <tr>
-              <td align="center" style="padding-top:20px;">
-                <a href="${emailSettings.cancelUrl}" 
-                   style="
-                     display:inline-block;
-                     font-size:${emailSettings.cancelButtonFontSize}px;
-                     font-weight:${
-                       emailSettings.cancelButtonBold ? "bold" : "normal"
-                     };
-                     color:${emailSettings.cancelButtonTextColor};
-                     text-decoration:none;
-                     padding:8px 16px;
-                     border-radius:${emailSettings.cancelButtonBorderRadius}px;
-                     border:${emailSettings.cancelButtonBorderSize}px solid ${emailSettings.cancelButtonBorderColor};
-                     ${
-                       emailSettings.cancelButtonStyle === "single"
-                         ? `background:${emailSettings.cancelButtonBackgroundColor};`
-                         : ""
-                     }
-                     ${
-                       emailSettings.cancelButtonStyle === "gradient"
-                         ? `background:linear-gradient(${emailSettings.cancelButtonGradientDegree}deg, ${emailSettings.cancelButtonGradientColor1}, ${emailSettings.cancelButtonGradientColor2});`
-                         : ""
-                     }
-                   ">
-                  Cancel order ${orderId}
-                </a>
-              </td>
-            </tr>`
-                : ""
-            }
+            
 
           </table>
         </td>
@@ -119,3 +93,38 @@ export function generateEmailTemplate(emailSettings: any, products: any,orderId:
   </body>
 </html>`;
 }
+
+// ${
+//               emailSettings.showCancelButton
+//                 ? `
+//             <tr>
+//               <td align="center" style="padding-top:20px;">
+//                 <a href="${emailSettings.cancelUrl}"
+//                    style="
+//                      display:inline-block;
+//                      font-size:${emailSettings.cancelButtonFontSize}px;
+//                      font-weight:${
+//                        emailSettings.cancelButtonBold ? "bold" : "normal"
+//                      };
+//                      color:${emailSettings.cancelButtonTextColor};
+//                      text-decoration:none;
+//                      padding:8px 16px;
+//                      border-radius:${emailSettings.cancelButtonBorderRadius}px;
+//                      border:${emailSettings.cancelButtonBorderSize}px solid ${emailSettings.cancelButtonBorderColor};
+//                      ${
+//                        emailSettings.cancelButtonStyle === "single"
+//                          ? `background:${emailSettings.cancelButtonBackgroundColor};`
+//                          : ""
+//                      }
+//                      ${
+//                        emailSettings.cancelButtonStyle === "gradient"
+//                          ? `background:linear-gradient(${emailSettings.cancelButtonGradientDegree}deg, ${emailSettings.cancelButtonGradientColor1}, ${emailSettings.cancelButtonGradientColor2});`
+//                          : ""
+//                      }
+//                    ">
+//                   Cancel order ${orderId}
+//                 </a>
+//               </td>
+//             </tr>`
+//                 : ""
+//             }

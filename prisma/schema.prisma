@@ -123,7 +123,7 @@ model CampaignOrders {
   draft_order_id String        @unique
   customerEmail  String        @default("")
   dueDate        DateTime
-  balanceAmount  Int?
+  balanceAmount  Decimal?
   paymentStatus  PaymentStatus
   store          Store         @relation(fields: [storeId] ,references: [id])
   createdAt      BigInt
