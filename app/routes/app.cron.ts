@@ -25,11 +25,16 @@ export const loader = async () => {
 
       await prisma.vaultedPayment.update({
         where: { orderId: payment.orderId },
-        data: { paymentStatus: "PAID" },
+        data: {
+           paymentStatus: "PAID" ,
+           updatedAt: BigInt(Date.now())
+          },
       });
       await prisma.campaignOrders.update({
         where: { order_id: payment.orderId },
-        data: { paymentStatus: "PAID" },
+        data: { paymentStatus: "PAID",
+         updatedAt: BigInt(Date.now())
+         },
       })
     } catch (err) {
       console.error("❌ Payment failed:", err);

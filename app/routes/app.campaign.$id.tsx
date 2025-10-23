@@ -520,12 +520,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           console.error("GraphQL mutation failed:", err);
           throw err;
         }
+       removeDiscountFromVariants(
+          admin,
+          parsedRemovedVarients.flatMap((varientId: any) => varientId),
+        );
       }
 
       return redirect(`/app/`);
     } catch (err) {
       console.error("Update Campaign Exception:", err);
-      throw err; // let Remix handle the error page
+      throw err; 
     }
   }
 
@@ -717,7 +721,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     try {
       const res = await admin.graphql(unpublishMutation, {
         variables: {
-          handle: { type: "preordercampaign", handle: id }, // 👈 your campaign UUID
+          handle: { type: "preordercampaign", handle: id }, 
           status: "DRAFT",
         },
       });
@@ -746,7 +750,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           variables: { metafields },
         });
 
-        const response = await graphqlResponse.json(); // 👈 parse it
+        const response = await graphqlResponse.json(); 
 
         if (response.data?.metafieldsSet?.userErrors?.length) {
           console.error(
@@ -816,7 +820,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       const response = await admin.graphql(GET_SHOP);
       const data = await response.json();
-      const storeId = data.data.shop.id;
+      const shopId = data.data.shop.id;
 
       if (secondaryIntent === "delete-campaign-create-new") {
         const campaign = await createPreorderCampaign({
@@ -835,7 +839,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
-          storeId: storeId,
+          shopId: shopId,
           getDueByValt: false,
           totalOrders: totalOrders,
           status: campaignCurrentStatus,
@@ -851,7 +855,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          await addProductsToCampaign(campaign.id, products);
+          await addProductsToCampaign(campaign.id, products,shopId);
 
           const campaignType = Number(formData.get("campaignType"));
           //if campaign type === 3 then inventory quantity need to update
@@ -1122,6 +1126,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
             console.error("GraphQL mutation failed:", err);
             throw err;
           }
+          //remove discounts
+          removeDiscountFromVariants(
+          admin,
+          parsedRemovedVarients.flatMap((varientId: any) => varientId),
+        );
         }
 
         return redirect("/app");
@@ -1308,7 +1317,7 @@ export default function CampaignDetail() {
     }
   }, []);
 
-  const handleCampaignEndMonthChange = useCallback((newMonth, newYear) => {
+  const handleCampaignEndMonthChange = useCallback((newMonth:any, newYear:any) => {
     setCampaignEndPicker((prev) => ({
       ...prev,
       month: newMonth,
@@ -1316,16 +1325,8 @@ export default function CampaignDetail() {
     }));
   }, []);
 
-  const toggleCampaignEndPopover = useCallback(
-    () =>
-      setCampaignEndPicker((prev) => ({
-        ...prev,
-        popoverActive: !prev.popoverActive,
-      })),
-    [],
-  );
 
-  const handleCampaignEndTimeChange = useCallback((value) => {
+  const handleCampaignEndTimeChange = useCallback((value:any) => {
     setCampaignEndTime(value);
   }, []);
 
@@ -1385,7 +1386,7 @@ export default function CampaignDetail() {
 
         // remove duplicates by product id
         const uniqueProducts = Array.from(
-          new Map(allProducts.map((p) => [p.id, p])).values(),
+          new Map(allProducts.map((p) => [p.id, p])).values(), 
         );
 
         setSelectedProducts(uniqueProducts);

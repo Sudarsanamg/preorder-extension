@@ -27,7 +27,7 @@ model Session {
 
 model Store {
   id                        String   @id @default(uuid())
-  storeID                   String   @unique
+  shopId                    String   @unique
   currencyCode              String
   offlineToken              String?
   webhookRegistered         Boolean  @default(false)
@@ -41,14 +41,19 @@ model Store {
   GeneralSettings           Json?
   EmailConfig               Json?
   SetupCompleted            Boolean  @default(false)
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  createdAt                 BigInt 
+  updatedAt                 BigInt 
+  vaultedPayment            VaultedPayment[]
+  preorderCampaign          PreorderCampaign[]
+  campaignOrders            CampaignOrders[]
+  campaignProducts          PreorderCampaignProduct[]
 }
 
 model VaultedPayment {
   id             String        @id @default(uuid())
   orderId        String        @unique
-  storeDomain    String?
+  storeDomain    String        
+  storeId        String     
   idempotencyKey String
   amount         Decimal
   currencyCode   String
@@ -56,13 +61,15 @@ model VaultedPayment {
   dueDate        DateTime
   paymentStatus  PaymentStatus
   accessToken    String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      BigInt
+  updatedAt      BigInt
+  store          Store         @relation(fields: [storeId], references: [id])
 }
 
 model PreorderCampaign {
   id                      String                    @id @default(uuid())
-  storeId                 String
+  shopId                  String                    @default("Invalid shop ID")
+  storeId                 String                   
   name                    String
   campaignType            Int                       @default(2)
   depositPercent          Int
@@ -82,9 +89,10 @@ model PreorderCampaign {
   scheduledFulfilmentType scheduledFulfilmentType?
   fulfilmentDaysAfter     Int?
   fulfilmentExactDate     DateTime?
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
+  createdAt               BigInt                 
+  updatedAt               BigInt                
   products                PreorderCampaignProduct[]
+  store                   Store    @relation(fields: [storeId] , references: [id])
 }
 
 
@@ -92,6 +100,7 @@ model PreorderCampaign {
 model PreorderCampaignProduct {
   id           String           @id @default(uuid())
   campaignId   String
+  storeId      String           @default("Invalid store")
   productId    String
   variantId    String?
   variantTitle String?
@@ -99,14 +108,16 @@ model PreorderCampaignProduct {
   imageUrl     String?
   maxQuantity  Int?
   soldQuantity Int              @default(0)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    BigInt         
+  updatedAt    BigInt        
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  store        Store            @relation(fields: [storeId],references: [id])
 }
 
 model CampaignOrders {
   id             String        @id @default(uuid())
-  storeId        String?
+  shopId         String
+  storeId        String
   order_number   Int         
   order_id       String        @unique
   draft_order_id String        @unique
@@ -114,6 +125,9 @@ model CampaignOrders {
   dueDate        DateTime
   balanceAmount  Int?
   paymentStatus  PaymentStatus
+  store          Store         @relation(fields: [storeId] ,references: [id])
+  createdAt      BigInt
+  updatedAt      BigInt
 }
 
 enum PaymentStatus {

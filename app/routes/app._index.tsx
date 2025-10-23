@@ -79,7 +79,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } else {
     try {
       await createStore({
-        storeID: shopId,
+        shopId: shopId,
         offlineToken: accessToken,
         webhookRegistered: true,
         metaobjectsCreated: true,
@@ -125,7 +125,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const {  session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const formData = await request.json();
   const intent = formData.intent;
@@ -164,28 +164,30 @@ export default function Index() {
   const [search, setSearch] = useState("");
   const [showGuide, setShowGuide] = useState(!setupGuide);
   const fetcher = useFetcher();
-  const [loading,setLoading] = useState({
+  const [loading, setLoading] = useState({
     create: false,
     widget: false,
-    orderEmail :false,
-    shippingEmail :false,
-    customizeEmail :false,
-    page :true
-  })
+    orderEmail: false,
+    shippingEmail: false,
+    customizeEmail: false,
+    page: true,
+  });
 
   useEffect(() => {
-  const init = async () => {
-    if (setupGuide === true) {
-      setShowGuide(false);
-    }
+    const init = async () => {
+      if (setupGuide === true) {
+        setShowGuide(false);
+      }
 
-    setLoading((prev) => ({ ...prev, page: false }));
-  };
+      setLoading((prev) => ({ ...prev, page: false }));
+    };
 
-  init();
-}, [setupGuide]);
+    init();
+  }, [setupGuide]);
 
   const navigation = useNavigation();
+  const isNavigating = navigation.state !== "idle";
+  const targetPath = navigation.location?.pathname;
   const ITEMS = [
     {
       id: 0,
@@ -237,15 +239,13 @@ export default function Index() {
         content: "Everything looks great!",
         props: {
           onClick: async () => {
-              onStepComplete(2);
+            onStepComplete(2);
 
             fetcher.submit(JSON.stringify({ intent: "complete_setup_guide" }), {
               method: "post",
               action: "",
               encType: "application/json",
             });
-
-            
           },
         },
       },
@@ -275,7 +275,7 @@ export default function Index() {
           item.id === id ? { ...item, complete: !item.complete } : item,
         ),
       );
-      if(id === 2){
+      if (id === 2) {
         setShowGuide(false);
       }
     } catch (e) {
@@ -294,8 +294,8 @@ export default function Index() {
       filteredRows.map((row) => [JSON.stringify(row.data), row]),
     ).values(),
   );
-  if(loading.page){
-    return <PreorderSettingsSkeleton />
+  if (loading.page) {
+    return <PreorderSettingsSkeleton />;
   }
 
   return (
@@ -312,21 +312,18 @@ export default function Index() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <p style={{ fontSize: "26px" }}>Preorder Settings</p>
-          {navigation.state !== "idle" && (
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <Spinner size="small" />
-              {/* <Text>Loading...</Text> */}
-            </div>
-          )}
         </div>
         <Link
           to={{ pathname: "campaign/new", search: location.search }}
           prefetch="intent"
         >
-          <Button variant="primary" 
-          loading ={loading.create}
-          onClick={() => setLoading((prev) => ({ ...prev, create: true }))}
-          >Create Campaign</Button>
+          <Button
+            variant="primary"
+            loading={loading.create}
+            onClick={() => setLoading((prev) => ({ ...prev, create: true }))}
+          >
+            Create Campaign
+          </Button>
         </Link>
       </div>
       {showGuide && (
@@ -341,7 +338,6 @@ export default function Index() {
           />
         </div>
       )}
-
 
       {/* Campaigns List */}
       <div style={{ marginTop: 20 }}>
@@ -370,32 +366,48 @@ export default function Index() {
               <DataTable
                 columnContentTypes={["text", "text", "numeric"]}
                 headings={["Name", "Status", "Orders"]}
-                rows={uniqueRows.map((row, index) => [
-                  <Text
-                    as="span"
-                    variant="bodyMd"
-                    fontWeight="medium"
-                    key={index}
-                  >
-                    <Link
-                      to={`/app/campaign/${row.id}`}
+                rows={uniqueRows.map((row, index) => {
+                  const rowPath = `/app/campaign/${row.id}`;
+                  const isRowLoading = isNavigating && targetPath === rowPath;
+
+                  return [
+                    <div
+                      key={index}
                       style={{
-                        textDecoration: "none",
-                        color: "inherit",
-                        display: "block",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        width: "100%",
                       }}
                     >
-                      {row.data[0]}
-                    </Link>
-                  </Text>,
-                  <Badge
-                    key={`status-${index}`}
-                    tone={row.data[1] === "PUBLISHED" ? "success" : "info"}
-                  >
-                    {row.data[1] === "PUBLISHED" ? "Published" : "Unpublished"}
-                  </Badge>,
-                  row.data[2],
-                ])}
+                      <Link
+                        to={rowPath}
+                        style={{
+                          textDecoration: "none",
+                          color: "inherit",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          width: "100%",
+                        }}
+                      >
+                        <span>{row.data[0]}</span>
+                        <div style={{ width: 16, height: 16 }}>
+                          {isRowLoading && <Spinner size="small" />}
+                        </div>
+                      </Link>
+                    </div>,
+                    <Badge
+                      key={`status-${index}`}
+                      tone={row.data[1] === "PUBLISHED" ? "success" : "info"}
+                    >
+                      {row.data[1] === "PUBLISHED"
+                        ? "Published"
+                        : "Unpublished"}
+                    </Badge>,
+                    row.data[2],
+                  ];
+                })}
               />
             ) : (
               <div style={{ padding: "1rem", textAlign: "center" }}>
@@ -520,7 +532,10 @@ export default function Index() {
                     <Button
                       size="slim"
                       onClick={() => {
-                        setLoading((prev) => ({ ...prev, shippingEmail: true }));
+                        setLoading((prev) => ({
+                          ...prev,
+                          shippingEmail: true,
+                        }));
                         navigate(
                           "/app/settings/email-preorder-shipping-update",
                         );

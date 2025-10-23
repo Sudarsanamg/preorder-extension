@@ -4,7 +4,7 @@ import prisma from "app/db.server";
 import { CloseOrderMutation, orderMarkAsPaid } from "app/graphql/mutation/orders";
 
 export const action = async ({ request }: { request: Request }) => {
-  console.log("Webhook hitted");
+  console.log("order paid Webhook hitted");
   try {
     const { topic, shop, payload, admin } = await authenticate.webhook(request);
     const note = payload.note;

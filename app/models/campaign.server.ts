@@ -1,11 +1,11 @@
 import prisma from "app/db.server";
 // routes/api.products.ts
-import { json } from "@remix-run/node";
+// import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType } from "@prisma/client";
 
 export async function createStore(data: {
-  storeID: string;
+  shopId: string;
   offlineToken: string;
   webhookRegistered: boolean;
   metaobjectsCreated: boolean;
@@ -19,7 +19,7 @@ export async function createStore(data: {
 }) {
   return prisma.store.create({
     data: {
-      storeID: data.storeID,
+      shopId: data.shopId,
       offlineToken: data.offlineToken,
       webhookRegistered: data.webhookRegistered,
       metaobjectsCreated: data.metaobjectsCreated,
@@ -30,6 +30,8 @@ export async function createStore(data: {
       ShippingEmailSettings: data.ShippingEmailSettings,
       GeneralSettings: data.GeneralSettings,
       EmailConfig: data.EmailConfig,
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
@@ -48,7 +50,7 @@ export async function getAccessToken(shopifyDomain: string) {
 export async function getAllCampaign(shopId?: string) {
   return prisma.preorderCampaign.findMany({
     where: {
-      storeId: shopId,
+      shopId: shopId,
     },
   });
 }
@@ -78,7 +80,7 @@ export async function createPreorderCampaign(data: {
   discountPercent?: number;
   discountFixed?: number;
   campaignType?: number;
-  storeId?: string;
+  shopId?: string;
   getDueByValt: boolean;
   totalOrders: number;
   fulfilmentmode?: Fulfilmentmode;
@@ -89,7 +91,8 @@ export async function createPreorderCampaign(data: {
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
-      storeId: data.storeId ?? "",
+      storeId: (await getStoreIdByShopId(data.shopId ?? ""))?.id ?? "",
+      shopId: data.shopId ?? "",
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -109,7 +112,9 @@ export async function createPreorderCampaign(data: {
       fulfilmentmode: data.fulfilmentmode,
       scheduledFulfilmentType: data.scheduledFulfilmentType,
       fulfilmentDaysAfter: data.fulfilmentDaysAfter,
-      fulfilmentExactDate: data.fulfilmentExactDate
+      fulfilmentExactDate: data.fulfilmentExactDate,
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
@@ -144,6 +149,7 @@ export async function updateCampaign(data: {
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
@@ -152,7 +158,10 @@ export async function updateCampaign(data: {
 export async function addProductsToCampaign(
   campaignId: string,
   products: { productId: string; productImage?: string,variantTitle?: string; variantId?: string; variantInventory: number ;variantPrice?: number ;maxUnit?: number}[],
+  shopId: string
 ) {
+  const store = await getStoreIdByShopId(shopId);
+  const storeId = store?.id ?? "";
   return prisma.preorderCampaignProduct.createMany({
     data: products.map((p) => ({
       campaignId,
@@ -160,8 +169,11 @@ export async function addProductsToCampaign(
       variantId: p.variantId,
       variantTitle: p.variantTitle,
       maxQuantity: Number(p.maxUnit),
-      price: p.variantPrice  ,
-      imageUrl: p.productImage,    
+      price: p.variantPrice,
+      imageUrl: p.productImage,
+      storeId: storeId,
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     })),
   });
 }
@@ -170,6 +182,10 @@ export async function replaceProductsInCampaign(
   campaignId: string,
   products: { id: string; variantId?: string; totalInventory: number }[],
 ) {
+  const storeId = await prisma.preorderCampaign.findUnique({
+    where: { id: campaignId },
+    select: { storeId: true },
+  })
   return prisma.$transaction([
     // 1. Delete all existing products for this campaign
 
@@ -184,6 +200,9 @@ export async function replaceProductsInCampaign(
         productId: p.id,
         variantId: p.variantId,
         maxQuantity: p.totalInventory,
+        storeId: storeId?.storeId,
+        updatedAt: BigInt(Date.now()),
+        createdAt: BigInt(Date.now())
       })),
     }),
   ]);
@@ -239,7 +258,7 @@ export async function getAllProducts(request: Request) {
 export async function getCampaigns(storeId: string) {
   return prisma.preorderCampaign.findMany({
     where: {
-      storeId,
+      shopId: storeId,
     },
     include: { products: true },
   });
@@ -271,7 +290,7 @@ export async function updateCampaignStatus(id: string, status: CampaignStatus) {
 export async function getOrders(shopId: string) {
   return prisma.campaignOrders.findMany({
     where: {
-      storeId: shopId,
+      shopId: shopId,
     },
     select: {
       order_id: true,
@@ -307,13 +326,16 @@ export async function createOrder({
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
-        storeId,
+        storeId : ( await getStoreIdByShopId(storeId))?.id ?? "",
+        shopId : storeId,
         order_id,
         draft_order_id,
         dueDate,
         balanceAmount,
         paymentStatus,
-        customerEmail
+        customerEmail,
+        createdAt: BigInt(Date.now()),
+        updatedAt: BigInt(Date.now()),
       },
     });
 
@@ -330,7 +352,10 @@ export async function orderStatusUpdate(
 ) {
   return prisma.campaignOrders.update({
     where: { draft_order_id: orderdraft_order_id },
-    data: { paymentStatus },
+    data: {
+       paymentStatus, 
+       updatedAt: BigInt(Date.now())
+      },
   });
 }
 
@@ -407,7 +432,7 @@ export async function orderStatusUpdateByOrderId(orderId: string) {
 
 export async function getEmailSettingsStatus(shopId: string) {
   const settings = await prisma.store.findUnique({
-    where: { storeID :shopId}
+    where: { shopId :shopId}
     ,
   });
   
@@ -416,7 +441,7 @@ export async function getEmailSettingsStatus(shopId: string) {
 
 export async function getPreorderConfirmationEmailSettings(shopId: string) {
   const settings = await prisma.store.findUnique({
-    where: { storeID: shopId },
+    where: { shopId: shopId },
   });
   return settings?.ConfrimOrderEmailSettings ?? {};
 }
@@ -426,15 +451,22 @@ export async function updateConfrimOrderEmailSettings(
   settings: any,
 ) {
   return prisma.store.update({
-    where: { storeID: shopId },
-    data: { ConfrimOrderEmailSettings: settings },
+    where: { shopId: shopId },
+    data: {
+       ConfrimOrderEmailSettings: settings, 
+       updatedAt: BigInt(Date.now())
+      },
   });
 }
 
 export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
   return prisma.store.update({
-    where: { storeID: shopId },
-    data: { sendCustomEmail: enable },
+    where: { shopId: shopId },
+    data: { 
+      sendCustomEmail: enable, 
+      updatedAt: BigInt(Date.now())
+
+    },
   });
 }
 
@@ -462,6 +494,25 @@ export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
 //   });
 // }
 
+export async function getStoreID(storeDomain: string) {
+  return prisma.store.findUnique({
+    where: { shopifyDomain: storeDomain },
+    select:{
+      id :true
+    }
+  }
+);
+}
+
+export async function getStoreIdByShopId(shopId: string) {
+  return prisma.store.findUnique({
+    where: { shopId },
+    select: {
+      id: true,
+    },
+  });
+}
+
 export async function createDuePayment(
   orderId: string,
   idempotencyKey: string,
@@ -483,7 +534,10 @@ export async function createDuePayment(
       dueDate,
       paymentStatus,
       accessToken,
-      storeDomain
+      storeDomain,
+      storeId: (await getStoreID(storeDomain))?.id ?? "",
+      createdAt: BigInt(Date.now()),
+      updatedAt: BigInt(Date.now()),
     },
   });
 }
@@ -542,7 +596,7 @@ export async function createDuePayment(
 export async function getAllVariants(storeID: string) {
   // Get stored access token for this shop
   const store = await prisma.store.findUnique({
-    where: { storeID: storeID },
+    where: { shopId: storeID },
     select: { offlineToken: true ,
       shopifyDomain: true
     },
