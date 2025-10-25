@@ -58,3 +58,80 @@ export const getOrderVaultedMethods = `
       }
     }
   `;
+
+export async function getOrderWithProducts(orderId: string, shopDomain: string, accessToken: string) {
+  const query = `
+    query GetOrderWithProducts($orderId: ID!) {
+      order(id: $orderId) {
+        id
+        name
+        lineItems(first: 10) {
+          edges {
+            node {
+              title
+              quantity
+              variant {
+                id
+                title
+                price
+                product {
+                  id
+                  title
+                  descriptionHtml
+                  images(first: 1) {
+                    edges {
+                      node {
+                        src
+                        altText
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  
+  const variables = { orderId };
+
+  try {
+    const response = await fetch(`https://${shopDomain}/admin/api/2023-01/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    const data = await response.json();
+
+    if (!data || !data.data || !data.data.order) {
+      console.error("Error: Order not found in response for orderId:", orderId);
+      throw new Error("Order not found in GraphQL response");
+    }
+
+    const orderDetails = data.data.order.lineItems.edges.map((edge: any) => {
+      const variant = edge.node.variant;
+      const product = variant.product;
+
+      const productImage = product.images.edges.length > 0 ? product.images.edges[0].node.src : null;
+
+      return {
+        title: product.title,
+        quantity: edge.node.quantity, 
+        price: variant.price, 
+        productImage, 
+      };
+    });
+
+    return orderDetails;
+
+  } catch (error) {
+    console.error("Error fetching order data:", error);
+    throw new Error("Failed to fetch order data");
+  }
+}

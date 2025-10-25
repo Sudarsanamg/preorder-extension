@@ -60,7 +60,6 @@ model VaultedPayment {
   mandateId      String
   dueDate        DateTime
   paymentStatus  PaymentStatus
-  accessToken    String?
   createdAt      BigInt
   updatedAt      BigInt
   store          Store         @relation(fields: [storeId], references: [id])
@@ -120,10 +119,10 @@ model CampaignOrders {
   storeId        String
   order_number   Int         
   order_id       String        @unique
-  draft_order_id String        @unique
+  draft_order_id String?       @unique
   customerEmail  String        @default("")
-  dueDate        DateTime
-  balanceAmount  Int?
+  dueDate        DateTime?
+  balanceAmount  Decimal?
   paymentStatus  PaymentStatus
   store          Store         @relation(fields: [storeId] ,references: [id])
   createdAt      BigInt

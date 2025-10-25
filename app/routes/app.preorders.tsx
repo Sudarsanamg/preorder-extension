@@ -19,10 +19,17 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "app/shopify.server";
 import { LoaderFunctionArgs } from "@remix-run/node";
 import { getOrders } from "app/models/campaign.server";
-import { Link, useLoaderData, useNavigate } from "@remix-run/react";
-import { useCallback, useState } from "react";
+import { Link, useActionData, useLoaderData, useNavigate, useSubmit } from "@remix-run/react";
+import { useCallback, useEffect, useState } from "react";
 import type { IndexFiltersProps, TabProps } from "@shopify/polaris";
-import { getOrdersFulfillmentStatus } from "app/graphql/queries/orders";
+import {
+  getOrdersFulfillmentStatus,
+  getOrderWithProducts,
+} from "app/graphql/queries/orders";
+import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
+import prisma from "app/db.server";
+import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
+import nodemailer from "nodemailer";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const adminSession = await authenticate.admin(request);
@@ -50,13 +57,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const fullFillmentResponsedata = await fullFillmentResponse.json();
   const fulfillmentStatusNodes = fullFillmentResponsedata.data.nodes;
 
-  // Create lookup map { orderId -> status }
   const fulfillmentStatusMap: Record<string, string> = {};
   fulfillmentStatusNodes.forEach((node: any) => {
     if (node) fulfillmentStatusMap[node.id] = node.displayFulfillmentStatus;
   });
 
-  // Merge fulfillmentStatus into your orders
   const enrichedOrders = orders.map((order: any) => ({
     ...order,
     fulfillmentStatus: (
@@ -69,37 +74,127 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return { orders: enrichedOrders, shopDomain };
 };
 
+export const action = async ({ request }: LoaderFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+
+  if (!session || !session.shop || !session.accessToken) {
+    return Response.json(
+      { success: false, message: "Session is invalid or expired" },
+      { status: 400 },
+    );
+  }
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "shipping-notification") {
+    const subject = formData.get("subject");
+    const message = formData.get("message");
+    const orderIds = formData.get("orderIds");
+
+    // Fetch shop data
+    const response = await admin.graphql(GET_SHOP_WITH_PLAN);
+    const data = await response.json();
+    const shop = data.data.shop;
+    const shopId = shop.id;
+
+    // Get email settings from the database
+    const emailSettings = await prisma.store.findFirst({
+      where: { shopId: shopId },
+      select: {
+        ShippingEmailSettings: true,
+      },
+    });
+
+    let template = emailSettings?.ShippingEmailSettings;
+    if (template) {
+      template.subject = subject;
+      template.description = message;
+    }
+
+    const selectedOrders = formData.get("selectedOrders");
+    const selectedOrdersArray = JSON.parse(selectedOrders as string);
+
+    for (let order of selectedOrdersArray) {
+      const getOrderWithProductsResponse = await getOrderWithProducts(
+        order.orderId,
+        session.shop,
+        session.accessToken,
+      );
+
+      const emailTemplate = generateEmailTemplate(
+        template,
+        getOrderWithProductsResponse,
+        order.orderId.split("/").pop(),
+      );
+
+      const transporter = nodemailer.createTransport({
+        service: "Gmail",
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const emailConfig = {
+        fromName: "Preorder",
+        replyName: "Preorder@noreply.com",
+      };
+
+      try {
+        await transporter.sendMail({
+          from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
+          to: order.customerEmail,
+          subject: "Your Preorder is Confirmed!",
+          html: emailTemplate,
+        });
+      } catch (error) {
+        console.error("❌ Email send error:", error);
+      }
+    }
+
+    return Response.json({ success: true });
+  }
+
+  return Response.json(
+    { success: false, message: "Invalid intent" },
+    { status: 400 },
+  );
+};
+
+
 export default function AdditionalPage() {
   const { orders, shopDomain } = useLoaderData<typeof loader>();
   const [active, setActive] = useState(false);
+  const submit = useSubmit();
+  let actionData = useActionData<typeof action>();
+  const [isSending, setIsSending] = useState(false);
 
   const [selectedTab, setSelectedTab] = useState(0);
   const [queryValue, setQueryValue] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<string | undefined>();
-
   const { mode, setMode } = useSetIndexFiltersMode();
 
   const tabs: TabProps[] = [
-    { content: "On Hold", id: "onhold-tab" },
-    { content: "Fulfilled", id: "fulfilled-tab" },
     { content: "Unfulfilled", id: "unfulfilled-tab" },
+    { content: "Fulfilled", id: "fulfilled-tab" },
+    { content: "On Hold", id: "onhold-tab" },
   ];
   const [subject, setSubject] = useState("Delivery update for order {order}");
   const [emailText, setEmailText] = useState(
     "We wanted to inform you that there will be a delay in shipping the preorder items in order {order}. We are working hard to get your items to you as soon as possible.",
   );
-  const handleChange = useCallback(() => setActive(!active), [active]);
+  const handleChange = useCallback(() => setActive((a) => !a), []);
 
   const allOrders = orders.map((order: any) => ({
     id: order.order_id,
     orderNumber: `#${order.order_number}`,
-    dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "-",
+    dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
     balanceAmount: `$${order.balanceAmount ?? 0}`,
     paymentStatus: order.paymentStatus,
     fulfillmentStatus: order.fulfillmentStatus.toLowerCase(),
+    customerEmail: order.customerEmail,
   }));
-
-  console.log(allOrders);
 
   // Filters
   const filters = [
@@ -138,11 +233,11 @@ export default function AdditionalPage() {
 
     const matchesTab =
       selectedTab === 0
-        ? order.fulfillmentStatus === "on_hold"
+        ? order.fulfillmentStatus === "unfulfilled"
         : selectedTab === 1
           ? order.fulfillmentStatus === "fulfilled"
           : selectedTab === 2
-            ? order.fulfillmentStatus === "unfulfilled"
+            ? order.fulfillmentStatus === "on_hold"
             : true;
 
     const matchesPaymentStatus =
@@ -151,8 +246,23 @@ export default function AdditionalPage() {
     return matchesQuery && matchesTab && matchesPaymentStatus;
   });
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
+  const { selectedResources, allResourcesSelected, handleSelectionChange ,clearSelection} =
     useIndexResourceState(filteredOrders);
+
+  useEffect(() => {
+    if (actionData?.success) {
+      setIsSending(false);
+      setActive(false);
+      shopify?.toast?.show?.('Message sent'); // or replace with your toast solution
+      clearSelection(); 
+    }
+    if (actionData && !actionData.success) {
+      setIsSending(false);
+      shopify?.toast?.show?.('Something went wrong',{
+        isError: true
+      });
+    }
+  }, [actionData]);
 
   const resourceName = { singular: "order", plural: "orders" };
   const promotedBulkActions = [
@@ -213,7 +323,6 @@ export default function AdditionalPage() {
               Paid
             </Badge>
           )}
-         
           {paymentStatus === "pending" && (
             <Badge progress="incomplete" tone="info">
               Pending
@@ -232,7 +341,6 @@ export default function AdditionalPage() {
               On Hold
             </Badge>
           )}
-
           {fulfillmentStatus === "unfulfilled" && (
             <Badge progress="incomplete" tone="critical">
               Unfulfilled
@@ -249,35 +357,61 @@ export default function AdditionalPage() {
     [],
   );
 
+  function handleShippingNotification() {
+    setIsSending(true);
+
+    const formData = new FormData();
+    formData.append("intent", "shipping-notification");
+    formData.append("subject", subject);
+    formData.append("message", emailText);
+
+    const selectedOrders = selectedResources.map((id) => {
+      const selectedOrder = allOrders.find((order: any) => order.id === id);
+      return {
+        orderId: selectedOrder?.id,
+        customerEmail: selectedOrder?.customerEmail,
+        orderNumber: selectedOrder?.orderNumber,
+        dueDate: selectedOrder?.dueDate,
+        balanceAmount: selectedOrder?.balanceAmount,
+        paymentStatus: selectedOrder?.paymentStatus,
+        fulfillmentStatus: selectedOrder?.fulfillmentStatus,
+      };
+    });
+
+    formData.append("selectedOrders", JSON.stringify(selectedOrders));
+    submit(formData, { method: "post" });
+  }
+
   return (
     <Page title="Preorders">
       <TitleBar title="Additional page" />
       <Modal
         open={active}
         onClose={handleChange}
-        title="Send shipping delay notification"
+        title="Send shipping notification"
         primaryAction={{
-          content: "Send",
-          onAction: () => console.log("Email sent"),
+          content: isSending ? 'Sending...' : 'Send',
+          onAction: handleShippingNotification,
+          loading: isSending,
+          disabled: isSending,
         }}
         secondaryActions={[
           {
             content: "Cancel",
             onAction: handleChange,
+            disabled: isSending,
+            loading: false,
           },
         ]}
       >
         <Modal.Section>
           <BlockStack gap="400">
-            {/* Info Banner */}
             <Banner>
               <Text as="p" variant="bodyMd">
                 1 email will be sent. Customize email templates in{" "}
                 <a href="#">settings</a>
               </Text>
             </Banner>
-
-            {/* Subject */}
             <Box>
               <Text as="label" variant="bodyMd" fontWeight="semibold">
                 Subject
@@ -287,10 +421,9 @@ export default function AdditionalPage() {
                 onChange={setSubject}
                 autoComplete="off"
                 helpText="Use {order} for order number"
+                disabled={isSending}
               />
             </Box>
-
-            {/* Email Text */}
             <Box>
               <Text as="label" variant="bodyMd" fontWeight="semibold">
                 Email text
@@ -301,6 +434,7 @@ export default function AdditionalPage() {
                 multiline={4}
                 autoComplete="off"
                 helpText="Use {order} for order number"
+                disabled={isSending}
               />
             </Box>
           </BlockStack>
@@ -340,7 +474,7 @@ export default function AdditionalPage() {
           promotedBulkActions={promotedBulkActions}
           headings={[
             { title: "Order" },
-            { title: "Date" },
+            { title: "Due Date" },
             { title: "Balance Amount", alignment: "end" },
             { title: "Payment status" },
             { title: "Fulfillment status" },

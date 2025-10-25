@@ -299,6 +299,7 @@ export async function getOrders(shopId: string) {
       balanceAmount: true,
       paymentStatus: true,
       storeId: true,
+      customerEmail: true
     }
   });
 }
@@ -315,8 +316,8 @@ export async function createOrder({
 }: {
   order_number: number;
   order_id: string;
-  draft_order_id: string;
-  dueDate: Date;
+  draft_order_id?: string;
+  dueDate?: Date;
   balanceAmount?: number;
   paymentStatus: PaymentStatus;
   storeId: string;
@@ -521,7 +522,6 @@ export async function createDuePayment(
   mandateId: string,
   dueDate: Date,
   paymentStatus: PaymentStatus,
-  accessToken: string,
   storeDomain: string
 ) {
   return prisma.vaultedPayment.create({
@@ -533,7 +533,6 @@ export async function createDuePayment(
       mandateId,
       dueDate,
       paymentStatus,
-      accessToken,
       storeDomain,
       storeId: (await getStoreID(storeDomain))?.id ?? "",
       createdAt: BigInt(Date.now()),
