@@ -50,6 +50,10 @@ export const action = async ({ request }: { request: Request }) => {
 
         // find unique campaign ids
         campaignIds = [...new Set(campaignIds)];
+<<<<<<< HEAD
+        console.log("campaignIds", campaignIds);
+=======
+>>>>>>> 7ee9f0b894c75c9ff7b5256bed60cc89ad6713ed
 
         let orderContainsPreorderItem = campaignIds.length > 0;
         if (orderContainsPreorderItem === false) {
