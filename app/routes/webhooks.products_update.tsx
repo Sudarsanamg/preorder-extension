@@ -4,7 +4,6 @@ import prisma from "app/db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, topic, payload } = await authenticate.webhook(request);
-  console.log("product update webhook hitted!!!!!!!!!!!!!!!!!!!!!!!!");
 
   if (topic === "PRODUCTS_UPDATE") {
     const productId = payload.id;

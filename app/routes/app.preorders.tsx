@@ -176,9 +176,9 @@ export default function AdditionalPage() {
   const { mode, setMode } = useSetIndexFiltersMode();
 
   const tabs: TabProps[] = [
-    { content: "On Hold", id: "onhold-tab" },
-    { content: "Fulfilled", id: "fulfilled-tab" },
     { content: "Unfulfilled", id: "unfulfilled-tab" },
+    { content: "Fulfilled", id: "fulfilled-tab" },
+    { content: "On Hold", id: "onhold-tab" },
   ];
   const [subject, setSubject] = useState("Delivery update for order {order}");
   const [emailText, setEmailText] = useState(
@@ -189,7 +189,7 @@ export default function AdditionalPage() {
   const allOrders = orders.map((order: any) => ({
     id: order.order_id,
     orderNumber: `#${order.order_number}`,
-    dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "-",
+    dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
     balanceAmount: `$${order.balanceAmount ?? 0}`,
     paymentStatus: order.paymentStatus,
     fulfillmentStatus: order.fulfillmentStatus.toLowerCase(),
@@ -233,11 +233,11 @@ export default function AdditionalPage() {
 
     const matchesTab =
       selectedTab === 0
-        ? order.fulfillmentStatus === "on_hold"
+        ? order.fulfillmentStatus === "unfulfilled"
         : selectedTab === 1
           ? order.fulfillmentStatus === "fulfilled"
           : selectedTab === 2
-            ? order.fulfillmentStatus === "unfulfilled"
+            ? order.fulfillmentStatus === "on_hold"
             : true;
 
     const matchesPaymentStatus =
@@ -474,7 +474,7 @@ export default function AdditionalPage() {
           promotedBulkActions={promotedBulkActions}
           headings={[
             { title: "Order" },
-            { title: "Date" },
+            { title: "Due Date" },
             { title: "Balance Amount", alignment: "end" },
             { title: "Payment status" },
             { title: "Fulfillment status" },

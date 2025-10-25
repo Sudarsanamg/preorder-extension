@@ -333,12 +333,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             Number(formData.get("flatDiscount") || 0),
           );
 
-          // console.log(new Date(formData.get("fulfilmentDate") as string));
-          // console.log("fulfilmentDate", formData.get("fulfilmentDate"));
-          // console.log("fulfilmentmode", formData.get("fulfilmentmode"));
-          // console.log("scheduledFulfilmentType", formData.get("scheduledFulfilmentType"));
-          // console.log("fulfilmentDate", new Date(formData.get("fulfilmentDate") as string));
-          // console.log('paymentAfterDays', formData.get('paymentAfterDays'));
           await createSellingPlan(
             admin,
             formData.get("paymentMode") as "partial" | "full",
@@ -365,10 +359,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             allowOutOfStockForVariants(admin, products);
           }
 
-          // console.log(
-          //   "Selling Plan Response >>>",
-          //   JSON.stringify(res, null, 2),
-          // );
         }
 
         const designFields = JSON.parse(formData.get("designFields") as string);
@@ -2274,7 +2264,7 @@ export default function Newcampaign() {
               >
                 <div>
                   <RadioButton
-                    label="specific Product"
+                    label="Specific Product"
                     checked={productRadio === "option1"}
                     id="option1"
                     onChange={() => setproductRadio("option1")}
