@@ -83,7 +83,11 @@ import {
 } from "app/graphql/queries/metaobject";
 import { GET_COLLECTION_PRODUCTS, GET_SHOP } from "app/graphql/queries/shop";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
-import { DiscountType, Fulfilmentmode, scheduledFulfilmentType } from "@prisma/client";
+import {
+  DiscountType,
+  Fulfilmentmode,
+  scheduledFulfilmentType,
+} from "@prisma/client";
 import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
 import { removeDiscountFromVariants } from "app/helper/removeDiscountFromVariants";
 import { formatDate } from "app/utils/formatDate";
@@ -245,19 +249,17 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                 (formData.get("shippingMessage") as string) ||
                 "Ship as soon as possible",
               payment_type: (formData.get("paymentMode") as string) || "Full",
-               payment_schedule: {
-                  type: formData.get(
+              payment_schedule: {
+                type: formData.get("collectionMode") as scheduledFulfilmentType,
+                value:
+                  (formData.get(
                     "collectionMode",
-                  ) as scheduledFulfilmentType,
-                  value:
-                    (formData.get(
-                      "collectionMode",
-                    ) as scheduledFulfilmentType) === "DAYS_AFTER"
-                      ? formData.get("paymentAfterDays")
-                      : new Date(
-                          formData.get("balanceDueDate") as string,
-                        ).toISOString(),
-                },
+                  ) as scheduledFulfilmentType) === "DAYS_AFTER"
+                    ? formData.get("paymentAfterDays")
+                    : new Date(
+                        formData.get("balanceDueDate") as string,
+                      ).toISOString(),
+              },
               ppercent: String(formData.get("depositPercent") || "0"),
               paymentduedate: new Date(
                 (formData.get("balanceDueDate") as string) || Date.now(),
@@ -273,13 +275,22 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                 (formData.get("orderTags") as string) || "[]",
               ).join(","),
               campaigntype: String(formData.get("campaignType") as string),
-               fulfillment: {
-                  type: formData.get("fulfilmentmode") as Fulfilmentmode,
-                  schedule: {
-                    type: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType ,
-                    value: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType  === "DAYS_AFTER" ? formData.get("fulfilmentDaysAfter") : new Date(formData.get("fullfilmentDate") as string).toISOString(),
-                  },
+              fulfillment: {
+                type: formData.get("fulfilmentmode") as Fulfilmentmode,
+                schedule: {
+                  type: formData.get(
+                    "scheduledFulfilmentType",
+                  ) as scheduledFulfilmentType,
+                  value:
+                    (formData.get(
+                      "scheduledFulfilmentType",
+                    ) as scheduledFulfilmentType) === "DAYS_AFTER"
+                      ? formData.get("fulfilmentDaysAfter")
+                      : new Date(
+                          formData.get("fullfilmentDate") as string,
+                        ).toISOString(),
                 },
+              },
             },
             designFields: {
               ...designFields,
@@ -520,7 +531,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           console.error("GraphQL mutation failed:", err);
           throw err;
         }
-       removeDiscountFromVariants(
+        removeDiscountFromVariants(
           admin,
           parsedRemovedVarients.flatMap((varientId: any) => varientId),
         );
@@ -529,7 +540,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       return redirect(`/app/`);
     } catch (err) {
       console.error("Update Campaign Exception:", err);
-      throw err; 
+      throw err;
     }
   }
 
@@ -599,75 +610,73 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
     ]);
     const productMetafields = products.flatMap((product: any) => [
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "campaign_id",
-              type: "single_line_text_field",
-              value: String(id),
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "preorder",
-              type: "boolean",
-              value: "true",
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "release_date",
-              type: "date",
-              value: "2025-08-30",
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "preorder_end_date",
-              type: "date_time",
-              value: new Date(
-                formData.get("campaignEndDate") as string,
-              ).toISOString(),
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "deposit_percent",
-              type: "number_integer",
-              value: String(formData.get("depositPercent") || "0"),
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "balance_due_date",
-              type: "date",
-              value: new Date(
-                formData.get("balanceDueDate") as string,
-              ).toISOString(),
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "preorder_max_units",
-              type: "number_integer",
-              value: String(product?.maxUnit || "0"),
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "preorder_units_sold",
-              type: "number_integer",
-              value: "0",
-            },
-          ]);
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "campaign_id",
+        type: "single_line_text_field",
+        value: String(id),
+      },
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "preorder",
+        type: "boolean",
+        value: "true",
+      },
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "release_date",
+        type: "date",
+        value: "2025-08-30",
+      },
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "preorder_end_date",
+        type: "date_time",
+        value: new Date(
+          formData.get("campaignEndDate") as string,
+        ).toISOString(),
+      },
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "deposit_percent",
+        type: "number_integer",
+        value: String(formData.get("depositPercent") || "0"),
+      },
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "balance_due_date",
+        type: "date",
+        value: new Date(formData.get("balanceDueDate") as string).toISOString(),
+      },
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "preorder_max_units",
+        type: "number_integer",
+        value: String(product?.maxUnit || "0"),
+      },
+      {
+        ownerId: product.productId,
+        namespace: "custom",
+        key: "preorder_units_sold",
+        type: "number_integer",
+        value: "0",
+      },
+    ]);
 
     try {
       const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
         variables: { metafields },
       });
-       await admin.graphql(SET_PREORDER_METAFIELDS, {
-                      variables: { metafields: productMetafields },
-                    });
+      await admin.graphql(SET_PREORDER_METAFIELDS, {
+        variables: { metafields: productMetafields },
+      });
 
       const response = await graphqlResponse.json();
 
@@ -690,28 +699,31 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       Number(formData.get("flatDiscount") || 0),
     );
 
-     await createSellingPlan(
-          admin,
-          formData.get("paymentMode") as "partial" | "full",
-          products,
-          formData,
-          {
-            fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
-            collectionMode: formData.get(
-              "collectionMode",
-            ) as scheduledFulfilmentType, 
-            fulfillmentDate: new Date(
-              formData.get("fulfilmentDate") as string,
-            ).toISOString(),
-            customDays: Number(formData.get("paymentAfterDays") as string),
-            balanceDueDate: new Date(
-              formData.get("balanceDueDate") as string,
-            ).toISOString(),
-          },
-        );
-          if(formData.get('campaignType') == '1' || formData.get('campaignType') == '2'){
-            allowOutOfStockForVariants(admin, products);
-          }
+    await createSellingPlan(
+      admin,
+      formData.get("paymentMode") as "partial" | "full",
+      products,
+      formData,
+      {
+        fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
+        collectionMode: formData.get(
+          "collectionMode",
+        ) as scheduledFulfilmentType,
+        fulfillmentDate: new Date(
+          formData.get("fulfilmentDate") as string,
+        ).toISOString(),
+        customDays: Number(formData.get("paymentAfterDays") as string),
+        balanceDueDate: new Date(
+          formData.get("balanceDueDate") as string,
+        ).toISOString(),
+      },
+    );
+    if (
+      formData.get("campaignType") == "1" ||
+      formData.get("campaignType") == "2"
+    ) {
+      allowOutOfStockForVariants(admin, products);
+    }
 
     await updateCampaignStatus(params.id!, "PUBLISHED");
     return redirect(`/app/`);
@@ -722,7 +734,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     try {
       const res = await admin.graphql(unpublishMutation, {
         variables: {
-          handle: { type: "preordercampaign", handle: id }, 
+          handle: { type: "preordercampaign", handle: id },
           status: "DRAFT",
         },
       });
@@ -751,7 +763,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           variables: { metafields },
         });
 
-        const response = await graphqlResponse.json(); 
+        const response = await graphqlResponse.json();
 
         if (response.data?.metafieldsSet?.userErrors?.length) {
           console.error(
@@ -845,10 +857,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           totalOrders: totalOrders,
           status: campaignCurrentStatus,
           fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
-          scheduledFulfilmentType: formData.get("scheduledFulfilmentType") as scheduledFulfilmentType,
+          scheduledFulfilmentType: formData.get(
+            "scheduledFulfilmentType",
+          ) as scheduledFulfilmentType,
           fulfilmentDaysAfter: Number(formData.get("fulfilmentDaysAfter")),
-          fulfilmentExactDate: new Date(formData.get("fulfilmentExactDate") as string),
-
+          fulfilmentExactDate: new Date(
+            formData.get("fulfilmentExactDate") as string,
+          ),
         });
 
         const products = JSON.parse(
@@ -856,7 +871,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          await addProductsToCampaign(campaign.id, products,shopId);
+          await addProductsToCampaign(campaign.id, products, shopId);
 
           const campaignType = Number(formData.get("campaignType"));
           //if campaign type === 3 then inventory quantity need to update
@@ -1055,7 +1070,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           },
         });
 
-        await updateCampaignStatus(campaign.id,campaignCurrentStatus==='PUBLISHED'?"PUBLISHED":"UNPUBLISH");
+        await updateCampaignStatus(
+          campaign.id,
+          campaignCurrentStatus === "PUBLISHED" ? "PUBLISHED" : "UNPUBLISH",
+        );
         await deleteCampaign(params.id!);
         const removedVarients = formData.get("removedVarients") as string;
         const parsedRemovedVarients = removedVarients
@@ -1129,9 +1147,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           }
           //remove discounts
           removeDiscountFromVariants(
-          admin,
-          parsedRemovedVarients.flatMap((varientId: any) => varientId),
-        );
+            admin,
+            parsedRemovedVarients.flatMap((varientId: any) => varientId),
+          );
         }
 
         return redirect("/app");
@@ -1198,7 +1216,8 @@ export default function CampaignDetail() {
   );
   const [partialPaymentType, setPartialPaymentType] = useState("percent");
   const [duePaymentType, setDuePaymentType] = useState(
-    parsedCampaignData?.payment_schedule.type === 'DAYS_AFTER' ? 1 : 2,);
+    parsedCampaignData?.payment_schedule.type === "DAYS_AFTER" ? 1 : 2,
+  );
   const [{ month, year }, setMonthYear] = useState({
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
@@ -1209,9 +1228,15 @@ export default function CampaignDetail() {
   const [selectedDates, setSelectedDates] = useState({
     start: new Date(),
     end: new Date(),
-    duePaymentDate: MetaObjectDuePaymentData.type === 'DAYS_AFTER' ? new Date() : MetaObjectDuePaymentData.value ,
+    duePaymentDate:
+      MetaObjectDuePaymentData.type === "DAYS_AFTER"
+        ? new Date()
+        : MetaObjectDuePaymentData.value,
     campaignEndDate: new Date(),
-    fullfillmentSchedule: MetaObjectFullfillmentSchedule.schedule.type === 'DAYS_AFTER' ? new Date() : MetaObjectFullfillmentSchedule.schedule.value,
+    fullfillmentSchedule:
+      MetaObjectFullfillmentSchedule.schedule.type === "DAYS_AFTER"
+        ? new Date()
+        : MetaObjectFullfillmentSchedule.schedule.value,
   });
 
   // const [popoverActive, setPopoverActive] = useState(false);
@@ -1244,18 +1269,33 @@ export default function CampaignDetail() {
   const formattedTime = `${hours}:${minutes}`;
   const [campaignEndTime, setCampaignEndTime] = useState(formattedTime);
   const [criticalChange, setCriticalChange] = useState(false);
-   const [fulfilmentMode, setfulfilmentMode] = useState<
-      "UNFULFILED" | "SCHEDULED" | "ONHOLD"
-    >(parsedCampaignData?.fulfillment.type);
-    
-    console.log(parsedCampaignData?.fulfillment, "parsedCampaignData?.fulfillment.type");
-    const [scheduledFullfillmentType, setScheduledFullfillmentType] = useState<
-      1 | 2
-    >(parsedCampaignData?.fulfillment.type === "SCHEDULED" ? 
-      parsedCampaignData?.fulfillment.schedule.type === 'EXACT_DATE' ? 2 :1
-       : 1);
-    const [scheduledDay, setScheduledDays] = useState(parsedCampaignData?.fulfillment.schedule.type === 'EXACT_DATE' ? 0 : parsedCampaignData?.fulfillment.schedule.value);
-    const [paymentAfterDays, setPaymentAfterDays] = useState(parsedCampaignData?.payment_schedule?.type === 'DAYS_AFTER' ? parsedCampaignData?.payment_schedule.value : 0);
+  const [fulfilmentMode, setfulfilmentMode] = useState<
+    "UNFULFILED" | "SCHEDULED" | "ONHOLD"
+  >(parsedCampaignData?.fulfillment.type);
+
+  console.log(
+    parsedCampaignData?.fulfillment,
+    "parsedCampaignData?.fulfillment.type",
+  );
+  const [scheduledFullfillmentType, setScheduledFullfillmentType] = useState<
+    1 | 2
+  >(
+    parsedCampaignData?.fulfillment.type === "SCHEDULED"
+      ? parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
+        ? 2
+        : 1
+      : 1,
+  );
+  const [scheduledDay, setScheduledDays] = useState(
+    parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
+      ? 0
+      : parsedCampaignData?.fulfillment.schedule.value,
+  );
+  const [paymentAfterDays, setPaymentAfterDays] = useState(
+    parsedCampaignData?.payment_schedule?.type === "DAYS_AFTER"
+      ? parsedCampaignData?.payment_schedule.value
+      : 0,
+  );
   const [partialPaymentText, setPartialPaymentText] =
     useState("Partial payment");
   const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
@@ -1318,16 +1358,18 @@ export default function CampaignDetail() {
     }
   }, []);
 
-  const handleCampaignEndMonthChange = useCallback((newMonth:any, newYear:any) => {
-    setCampaignEndPicker((prev) => ({
-      ...prev,
-      month: newMonth,
-      year: newYear,
-    }));
-  }, []);
+  const handleCampaignEndMonthChange = useCallback(
+    (newMonth: any, newYear: any) => {
+      setCampaignEndPicker((prev) => ({
+        ...prev,
+        month: newMonth,
+        year: newYear,
+      }));
+    },
+    [],
+  );
 
-
-  const handleCampaignEndTimeChange = useCallback((value:any) => {
+  const handleCampaignEndTimeChange = useCallback((value: any) => {
     setCampaignEndTime(value);
   }, []);
 
@@ -1387,7 +1429,7 @@ export default function CampaignDetail() {
 
         // remove duplicates by product id
         const uniqueProducts = Array.from(
-          new Map(allProducts.map((p) => [p.id, p])).values(), 
+          new Map(allProducts.map((p) => [p.id, p])).values(),
         );
 
         setSelectedProducts(uniqueProducts);
@@ -1414,13 +1456,13 @@ export default function CampaignDetail() {
   //   setPopoverActive(false);
   // }, []);
 
-   const handleDateChange = (field: string, range: any) => {
+  const handleDateChange = (field: string, range: any) => {
     const localDate = new Date(
       range.start.getFullYear(),
       range.start.getMonth(),
       range.start.getDate(),
     );
-    console.log(localDate,'>>>>>>>>>>>>>>>>>>');
+    console.log(localDate, ">>>>>>>>>>>>>>>>>>");
     setSelectedDates((prev) => ({ ...prev, [field]: localDate }));
     setPopoverActive((prev) => ({ ...prev, [field]: false }));
   };
@@ -1430,12 +1472,12 @@ export default function CampaignDetail() {
     fullfillmentSchedule: false,
     campaignEndDate: false,
   });
-   const togglePopover = useCallback((field: string) => {
-      setPopoverActive((prev: any) => ({
-        ...prev,
-        [field]: !prev[field],
-      }));
-    }, []);
+  const togglePopover = useCallback((field: string) => {
+    setPopoverActive((prev: any) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  }, []);
 
   const tabs = [
     {
@@ -1556,12 +1598,12 @@ export default function CampaignDetail() {
     formData.append("customerTags", JSON.stringify(customerTags));
     formData.append("campaignType", String(selectedOption));
     formData.append("fulfilmentmode", String(fulfilmentMode));
-    formData.append('collectionMode',duePaymentType === 1 ? 'DAYS_AFTER' : 'EXACT_DATE');
-    formData.append ('paymentAfterDays',String(paymentAfterDays));
     formData.append(
-      "balanceDueDate",
-      selectedDates.duePaymentDate,
+      "collectionMode",
+      duePaymentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
     );
+    formData.append("paymentAfterDays", String(paymentAfterDays));
+    formData.append("balanceDueDate", selectedDates.duePaymentDate);
     formData.append(
       "scheduledFulfilmentType",
       scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
@@ -1571,7 +1613,6 @@ export default function CampaignDetail() {
       "fulfilmentDate",
       selectedDates.fullfillmentSchedule.toISOString(),
     );
-    
 
     submit(formData, { method: "post" });
   }
@@ -1607,7 +1648,10 @@ export default function CampaignDetail() {
     formData.append("paymentMode", String(paymentMode));
     formData.append("depositPercent", String(partialPaymentPercentage));
     formData.append("balanceDueDate", DueDateinputValue);
-    formData.append("campaignEndDate", campaignEndDate ? campaignEndDate.toISOString() : "");
+    formData.append(
+      "campaignEndDate",
+      campaignEndDate ? campaignEndDate.toISOString() : "",
+    );
     formData.append("discountType", discountType);
     formData.append("discountPercentage", String(discountPercentage));
     formData.append("flatDiscount", String(flatDiscount));
@@ -1615,12 +1659,12 @@ export default function CampaignDetail() {
     formData.append("customerTags", JSON.stringify(customerTags));
     formData.append("id", id);
     formData.append("fulfilmentmode", String(fulfilmentMode));
-    formData.append('collectionMode',duePaymentType === 1 ? 'DAYS_AFTER' : 'EXACT_DATE');
-    formData.append ('paymentAfterDays',String(paymentAfterDays));
     formData.append(
-      "balanceDueDate",
-      selectedDates.duePaymentDate,
+      "collectionMode",
+      duePaymentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
     );
+    formData.append("paymentAfterDays", String(paymentAfterDays));
+    formData.append("balanceDueDate", selectedDates.duePaymentDate);
     formData.append(
       "scheduledFulfilmentType",
       scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
@@ -1952,10 +1996,9 @@ export default function CampaignDetail() {
                           suffix={activeButtonIndex === 0 ? "%" : "$"}
                           id="discount"
                           type="number"
-                          value={(
-                            activeButtonIndex === 0
-                              ? discountPercentage
-                              : flatDiscount
+                          value={(activeButtonIndex === 0
+                            ? discountPercentage
+                            : flatDiscount
                           ).toString()}
                           placeholder={
                             activeButtonIndex === 0
@@ -2077,22 +2120,26 @@ export default function CampaignDetail() {
                                   labelHidden
                                   suffix={` ${partialPaymentType === "percent" ? "%" : "$"}`}
                                   value={String(partialPaymentPercentage)}
-                                  onChange={(val) =>{
-                                    if(isNaN(Number(val))) return
-                                     setPartialPaymentPercentage(Number(val));
+                                  onChange={(val) => {
+                                    if (isNaN(Number(val))) return;
+                                    setPartialPaymentPercentage(Number(val));
+                                  }}
+                                  error={
+                                    partialPaymentPercentage <= 0 ||
+                                    partialPaymentPercentage > 99
                                   }
-                                   }
-                                   error={partialPaymentPercentage <= 0 || partialPaymentPercentage > 99}
                                 />
                               </div>
-                          
                             </div>
                             <div style={{ marginTop: 10 }}>
-                            {partialPaymentPercentage <= 0 || partialPaymentPercentage > 99 && <Text as="p" variant="bodyMd" tone="critical">
-                          Please enter valid percentage between 1 and
-                          99
-                        </Text>}
-                        </div>
+                              {partialPaymentPercentage <= 0 ||
+                                (partialPaymentPercentage > 99 && (
+                                  <Text as="p" variant="bodyMd" tone="critical">
+                                    Please enter valid percentage between 1 and
+                                    99
+                                  </Text>
+                                ))}
+                            </div>
                             <div
                               style={{
                                 marginTop: 10,
@@ -2103,10 +2150,10 @@ export default function CampaignDetail() {
                               <div>
                                 <ButtonGroup variant="segmented">
                                   <Button
-                                        pressed={duePaymentType === 1}
-                                        onClick={() => setDuePaymentType(1)}
-                                        icon={ClockIcon}
-                                      ></Button>
+                                    pressed={duePaymentType === 1}
+                                    onClick={() => setDuePaymentType(1)}
+                                    icon={ClockIcon}
+                                  ></Button>
                                   <Button
                                     pressed={duePaymentType === 2}
                                     onClick={() => setDuePaymentType(2)}
@@ -2117,8 +2164,8 @@ export default function CampaignDetail() {
                               <div style={{ flex: 1 }}>
                                 {duePaymentType === 1 && (
                                   <TextField
-                                  label="Select date for due payment"
-                                  labelHidden
+                                    label="Select date for due payment"
+                                    labelHidden
                                     id="partialPaymentNote"
                                     autoComplete="off"
                                     suffix="days after checkout"
@@ -2135,17 +2182,19 @@ export default function CampaignDetail() {
                                           <TextField
                                             label="Select date for due payment"
                                             labelHidden
-                                            value={formatDate(selectedDates.duePaymentDate)}
+                                            value={formatDate(
+                                              selectedDates.duePaymentDate,
+                                            )}
                                             onFocus={() =>
-                                            togglePopover("duePaymentDate")
-                                          }
+                                              togglePopover("duePaymentDate")
+                                            }
                                             onChange={() => {}}
                                             autoComplete="off"
-                                             prefix={"Due on "}
+                                            prefix={"Due on "}
                                           />
                                         </div>
                                       }
-                                     onClose={() =>
+                                      onClose={() =>
                                         togglePopover("duePaymentDate")
                                       }
                                     >
@@ -2160,8 +2209,16 @@ export default function CampaignDetail() {
                                         }
                                         onMonthChange={handleMonthChange}
                                         selected={{
-                                          start: selectedDates.duePaymentDate,
-                                          end: selectedDates.duePaymentDate,
+                                          start: selectedDates.duePaymentDate
+                                            ? new Date(
+                                                selectedDates.duePaymentDate,
+                                              )
+                                            : new Date(),
+                                          end: selectedDates.duePaymentDate
+                                            ? new Date(
+                                                selectedDates.duePaymentDate,
+                                              )
+                                            : new Date(),
                                         }}
                                         disableDatesBefore={
                                           new Date(
@@ -2244,9 +2301,11 @@ export default function CampaignDetail() {
                               <TextField
                                 label="Select end date"
                                 // value={campaignEndPicker.inputValue}
-                                value={formatDate(selectedDates.campaignEndDate.toLocaleDateString(
-                                  "en-CA",
-                                ))}
+                                value={formatDate(
+                                  selectedDates.campaignEndDate.toLocaleDateString(
+                                    "en-CA",
+                                  ),
+                                )}
                                 // onFocus={toggleCampaignEndPopover}
                                 onFocus={() => togglePopover("campaignEndDate")}
                                 onChange={() => {}}
@@ -2979,7 +3038,7 @@ export default function CampaignDetail() {
               >
                 <div>
                   <RadioButton
-                    label="specific Product"
+                    label="Specific Product"
                     checked={productRadio === "option1"}
                     id="option1"
                     onChange={() => setproductRadio("option1")}

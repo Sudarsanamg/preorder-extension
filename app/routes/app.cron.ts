@@ -8,7 +8,6 @@ export const loader = async () => {
 
   const duePayments = await prisma.vaultedPayment.findMany({
     where: { paymentStatus: "PENDING", 
-      accessToken: { not: null }
      },
   });
 
@@ -16,7 +15,6 @@ export const loader = async () => {
     try {
       await runPayment({
         shop: payment.storeDomain?? "",
-        accessToken: payment.accessToken ?? "",
         orderId: payment.orderId,
         mandateId: payment.mandateId,
         amount: Number(payment.amount),
