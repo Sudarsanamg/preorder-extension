@@ -50,10 +50,6 @@ export const action = async ({ request }: { request: Request }) => {
 
         // find unique campaign ids
         campaignIds = [...new Set(campaignIds)];
-<<<<<<< HEAD
-        console.log("campaignIds", campaignIds);
-=======
->>>>>>> 7ee9f0b894c75c9ff7b5256bed60cc89ad6713ed
 
         let orderContainsPreorderItem = campaignIds.length > 0;
         if (orderContainsPreorderItem === false) {
@@ -132,6 +128,8 @@ export const action = async ({ request }: { request: Request }) => {
           const shopId = shop.id;
           const plusStore = shop.plan.shopifyPlus;
           const storeDomain = shop.primaryDomain?.host;
+          console.log(secondSchedule,'secondSchedule')
+
 
           // getDueByValt is true
           // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
@@ -236,7 +234,7 @@ export const action = async ({ request }: { request: Request }) => {
                 customerId,
                 lineItems: [
                   {
-                    title: "Remaining Balance Payment",
+                    title: `Remaining Balance Payment for order #${order_number}`,
                     quantity: 1,
                     originalUnitPrice: remaining,
                   },
@@ -303,22 +301,12 @@ export const action = async ({ request }: { request: Request }) => {
               data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
             const mandateId = methods?.[0]?.id;
 
-            // const accessTokenRes = await prisma.session.findFirst({
-            //   where: {
-            //     shop: storeDomain,
-            //   },
-            //   select: {
-            //     accessToken: true,
-            //   },
-            // });
-
-            // const accessToken = accessTokenRes?.accessToken || "";
 
             const duePaymentCreation = await createDuePayment(
               orderId,
               crypto.randomUUID().replace(/-/g, "").slice(0, 32),
               remaining.toString(),
-              secondSchedule.currency_code,
+              secondSchedule.currency,
               mandateId,
               secondSchedule.due_at,
               "PENDING",

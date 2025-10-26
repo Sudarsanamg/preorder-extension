@@ -403,7 +403,9 @@ export default function Index() {
                     >
                       {row.data[1] === "PUBLISHED"
                         ? "Published"
-                        : "Unpublished"}
+                        : row.data[1] === "DRAFT" ? 
+                        "Draft"
+                        : " Unpublished"}
                     </Badge>,
                     row.data[2],
                   ];
@@ -418,7 +420,7 @@ export default function Index() {
         </Card>
       </div>
 
-      <div style={{ marginTop: 20, marginBottom: 20 }}>
+      {/* <div style={{ marginTop: 20, marginBottom: 20 }}>
         <Card>
           <Text as="h4" variant="headingMd">
             {" "}
@@ -460,7 +462,7 @@ export default function Index() {
             </Card>
           </div>
         </Card>
-      </div>
+      </div> */}
 
       <div style={{ marginTop: 20, marginBottom: 20 }}>
         <Card>
@@ -468,6 +470,8 @@ export default function Index() {
             {" "}
             Notifications{" "}
           </Text>
+          <div style={{margin:10}}>
+          </div>
           <Card>
             <BlockStack gap="500">
               {/* Preorder Confirmation Email */}
