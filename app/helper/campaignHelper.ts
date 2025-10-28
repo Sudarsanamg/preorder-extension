@@ -204,13 +204,6 @@ export const publishCampaign = async (admin: any, id: string) => {
       {
         ownerId: product.productId,
         namespace: "custom",
-        key: "release_date",
-        type: "date",
-        value: "2025-08-30",
-      },
-      {
-        ownerId: product.productId,
-        namespace: "custom",
         key: "preorder_end_date",
         type: "date_time",
         value: campaignData?.campaignEndDate,

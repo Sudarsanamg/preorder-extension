@@ -13,6 +13,9 @@ export const action = async ({ request }: { request: Request }) => {
          draft_order_id: note
       }
     })
+    if(!ogOrder){
+      return Response.json({ error: "No preorder found" }, { status: 500 });
+    }
     const ogOrderId = ogOrder?.order_id;
 
   const variables = {

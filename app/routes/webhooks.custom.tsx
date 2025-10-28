@@ -47,14 +47,14 @@ export const action = async ({ request }: { request: Request }) => {
             campaignIds.push(node.metafield.value);
           }
         }
+        if(campaignIds.length === 0) {
+          return
+        }
 
         // find unique campaign ids
         campaignIds = [...new Set(campaignIds)];
 
         let orderContainsPreorderItem = campaignIds.length > 0;
-        if (orderContainsPreorderItem === false) {
-          return;
-        }
 
         // //update preorder_units_sold
         for (const variantId of formattedVariantIds) {

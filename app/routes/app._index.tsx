@@ -56,7 +56,8 @@ import { SetupGuide } from "app/components/setupGuide";
 import prisma from "app/db.server";
 import PreorderSettingsSkeleton from "app/utils/loader/homeLoader";
 import { handleCampaignStatusChange } from "app/helper/campaignHelper";
-
+import {checkAppEmbedEnabled} from "app/helper/checkBlockEnable";
+import { AppEmbedBanner } from "app/components/AppEmbedBanner";
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -116,6 +117,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const status = await getEmailSettingsStatus(shopId);
   const emailCampaignStatus = status;
   const campaigns = await getAllCampaign(shopId);
+  const isAppEmbedEnabled = await checkAppEmbedEnabled(admin);
 
   return json({
     success: true,
@@ -124,6 +126,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     emailCampaignStatus,
     shop,
     setupGuide,
+    isAppEmbedEnabled
   });
 };
 
@@ -175,7 +178,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // ---------------- Component ----------------
 export default function Index() {
   useWebVitals({ path: "/app" });
-  const { campaigns, emailCampaignStatus, shop, setupGuide } =
+  const { campaigns, emailCampaignStatus, shop, setupGuide ,isAppEmbedEnabled} =
     useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -357,6 +360,7 @@ export default function Index() {
   return (
     <Page>
       <TitleBar title="Preorder Extension" />
+       {!isAppEmbedEnabled && <AppEmbedBanner shop={shop} />}
 
       {/* Header */}
       <div

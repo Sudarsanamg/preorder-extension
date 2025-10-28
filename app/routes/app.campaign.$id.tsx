@@ -348,13 +348,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           type: "boolean",
           value: "true",
         },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "release_date",
-          type: "date",
-          value: "2025-08-30",
-        },
+        
         {
           ownerId: product.variantId,
           namespace: "custom",
@@ -411,13 +405,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           type: "boolean",
           value: "true",
         },
-        {
-          ownerId: product.productId,
-          namespace: "custom",
-          key: "release_date",
-          type: "date",
-          value: "2025-08-30",
-        },
+       
         {
           ownerId: product.productId,
           namespace: "custom",
@@ -632,13 +620,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         type: "boolean",
         value: "true",
       },
-      {
-        ownerId: product.productId,
-        namespace: "custom",
-        key: "release_date",
-        type: "date",
-        value: "2025-08-30",
-      },
+      
       {
         ownerId: product.productId,
         namespace: "custom",
@@ -899,13 +881,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               type: "boolean",
               value: "true",
             },
-            {
-              ownerId: product.variantId,
-              namespace: "custom",
-              key: "release_date",
-              type: "date",
-              value: "2025-08-30",
-            },
+            
             {
               ownerId: product.variantId,
               namespace: "custom",
