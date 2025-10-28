@@ -71,8 +71,9 @@ model PreorderCampaign {
   storeId                 String                   
   name                    String
   campaignType            Int                       @default(2)
-  depositPercent          Int
-  balanceDueDate          DateTime
+  paymentType             PaymentMode?              
+  depositPercent          Int?
+  balanceDueDate          DateTime?
   refundDeadlineDays      Int?
   releaseDate             DateTime?
   status                  CampaignStatus            @default(DRAFT)
@@ -159,4 +160,9 @@ enum Fulfilmentmode {
 enum scheduledFulfilmentType {
   DAYS_AFTER
   EXACT_DATE
+}
+
+enum PaymentMode {
+  FULLPAYMENT
+  PARTIALPAYMENT
 }

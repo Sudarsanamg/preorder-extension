@@ -2,7 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 // import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType } from "@prisma/client";
+import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, PaymentMode } from "@prisma/client";
 
 export async function createStore(data: {
   shopId: string;
@@ -87,6 +87,7 @@ export async function createPreorderCampaign(data: {
   scheduledFulfilmentType? :scheduledFulfilmentType;
   fulfilmentDaysAfter: number;
   fulfilmentExactDate: Date;
+  paymentType: string;
 }) {
   return prisma.preorderCampaign.create({
     data: {
@@ -113,6 +114,7 @@ export async function createPreorderCampaign(data: {
       scheduledFulfilmentType: data.scheduledFulfilmentType,
       fulfilmentDaysAfter: data.fulfilmentDaysAfter,
       fulfilmentExactDate: data.fulfilmentExactDate,
+      paymentType:data.paymentType === 'partial' ? "PARTIALPAYMENT" : "FULLPAYMENT",
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
     },
@@ -128,9 +130,19 @@ export async function updateCampaign(data: {
   releaseDate?: Date;
   status?: CampaignStatus;
   campaignEndDate?: Date;
-  campaignType: number;
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
+  discountType: DiscountType;
+  discountPercent?: number;
+  discountFixed?: number;
+  campaignType?: number;
+  shopId?: string;
+  getDueByValt: boolean;
+  fulfilmentmode?: Fulfilmentmode;
+  scheduledFulfilmentType?: scheduledFulfilmentType;
+  fulfilmentDaysAfter: number;
+  fulfilmentExactDate: Date;
+  paymentType?: string;
 }) {
   return prisma.preorderCampaign.update({
     where: {
@@ -143,18 +155,26 @@ export async function updateCampaign(data: {
       refundDeadlineDays: data.refundDeadlineDays,
       releaseDate: data.releaseDate,
       status: data.status,
-      campaignType: data.campaignType,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
+      discountType: data.discountType,
+      discountPercent: data.discountPercent,
+      discountFixed: data.discountFixed,
+      campaignType: data.campaignType,
+      getDueByValt: data.getDueByValt,
+      fulfilmentmode: data.fulfilmentmode,
+      scheduledFulfilmentType: data.scheduledFulfilmentType,
+      fulfilmentDaysAfter: data.fulfilmentDaysAfter,
+      fulfilmentExactDate: data.fulfilmentExactDate,
+      paymentType:data.paymentType === 'partial' ? "PARTIALPAYMENT" : "FULLPAYMENT",
       updatedAt: BigInt(Date.now()),
     },
   });
 }
 
-// Add product(s) to a campaign
 export async function addProductsToCampaign(
   campaignId: string,
   products: { productId: string; productImage?: string,variantTitle?: string; variantId?: string; variantInventory: number ;variantPrice?: number ;maxUnit?: number}[],
@@ -180,7 +200,7 @@ export async function addProductsToCampaign(
 
 export async function replaceProductsInCampaign(
   campaignId: string,
-  products: { id: string; variantId?: string; totalInventory: number }[],
+  products: { productId: string; variantId?: string; totalInventory: number }[],
 ) {
   const storeId = await prisma.preorderCampaign.findUnique({
     where: { id: campaignId },
@@ -197,7 +217,7 @@ export async function replaceProductsInCampaign(
     prisma.preorderCampaignProduct.createMany({
       data: products.map((p) => ({
         campaignId,
-        productId: p.id,
+        productId: p.productId,
         variantId: p.variantId,
         maxQuantity: p.totalInventory,
         storeId: storeId?.storeId,

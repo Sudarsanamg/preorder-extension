@@ -159,6 +159,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           fulfilmentExactDate: new Date(
             formData.get("fulfilmentDate") as string,
           ),
+          paymentType: formData.get("paymentMode") as string ,
+          campaignEndDate: new Date(formData.get("campaignEndDate") as string),
         });
 
         const products = JSON.parse(
@@ -166,6 +168,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
+          console.log("Products:////////////////////////////////////////////////////////", products);
           await addProductsToCampaign(campaign.id, products ,formData.get("shopId") as string);
 
           // -------------------------------
@@ -252,13 +255,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             {
               ownerId: product.productId,
               namespace: "custom",
-              key: "release_date",
-              type: "date",
-              value: "2025-08-30",
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
               key: "preorder_end_date",
               type: "date_time",
               value: new Date(
@@ -334,7 +330,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
               collectionMode: formData.get(
                 "collectionMode",
-              ) as scheduledFulfilmentType, // partial payment type
+              ) as scheduledFulfilmentType,
               fulfillmentDate: new Date(
                 formData.get("fulfilmentDate") as string,
               ).toISOString(),
@@ -967,7 +963,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title="Create Preorder campaign"
+        title="Create Preorder Campaign"
         titleMetadata={
           <div>{navigation.state !== "idle" && <Spinner size="small" />}</div>
         }
@@ -1058,34 +1054,36 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
           >
             {/* left */}
             {selected === 0 && (
-      <CampaignForm
-      campaignData={campaignData}
-      handleCampaignDataChange={handleCampaignDataChange}
-      handleRemoveTag={handleRemoveTag}
-      handleRemoveCustomerTag={handleRemoveCustomerTag}
-      selectedDates={selectedDates}
-      handleDateChange={handleDateChange}
-      togglePopover={togglePopover}
-      popoverActive={popoverActive}
-      handleMonthChange={handleMonthChange}
-      handleCampaignEndMonthChange={handleCampaignEndMonthChange}
-      campaignEndPicker={campaignEndPicker}
-      month={month}
-      year={year}
-      plusStore={plusStore}
-      setSelected={setSelected}
-      setProductTagInput={setProductTagInput}
-      setCustomerTagInput={setCustomerTagInput}
-      handleKeyDown={handleKeyDown}
-      handleKeyDownCustomerTag={handleKeyDownCustomerTag}
-      productTagInput={productTagInput}
-      customerTagInput={customerTagInput}
-      formatDate={formatDate}
-      setGetPaymentsViaValtedPayments={setGetPaymentsViaValtedPayments}
-      getPaymentsViaValtedPayments={getPaymentsViaValtedPayments}
-      activeButtonIndex={activeButtonIndex}
-      handleButtonClick={handleButtonClick}
-    />
+              <CampaignForm
+                campaignData={campaignData}
+                handleCampaignDataChange={handleCampaignDataChange}
+                handleRemoveTag={handleRemoveTag}
+                handleRemoveCustomerTag={handleRemoveCustomerTag}
+                selectedDates={selectedDates}
+                handleDateChange={handleDateChange}
+                togglePopover={togglePopover}
+                popoverActive={popoverActive}
+                handleMonthChange={handleMonthChange}
+                handleCampaignEndMonthChange={handleCampaignEndMonthChange}
+                campaignEndPicker={campaignEndPicker}
+                month={month}
+                year={year}
+                plusStore={plusStore}
+                setSelected={setSelected}
+                setProductTagInput={setProductTagInput}
+                setCustomerTagInput={setCustomerTagInput}
+                handleKeyDown={handleKeyDown}
+                handleKeyDownCustomerTag={handleKeyDownCustomerTag}
+                productTagInput={productTagInput}
+                customerTagInput={customerTagInput}
+                formatDate={formatDate}
+                setGetPaymentsViaValtedPayments={
+                  setGetPaymentsViaValtedPayments
+                }
+                getPaymentsViaValtedPayments={getPaymentsViaValtedPayments}
+                activeButtonIndex={activeButtonIndex}
+                handleButtonClick={handleButtonClick}
+              />
             )}
             {selected === 1 && (
               <div style={{ flex: 1 }}>
@@ -1115,7 +1113,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                       <div style={{ marginTop: 10 }}>
                         <InlineStack gap="200">
                           <Text as="h1" variant="headingMd">
-                            {campaignData.discountPercentage === 0 && campaignData.flatDiscount === 0 ? (
+                            {campaignData.discountPercentage === 0 &&
+                            campaignData.flatDiscount === 0 ? (
                               <Text as="h1" variant="headingLg">
                                 $499.00
                               </Text>
@@ -1126,7 +1125,9 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                                   ? "$" +
                                     (
                                       499.0 -
-                                      (499.0 * campaignData.discountPercentage) / 100
+                                      (499.0 *
+                                        campaignData.discountPercentage) /
+                                        100
                                     ).toFixed(2)
                                   : 499.0 - campaignData.flatDiscount > 0
                                     ? "$" + (499.0 - campaignData.flatDiscount)
@@ -1147,32 +1148,40 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                         </InlineStack>
                       </div>
                     </div>
-                    <div style={{ marginTop: 20 }}>
+                    <div style={{ marginTop: 10, marginBottom: 20 }}>
                       <Text as="h1" variant="headingSm">
                         Size
                       </Text>
                       <div style={{ display: "flex", gap: 10 }}>
+                        {/* Inactive (Small) */}
                         <div
                           style={{
                             border: "1px solid black",
                             borderRadius: 80,
-                            padding: 2,
-                            minWidth: "60px",
+                            padding: "6px 12px",
+                            minWidth: "80px",
                             textAlign: "center",
+                            cursor: "pointer",
                           }}
                         >
-                          Small
+                          <span style={{ color: "black", fontWeight: 500 }}>
+                            Small
+                          </span>
                         </div>
+
+                        {/* Active (Medium) */}
                         <div
                           style={{
                             border: "1px solid black",
                             borderRadius: 80,
-                            padding: 3,
+                            padding: "6px 12px",
+                            minWidth: "80px",
+                            textAlign: "center",
                             backgroundColor: "black",
-                            minWidth: "60px",
+                            cursor: "pointer",
                           }}
                         >
-                          <span style={{ color: "white", textAlign: "center" }}>
+                          <span style={{ color: "white", fontWeight: 500 }}>
                             Medium
                           </span>
                         </div>
@@ -1280,7 +1289,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                             <p>{campaignData.fullPaymentText}</p>
                           )}
                           <p>
-                            {campaignData.preOrderNoteKey} : {campaignData.preOrderNoteValue}
+                            {campaignData.preOrderNoteKey} :{" "}
+                            {campaignData.preOrderNoteValue}
                           </p>
                         </div>
                       </div>

@@ -276,7 +276,7 @@ export const DELETE_SELLING_PLAN_GROUP = `
 //   `;
 // };
 
-export async function allowOutOfStockForVariants(admin:any,products: string[]) {
+export async function allowOutOfStockForVariants(admin:any,products: any[]) {
   if (!products?.length) {
     console.warn("⚠️ No products provided to allowOutOfStockForProducts");
     return;

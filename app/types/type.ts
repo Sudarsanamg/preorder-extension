@@ -23,7 +23,7 @@ export interface DesignFields {
 
 export interface CampaignFields {
     campaignName: string;
-    campaignType: 1 | 2 | 3;
+    campaignType: number;
   productTags: string[];
   customerTags: string[];
   preOrderNoteKey: string;

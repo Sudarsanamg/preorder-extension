@@ -5,7 +5,6 @@ import {
 } from "@remix-run/node";
 import {
   useLoaderData,
-  useLocation,
   Link,
   useNavigate,
   useNavigation,
@@ -23,19 +22,22 @@ import {
   Divider,
   InlineStack,
   Icon,
-  Spinner,
+  ActionList,
+  Popover,
+  Modal,
+  ButtonGroup,
 } from "@shopify/polaris";
 
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createStore,
   getAccessToken,
   getAllCampaign,
   getEmailSettingsStatus,
 } from "app/models/campaign.server";
-import { FileIcon } from "@shopify/polaris-icons";
+import { SelectIcon } from "@shopify/polaris-icons";
 import preorderCampaignDef from "app/utils/preorderCampaignDef";
 import productMetafieldDefinitions, {
   variantMetafieldDefinitions,
@@ -53,6 +55,7 @@ import { useWebVitals } from "app/helper/useWebVitals";
 import { SetupGuide } from "app/components/setupGuide";
 import prisma from "app/db.server";
 import PreorderSettingsSkeleton from "app/utils/loader/homeLoader";
+import { handleCampaignStatusChange } from "app/helper/campaignHelper";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -125,10 +128,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
-  const formData = await request.json();
-  const intent = formData.intent;
+  const formData = await request.formData();
+  const intent = formData.get("intent");
 
   if (intent === "complete_setup_guide") {
     try {
@@ -151,6 +154,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  if (intent === "update_campaign_status") {
+    const campaignId = formData.get("campaignId") as string;
+    const newStatus = formData.get("newStatus") as string;
+    try {
+      await handleCampaignStatusChange(admin, campaignId, newStatus);
+      return json({ success: true, message: "Campaign status updated" });
+    } catch (error) {
+      console.error("Error updating campaign status:", error);
+      return json(
+        { success: false, error: "Failed to update campaign status" },
+        { status: 500 },
+      );
+    }
+  }
+
   return json({ success: false, message: "Invalid intent" });
 };
 
@@ -159,7 +177,6 @@ export default function Index() {
   useWebVitals({ path: "/app" });
   const { campaigns, emailCampaignStatus, shop, setupGuide } =
     useLoaderData<typeof loader>();
-  const location = useLocation();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showGuide, setShowGuide] = useState(!setupGuide);
@@ -172,6 +189,17 @@ export default function Index() {
     customizeEmail: false,
     page: true,
   });
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalState, setModalState] = useState({
+    campaignId: "",
+    newStatus: "",
+    campaignName: "",
+  });
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const togglePopover = useCallback((id: any) => {
+    setActivePopoverId((activeId) => (activeId === id ? null : id));
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -184,6 +212,15 @@ export default function Index() {
 
     init();
   }, [setupGuide]);
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.success) {
+      shopify?.toast?.show?.("Campaign Updated Successfully");
+      setIsChangingStatus(false);
+      setIsModalOpen(false);
+      setActivePopoverId(null);
+    }
+  }, [fetcher.state, fetcher.data]);
 
   const navigation = useNavigation();
   const isNavigating = navigation.state !== "idle";
@@ -297,6 +334,25 @@ export default function Index() {
   if (loading.page) {
     return <PreorderSettingsSkeleton />;
   }
+  const openConfirmModal = (
+    campaignId: string,
+    newStatus: string,
+    name: string,
+  ) => {
+    setActivePopoverId(campaignId);
+    setModalState({ campaignId, newStatus, campaignName: name });
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    setIsChangingStatus(true);
+    const formData = new FormData();
+    formData.append("campaignId", modalState.campaignId);
+    formData.append("newStatus", modalState.newStatus);
+    formData.append("intent", "update_campaign_status");
+
+    fetcher.submit(formData, { method: "post" });
+  };
 
   return (
     <Page>
@@ -313,18 +369,16 @@ export default function Index() {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <p style={{ fontSize: "26px" }}>Preorder Settings</p>
         </div>
-        <Link
-          to={{ pathname: "campaign/new", search: location.search }}
-          prefetch="intent"
+        <Button
+          variant="primary"
+          loading={loading.create}
+          onClick={() => {
+            setLoading((prev) => ({ ...prev, create: true }));
+            navigate("/app/campaign/new");
+          }}
         >
-          <Button
-            variant="primary"
-            loading={loading.create}
-            onClick={() => setLoading((prev) => ({ ...prev, create: true }))}
-          >
-            Create Campaign
-          </Button>
-        </Link>
+          Create Campaign
+        </Button>
       </div>
       {showGuide && (
         <div>
@@ -344,15 +398,42 @@ export default function Index() {
         <Card>
           <BlockStack gap="200">
             <Text as="h4" variant="headingLg">
-              Preorder campaigns
+              Preorder Campaigns
             </Text>
             <Text as="p" variant="bodyMd">
               Create tailored campaigns for different products with customisable
               payment, fulfilment, and inventory rules. Set discounts and
               personalise preorder widget appearance for each campaign.
             </Text>
+            <Modal
+              open={isModalOpen}
+              onClose={() => !isChangingStatus && setIsModalOpen(false)}
+              title="Change Campaign Status"
+              primaryAction={{
+                content: isChangingStatus ? "Changing..." : "Confirm",
+                onAction: handleConfirmStatusChange,
+                loading: isChangingStatus,
+                disabled: isChangingStatus,
+              }}
+              secondaryActions={[
+                {
+                  content: "Cancel",
+                  onAction: () => setIsModalOpen(false),
+                  disabled: isChangingStatus,
+                },
+              ]}
+            >
+              <Modal.Section>
+                <Text as="p">
+                  Are you sure you want to change{" "}
+                  <strong>{modalState.campaignName}</strong> to{" "}
+                  <strong>{modalState.newStatus}</strong>?
+                </Text>
+              </Modal.Section>
+            </Modal>
 
-            <div style={{ padding: "1rem" }}>
+            { uniqueRows.length > 0 &&
+              <div style={{ padding: "1rem" }}>
               <TextField
                 label="Search"
                 value={search}
@@ -360,54 +441,181 @@ export default function Index() {
                 placeholder="Search by Campaign Name"
                 autoComplete="off"
               />
-            </div>
+            </div>}
 
             {uniqueRows.length > 0 ? (
               <DataTable
-                columnContentTypes={["text", "text", "numeric"]}
-                headings={["Name", "Status", "Orders"]}
+                columnContentTypes={["text", "text", "numeric", "text"]}
+                headings={[
+                  "Name",
+                  "Status",
+                  <div
+                    key="actions"
+                    style={{
+                      textAlign: "center",
+                      width: "100%",
+                      paddingRight: "1rem",
+                    }}
+                  >
+                    Orders
+                  </div>,
+                  <div
+                    key="actions"
+                    style={{
+                      textAlign: "right",
+                      width: "100%",
+                      paddingRight: "1rem",
+                    }}
+                  >
+                    Actions
+                  </div>,
+                ]}
                 rows={uniqueRows.map((row, index) => {
+                  const campaignId = row.id;
+                  const campaignName = row.data[0];
+                  const currentStatus = row.data[1];
+                  const currentOrders = row.data[2];
+                  const isPopoverActive = activePopoverId === campaignId;
                   const rowPath = `/app/campaign/${row.id}`;
                   const isRowLoading = isNavigating && targetPath === rowPath;
 
+                  const statusTone =
+                    currentStatus === "PUBLISHED"
+                      ? "success"
+                      : currentStatus === "DRAFT"
+                        ? "info"
+                        : "critical";
+
+                  const statusLabel =
+                    currentStatus === "PUBLISHED"
+                      ? "Published"
+                      : currentStatus === "DRAFT"
+                        ? "Draft"
+                        : "Unpublished";
+
+                  const statusActions = [
+                    {
+                      content: "Publish",
+                      onAction: () =>
+                        openConfirmModal(
+                          campaignId,
+                          "PUBLISHED",
+                          String(campaignName),
+                        ),
+                      disabled: currentStatus === "PUBLISHED",
+                    },
+                    {
+                      content: "Unpublish",
+                      onAction: () =>
+                        openConfirmModal(
+                          campaignId,
+                          "UNPUBLISHED",
+                          String(campaignName),
+                        ),
+                      disabled: currentStatus === "UNPUBLISHED",
+                    },
+                    {
+                      content: "Draft",
+                      onAction: () =>
+                        openConfirmModal(
+                          campaignId,
+                          "DRAFT",
+                          String(campaignName),
+                        ),
+                      disabled: currentStatus === "DRAFT",
+                    },
+                  ];
+
                   return [
-                    <div
-                      key={index}
+                    // --- Name Column ---
+                    <Link
+                      key={`name-${index}`}
+                      to={rowPath}
                       style={{
+                        textDecoration: "none",
+                        color: "inherit",
                         display: "flex",
                         alignItems: "center",
-                        gap: "10px",
+                        gap: "8px",
+                      }}
+                    >
+                      <span>{campaignName}</span>
+                      {/* {isRowLoading && <Spinner size="small" />} */}
+                    </Link>,
+
+                    // --- Status Column ---
+                    <Popover
+                      key={`status-${index}`}
+                      active={isPopoverActive}
+                      activator={
+                        <button
+                          onClick={() => togglePopover(campaignId)}
+                          style={{
+                            border: "none",
+                            background: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <InlineStack gap="100">
+                            <Badge tone={statusTone}>{statusLabel}</Badge>
+                            <Icon source={SelectIcon} tone="base" />
+                          </InlineStack>
+                        </button>
+                      }
+                      onClose={() => setActivePopoverId(null)}
+                    >
+                      <ActionList items={statusActions} />
+                    </Popover>,
+
+                    // --- Orders Column (Centered) ---
+                    <div
+                      key={`orders-${index}`}
+                      style={{
+                        textAlign: "center",
                         width: "100%",
                       }}
                     >
-                      <Link
-                        to={rowPath}
-                        style={{
-                          textDecoration: "none",
-                          color: "inherit",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          width: "100%",
-                        }}
-                      >
-                        <span>{row.data[0]}</span>
-                        <div style={{ width: 16, height: 16 }}>
-                          {isRowLoading && <Spinner size="small" />}
-                        </div>
-                      </Link>
+                      {currentOrders}
                     </div>,
-                    <Badge
-                      key={`status-${index}`}
-                      tone={row.data[1] === "PUBLISHED" ? "success" : "info"}
+
+                    // --- Actions Column (Right-aligned) ---
+                    <div
+                      key={`actions-${index}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        width: "100%",
+                        paddingRight: "1rem",
+                      }}
                     >
-                      {row.data[1] === "PUBLISHED"
-                        ? "Published"
-                        : row.data[1] === "DRAFT" ? 
-                        "Draft"
-                        : " Unpublished"}
-                    </Badge>,
-                    row.data[2],
+                      <ButtonGroup>
+                        <Button
+                          onClick={() => {
+                            navigate(`/app/campaign/${campaignId}`);
+                          }}
+                          variant="secondary"
+                          size="slim"
+                          loading={isRowLoading}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            openConfirmModal(
+                              campaignId,
+                              "DELETE",
+                              String(campaignName),
+                            );
+                          }}
+                          tone="critical"
+                          variant="secondary"
+                          size="slim"
+                        >
+                          Delete
+                        </Button>
+                      </ButtonGroup>
+                    </div>,
                   ];
                 })}
               />
@@ -470,8 +678,7 @@ export default function Index() {
             {" "}
             Notifications{" "}
           </Text>
-          <div style={{margin:10}}>
-          </div>
+          <div style={{ margin: 10 }}></div>
           <Card>
             <BlockStack gap="500">
               {/* Preorder Confirmation Email */}

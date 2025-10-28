@@ -46,6 +46,24 @@ mutation UpsertMetaobject($handle: MetaobjectHandleInput!, $status: String!) {
         }
       }
     `;
+export const updateCampaignDataMutation = `
+mutation UpdateCampaign($id: ID!, $metaobjectUpdate: MetaobjectUpdateInput!) {
+  metaobjectUpdate(id: $id, metaobject: $metaobjectUpdate) {
+    metaobject {
+      id
+      handle
+      fields {
+        key
+        value
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+`;
 
 export  const getDesignQuery = `
       query GetDesignSettings($handle: String!) {
