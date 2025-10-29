@@ -30,10 +30,16 @@ import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import prisma from "app/db.server";
 import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
 import nodemailer from "nodemailer";
+import { isStoreRegistered } from "app/helper/isStoreRegistered";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const adminSession = await authenticate.admin(request);
-  const { admin } = await authenticate.admin(request);
+  const { admin , session } = await authenticate.admin(request);
+  const shop = session.shop;
+    const isStoreExist = await isStoreRegistered(shop);
+    if(!isStoreExist){
+      return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+    }
 
   const shopQuery = `{
     shop {
@@ -287,8 +293,15 @@ export default function AdditionalPage() {
         balanceAmount,
         paymentStatus,
         fulfillmentStatus,
+      }: {
+        id: string;
+        orderNumber: string;
+        dueDate: string;
+        balanceAmount: string;
+        paymentStatus?: string;
+        fulfillmentStatus: string;
       },
-      index,
+      index: number,
     ) => (
       <IndexTable.Row
         id={id}
@@ -413,10 +426,12 @@ export default function AdditionalPage() {
               </Text>
             </Banner>
             <Box>
-              <Text as="label" variant="bodyMd" fontWeight="semibold">
+              <Text as="h5" variant="bodyMd" fontWeight="semibold">
                 Subject
               </Text>
               <TextField
+                label="Subject"
+                labelHidden
                 value={subject}
                 onChange={setSubject}
                 autoComplete="off"
@@ -425,10 +440,12 @@ export default function AdditionalPage() {
               />
             </Box>
             <Box>
-              <Text as="label" variant="bodyMd" fontWeight="semibold">
+              <Text as="h5" variant="bodyMd" fontWeight="semibold">
                 Email text
               </Text>
               <TextField
+                label="Email text"
+                labelHidden
                 value={emailText}
                 onChange={setEmailText}
                 multiline={4}

@@ -9,6 +9,7 @@ import { deleteCampaign, updateCampaignStatus } from "app/models/campaign.server
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { removeDiscountFromVariants } from "./removeDiscountFromVariants";
 import { applyDiscountToVariants } from "./applyDiscountToVariants";
+import { GET_SHOP } from "app/graphql/queries/shop";
 
 export const unPublishCampaign = async (admin: any, id: string) => {
   const campaignId = id;
@@ -345,7 +346,11 @@ export const handleCampaignStatusChange = async (
   }
   if(newStatus === "DELETE"){
     await unPublishCampaign(admin,campaignId);
-    await deleteCampaign(campaignId);
+     const response = await admin.graphql(GET_SHOP);
+      const data = await response.json();
+      const shopId = data.data.shop.id;
+
+    await deleteCampaign(campaignId,shopId);
   }
 
   

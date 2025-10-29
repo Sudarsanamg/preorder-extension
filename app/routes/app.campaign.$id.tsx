@@ -7,12 +7,8 @@ import {
   updateCampaignStatus,
 } from "../models/campaign.server";
 import { useState, useCallback, useEffect } from "react";
-import {
-  LoaderFunctionArgs,
-  ActionFunctionArgs,
-  json,
-  redirect,
-} from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import {
   AppProvider,
   Button,
@@ -22,7 +18,6 @@ import {
   Page,
   RadioButton,
   Card,
-
   Icon,
   Tabs,
   Banner,
@@ -38,16 +33,12 @@ import {
   useLoaderData,
   useNavigation,
 } from "@remix-run/react";
-import {
-
-  DeleteIcon,
-
-} from "@shopify/polaris-icons";
+import { DeleteIcon } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker } from "@shopify/app-bridge/actions";
 import { useAppBridge } from "../components/AppBridgeProvider";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
-import { CampaignFields, DesignFields } from "app/types/type";
+import type { CampaignFields, DesignFields } from "app/types/type";
 import PreviewDesign from "app/components/PreviewDesign";
 import prisma from "app/db.server";
 import {
@@ -55,9 +46,7 @@ import {
   SET_PREORDER_METAFIELDS,
 } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
-import {
-  unpublishMutation,
-} from "app/graphql/mutation/metaobject";
+import { unpublishMutation } from "app/graphql/mutation/metaobject";
 import { GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
 import {
@@ -70,11 +59,14 @@ import {
   GetCampaignId,
   publishMutation,
   updateCampaignDataMutation,
-  updateCampaignMutation,
 } from "app/graphql/queries/metaobject";
-import { GET_COLLECTION_PRODUCTS, GET_SHOP, isShopifyPaymentsEnabled } from "app/graphql/queries/shop";
-import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
 import {
+  GET_COLLECTION_PRODUCTS,
+  GET_SHOP,
+  isShopifyPaymentsEnabled,
+} from "app/graphql/queries/shop";
+import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
+import type {
   CampaignStatus,
   DiscountType,
   Fulfilmentmode,
@@ -84,11 +76,20 @@ import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
 import { removeDiscountFromVariants } from "app/helper/removeDiscountFromVariants";
 import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
+import { isStoreRegistered } from "app/helper/isStoreRegistered";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-  const { admin ,session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
+  const shop = session.shop;
+  const isStoreExist = await isStoreRegistered(shop);
+  if (!isStoreExist) {
+    return Response.json(
+      { success: false, error: "Store not found" },
+      { status: 404 },
+    );
+  }
   if (intent === "fetchProductsInCollection") {
     const collectionId = url.searchParams.get("collectionId");
 
@@ -126,9 +127,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   } else {
     const campaign = await getCampaignById(params.id!);
     const varientId = campaign?.products?.map((p) => p.variantId) || [];
-    // if (varientId.length === 0) {
-    //   return json({ campaign, products: [] });
-    // }
     const response = await admin.graphql(GET_VARIENT_BY_IDS, {
       variables: { ids: varientId },
     });
@@ -168,16 +166,16 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       productImage: variant.image,
       productTitle: variant.productTitle,
     }));
-     const shopDomain = session.shop;
-     const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
-     const getDueByValtResponse = await prisma.preorderCampaign.findUnique({
-       where: {
-         id: params.id!,
-       },
-       select: {
-         getDueByValt: true,
-       },
-     });
+    const shopDomain = session.shop;
+    const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
+    const getDueByValtResponse = await prisma.preorderCampaign.findUnique({
+      where: {
+        id: params.id!,
+      },
+      select: {
+        getDueByValt: true,
+      },
+    });
 
     return json({
       campaign,
@@ -185,24 +183,24 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       parsedDesignSettingsResponse,
       parsedCampaignSettingsResponse,
       shopifyPaymentsEnabled,
-      getDueByValt:getDueByValtResponse?.getDueByValt
+      getDueByValt: getDueByValtResponse?.getDueByValt,
     });
   }
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin ,session} = await authenticate.admin(request);
+  const shop = session.shop;
+  const isStoreExist = await isStoreRegistered(shop);
+  if(!isStoreExist){
+    return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+  }
 
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const secondaryIntent = formData.get("secondaryIntent") as string;
   const campaignCurrentStatusResponse = await getCampaignStatus(params.id!);
   const campaignCurrentStatus = campaignCurrentStatusResponse?.status;
-  if (intent === "delete-campaign") {
-    const id = formData.get("id");
-    await deleteCampaign(id);
-    return redirect("/app");
-  }
   if (intent === "update-campaign") {
     try {
       await updateCampaign({
@@ -357,7 +355,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           type: "boolean",
           value: "true",
         },
-        
         {
           ownerId: product.variantId,
           namespace: "custom",
@@ -414,7 +411,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           type: "boolean",
           value: "true",
         },
-       
+
         {
           ownerId: product.productId,
           namespace: "custom",
@@ -552,7 +549,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   if (intent === "publish-campaign") {
     const id = formData.get("id");
     try {
-      const res = await admin.graphql(publishMutation, {
+      await admin.graphql(publishMutation, {
         variables: {
           handle: { type: "preordercampaign", handle: id },
           status: "ACTIVE",
@@ -629,7 +626,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         type: "boolean",
         value: "true",
       },
-      
       {
         ownerId: product.productId,
         namespace: "custom",
@@ -687,7 +683,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       throw err;
     }
 
-    const paymentMode = formData.get("paymentMode") as "partial" | "full";
     const discountType = formData.get("discountType") as DiscountType;
     const variantIds = products.map((p: any) => p.variantId);
     await applyDiscountToVariants(
@@ -731,7 +726,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   if (intent === "unpublish-campaign") {
     const id = formData.get("id");
     try {
-      const res = await admin.graphql(unpublishMutation, {
+      await admin.graphql(unpublishMutation, {
         variables: {
           handle: { type: "preordercampaign", handle: id },
           status: "DRAFT",
@@ -816,15 +811,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         products.map((product: any) => product.variantId),
       );
       // }
-
-      if (secondaryIntent === "delete-campaign") {
-        await deleteCampaign(params.id!);
-      }
-
       const response = await admin.graphql(GET_SHOP);
       const data = await response.json();
       const shopId = data.data.shop.id;
 
+      if (secondaryIntent === "delete-campaign") {
+        await deleteCampaign(params.id!,shopId);
+      }
       if (secondaryIntent === "delete-campaign-create-new") {
         const campaign = await updateCampaign({
           id: params.id!,
@@ -863,7 +856,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          
           await replaceProductsInCampaign(String(params.id!), products);
 
           const campaignType = Number(formData.get("campaignType"));
@@ -890,7 +882,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               type: "boolean",
               value: "true",
             },
-            
             {
               ownerId: product.variantId,
               namespace: "custom",
@@ -929,10 +920,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           ]);
 
           try {
-             await admin.graphql(SET_PREORDER_METAFIELDS, {
+            await admin.graphql(SET_PREORDER_METAFIELDS, {
               variables: { metafields },
             });
-            
           } catch (err) {
             console.error("GraphQL mutation failed:", err);
             throw err;
@@ -949,7 +939,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           Number(formData.get("discountPercentage") || 0),
           Number(formData.get("flatDiscount") || 0),
         );
-        
+
         await createSellingPlan(
           admin,
           formData.get("paymentMode") as "partial" | "full",
@@ -1060,16 +1050,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           );
         }
 
-
-        await admin.graphql(
-          updateCampaignDataMutation,
-          {
-            variables: {
-              id: metaobjectId,
-              metaobjectUpdate: { fields: campaignFields },
-            },
+        await admin.graphql(updateCampaignDataMutation, {
+          variables: {
+            id: metaobjectId,
+            metaobjectUpdate: { fields: campaignFields },
           },
-        );
+        });
 
         await updateCampaignStatus(
           campaign.id,
@@ -1155,12 +1141,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         return redirect("/app");
       }
 
-      if(secondaryIntent === "save-as-draft"){
-        const campaignId = (formData.get("id")??"") as string;
-        await updateCampaignStatus(
-          campaignId,
-          "DRAFT",
-        );
+      if (secondaryIntent === "save-as-draft") {
+        const campaignId = (formData.get("id") ?? "") as string;
+        await updateCampaignStatus(campaignId, "DRAFT");
         return redirect("/app");
       }
 
@@ -1180,14 +1163,14 @@ export default function CampaignDetail() {
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
     shopifyPaymentsEnabled,
-    getDueByValt
+    getDueByValt,
   } = useLoaderData<typeof loader>() as {
     campaign: any;
     products: any[];
     parsedDesignSettingsResponse: any;
     parsedCampaignSettingsResponse: any;
-    shopifyPaymentsEnabled: boolean,
-    getDueByValt:boolean
+    shopifyPaymentsEnabled: boolean;
+    getDueByValt: boolean;
   };
   const [buttonLoading, setButtonLoading] = useState({
     publish: false,
@@ -1203,39 +1186,15 @@ export default function CampaignDetail() {
   const parsedDesignFields = designFieldsMap;
   const submit = useSubmit();
   const navigate = useNavigate();
-  // const [campaignName, setCampaignName] = useState(campaign?.name);
   const [selected, setSelected] = useState(0);
   const [productTagInput, setProductTagInput] = useState("");
   const [customerTagInput, setCustomerTagInput] = useState("");
-  // const [productTags, setProductTags] = useState<string[]>(
-  //   parsedCampaignData?.campaigntags
-  //     ? parsedCampaignData?.campaigntags.split(",")
-  //     : [],
-  // );
-  // const [customerTags, setCustomerTags] = useState<string[]>([]);
-  // const [preOrderNoteKey, setPreOrderNoteKey] = useState("Note");
-  // const [preOrderNoteValue, setPreOrderNoteValue] = useState("Preorder");
-  // const [selectedOption, setSelectedOption] = useState(
-  //   Number(parsedCampaignData?.campaigntype),
-  // );
-  // const [buttonText, setButtonText] = useState(parsedCampaignData?.button_text);
-  // const [shippingMessage, setShippingMessage] = useState(
-  //   parsedCampaignData?.shipping_message,
-  // );
-  // const [partialPaymentPercentage, setPartialPaymentPercentage] = useState(
-  //   campaign?.depositPercent,
-  // );
-  // const [paymentMode, setPaymentMode] = useState(
-  //   parsedCampaignData?.payment_type === "full" ? "full" : "partial",
-  // );
-  // const [partialPaymentType, setPartialPaymentType] = useState("percent");
-  // const [duePaymentType, setDuePaymentType] = useState(
-  //   parsedCampaignData?.payment_schedule.type === "DAYS_AFTER" ? 1 : 2,
-  // );
+
   const [{ month, year }, setMonthYear] = useState({
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
   });
+  console.log(parsedCampaignData, "campaign");
 
   const MetaObjectDuePaymentData = parsedCampaignData.payment_schedule;
   const MetaObjectFullfillmentSchedule = parsedCampaignData.fulfillment;
@@ -1246,77 +1205,28 @@ export default function CampaignDetail() {
       MetaObjectDuePaymentData.type === "DAYS_AFTER"
         ? new Date()
         : new Date(MetaObjectDuePaymentData.value),
-    campaignEndDate: new Date(),
+    campaignEndDate: new Date(parsedCampaignData.campaign_end_date),
     fullfillmentSchedule:
       MetaObjectFullfillmentSchedule.schedule.type === "DAYS_AFTER"
         ? new Date()
         : MetaObjectFullfillmentSchedule.schedule.value,
   });
 
-  // const [popoverActive, setPopoverActive] = useState(false);
-  const [DueDateinputValue, setDueDateInputValue] = useState(
-    new Date(
-      campaign?.balanceDueDate ? campaign.balanceDueDate : new Date(),
-    ).toLocaleDateString(),
-  );
   const [productRadio, setproductRadio] = useState("option1");
   const [selectedProducts, setSelectedProducts] = useState(products || []);
   const [searchTerm, setSearchTerm] = useState("");
-  const [campaignEndDate, setCampaignEndDate] = useState<Date | null>(
-    parsedCampaignData?.campaign_end_date
-      ? new Date(parsedCampaignData?.campaign_end_date)
-      : null,
-  );
-
   const [campaignEndPicker, setCampaignEndPicker] = useState({
-    month: campaignEndDate?.getMonth(),
-    year: campaignEndDate?.getFullYear(),
+    month: selectedDates.campaignEndDate?.getMonth(),
+    year: selectedDates.campaignEndDate?.getFullYear(),
     selected: {
-      start: campaignEndDate,
-      end: campaignEndDate,
+      start: selectedDates.campaignEndDate,
+      end: selectedDates.campaignEndDate,
     },
     popoverActive: false,
-    inputValue: campaignEndDate?.toLocaleDateString(),
+    inputValue: selectedDates.campaignEndDate?.toLocaleDateString(),
   });
-  const hours = campaignEndDate?.getHours().toString().padStart(2, "0");
-  const minutes = campaignEndDate?.getMinutes().toString().padStart(2, "0");
-  const formattedTime = `${hours}:${minutes}`;
-  const [campaignEndTime, setCampaignEndTime] = useState(formattedTime);
   const [criticalChange, setCriticalChange] = useState(false);
-  // const [fulfilmentMode, setfulfilmentMode] = useState<
-  //   "UNFULFILED" | "SCHEDULED" | "ONHOLD"
-  // >(parsedCampaignData?.fulfillment.type);
-
-  // console.log(
-  //   parsedCampaignData?.fulfillment,
-  //   "parsedCampaignData?.fulfillment.type",
-  // );
-  // const [scheduledFullfillmentType, setScheduledFullfillmentType] = useState<
-  //   1 | 2
-  // >(
-  //   parsedCampaignData?.fulfillment.type === "SCHEDULED"
-  //     ? parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
-  //       ? 2
-  //       : 1
-  //     : 1,
-  // );
-  // const [scheduledDay, setScheduledDays] = useState(
-  //   parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
-  //     ? 0
-  //     : parsedCampaignData?.fulfillment.schedule.value,
-  // );
-  // const [paymentAfterDays, setPaymentAfterDays] = useState(
-  //   parsedCampaignData?.payment_schedule?.type === "DAYS_AFTER"
-  //     ? parsedCampaignData?.payment_schedule.value
-  //     : 0,
-  // );
-  // const [partialPaymentText, setPartialPaymentText] =
-  //   useState("Partial payment");
-  // const [partialPaymentInfoText, setPartialPaymentInfoText] = useState(
-  //   "Pay {payment} now and {remaining} will be charged on {date}",
-  // );
   const [removedVarients, setRemovedVarients] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: parsedDesignFields?.messageFontSize,
     messageColor: parsedDesignFields?.messageColor,
@@ -1337,56 +1247,58 @@ export default function CampaignDetail() {
     buttonFontSize: parsedDesignFields?.buttonFontSize,
     buttonTextColor: parsedDesignFields?.buttonTextColor,
   });
-  console.log(parsedCampaignData,'>>>>>>>>>>>>>')
-  const [campaignData,setCampaignData] = useState<CampaignFields>({
-      campaignName:campaign?.name,
-      campaignType:Number(parsedCampaignData?.campaigntype),
-      productTags:parsedCampaignData?.campaigntags
+  const [campaignData, setCampaignData] = useState<CampaignFields>({
+    campaignName: campaign?.name,
+    campaignType: Number(parsedCampaignData?.campaigntype),
+    productTags: parsedCampaignData?.campaigntags
       ? parsedCampaignData?.campaigntags.split(",")
       : [],
-      customerTags:[
-      "Preorder-Customer",
-    ],
-    preOrderNoteKey:"Note",
-    preOrderNoteValue:"Preorder",
-    buttonText:parsedCampaignData?.button_text,
-    shippingMessage:parsedCampaignData?.shipping_message,
+    customerTags: ["Preorder-Customer"],
+    preOrderNoteKey: "Note",
+    preOrderNoteValue: "Preorder",
+    buttonText: parsedCampaignData?.button_text,
+    shippingMessage: parsedCampaignData?.shipping_message,
     partialPaymentPercentage: campaign?.depositPercent,
-    paymentMode:parsedCampaignData?.payment_type === "full" ? "full" : "partial",
-    partialPaymentType:"percent",
-    duePaymentType:parsedCampaignData?.payment_schedule.type === "DAYS_AFTER" ? 1 : 2,
-    campaignEndTime:"00:00",
-    fulfilmentMode:parsedCampaignData?.fulfillment.type,
-    scheduledFullfillmentType:parsedCampaignData?.fulfillment.type === "SCHEDULED"
-      ? parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
-        ? 2
-        : 1
-      : 1,
-    scheduledDays:parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
-      ? 0
-      : parsedCampaignData?.fulfillment.schedule.value,
-    paymentAfterDays:parsedCampaignData?.payment_schedule?.type === "DAYS_AFTER"
-      ? parsedCampaignData?.payment_schedule.value
-      : 0,
-    fullPaymentText:"Full Payment",
-    partialPaymentText:"Partial Payment",
-    partialPaymentInfoText:"Pay {payment} now and {remaining} will be charged on {date}",
-    discountType:parsedCampaignData?.discount_type,
-    discountPercentage:parsedCampaignData?.discountpercent,
-    flatDiscount:parsedCampaignData?.discountfixed,
-    getPaymentsViaValtedPayments:getDueByValt,
-  
-    })
+    paymentMode:
+      parsedCampaignData?.payment_type === "full" ? "full" : "partial",
+    partialPaymentType: "percent",
+    duePaymentType:
+      parsedCampaignData?.payment_schedule.type === "DAYS_AFTER" ? 1 : 2,
+    campaignEndTime: "00:00",
+    fulfilmentMode: parsedCampaignData?.fulfillment.type,
+    scheduledFullfillmentType:
+      parsedCampaignData?.fulfillment.type === "SCHEDULED"
+        ? parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
+          ? 2
+          : 1
+        : 1,
+    scheduledDays:
+      parsedCampaignData?.fulfillment.schedule.type === "EXACT_DATE"
+        ? 0
+        : parsedCampaignData?.fulfillment.schedule.value,
+    paymentAfterDays:
+      parsedCampaignData?.payment_schedule?.type === "DAYS_AFTER"
+        ? parsedCampaignData?.payment_schedule.value
+        : 0,
+    fullPaymentText: "Full Payment",
+    partialPaymentText: "Partial Payment",
+    partialPaymentInfoText:
+      "Pay {payment} now and {remaining} will be charged on {date}",
+    discountType: parsedCampaignData?.discount_type,
+    discountPercentage: parsedCampaignData?.discountpercent,
+    flatDiscount: parsedCampaignData?.discountfixed,
+    getPaymentsViaValtedPayments: getDueByValt,
+  });
 
-    const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
-        useState(true);
-
-    const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, value: CampaignFields[K]) => {
-      setCampaignData((prevData) => ({
-        ...prevData,
-        [field]: value
-      }));
-    };
+  const handleCampaignDataChange = <K extends keyof CampaignFields>(
+    field: K,
+    value: CampaignFields[K],
+  ) => {
+    setCampaignData((prevData) => ({
+      ...prevData,
+      [field]: value,
+    }));
+  };
   const [saveBarActive, setSaveBarActive] = useState(false);
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
@@ -1401,27 +1313,6 @@ export default function CampaignDetail() {
     }
   }, [discountType]);
 
-  // const [discountPercentage, setDiscountPercentage] = useState(
-  //   Number(parsedCampaignData?.discountpercent),
-  // );
-  // const [flatDiscount, setFlatDiscount] = useState(
-  //   Number(parsedCampaignData?.discountfixed),
-  // );
-  // const handleCampaignEndDateChange = useCallback((range) => {
-  //   setCampaignEndPicker((prev) => ({
-  //     ...prev,
-  //     selected: range,
-  //     inputValue:
-  //       range && range.start
-  //         ? range.start.toLocaleDateString()
-  //         : prev.inputValue,
-  //     popoverActive: false,
-  //   }));
-  //   if (range && range.start) {
-  //     setCampaignEndDate(range.start);
-  //   }
-  // }, []);
-
   const handleCampaignEndMonthChange = useCallback(
     (newMonth: any, newYear: any) => {
       setCampaignEndPicker((prev) => ({
@@ -1432,10 +1323,6 @@ export default function CampaignDetail() {
     },
     [],
   );
-
-  // const handleCampaignEndTimeChange = useCallback((value: any) => {
-  //   setCampaignEndTime(value);
-  // }, []);
 
   async function fetchProductsInCollection(id: string) {
     submit(
@@ -1503,22 +1390,9 @@ export default function CampaignDetail() {
     picker.dispatch(ResourcePicker.Action.OPEN);
   };
 
-  // const togglePopover = useCallback(
-  //   () => setPopoverActive((active) => !active),
-  //   [],
-  // );
-
   const handleMonthChange = useCallback((newMonth: any, newYear: any) => {
     setMonthYear({ month: newMonth, year: newYear });
   }, []);
-
-  // const handleDateChange = useCallback((range: any) => {
-  //   setSelectedDates(range);
-  //   if (range && range.start) {
-  //     setDueDateInputValue(range.start.toLocaleDateString());
-  //   }
-  //   setPopoverActive(false);
-  // }, []);
 
   const handleDateChange = (field: string, range: any) => {
     const localDate = new Date(
@@ -1526,7 +1400,7 @@ export default function CampaignDetail() {
       range.start.getMonth(),
       range.start.getDate(),
     );
-    console.log(localDate, ">>>>>>>>>>>>>>>>>>");
+
     setSelectedDates((prev) => ({ ...prev, [field]: localDate }));
     setPopoverActive((prev) => ({ ...prev, [field]: false }));
   };
@@ -1584,14 +1458,16 @@ export default function CampaignDetail() {
   };
 
   const handleSubmit = () => {
-    setIsSubmitting(true);
     const formData = new FormData();
     formData.append("intent", "update-campaign");
     formData.append("name", campaignData.campaignName!);
-    formData.append("depositPercent", String(campaignData.partialPaymentPercentage));
-    formData.append("balanceDueDate", DueDateinputValue);
+    formData.append(
+      "depositPercent",
+      String(campaignData.partialPaymentPercentage),
+    );
+    formData.append("balanceDueDate", selectedDates.duePaymentDate.toISOString());
     formData.append("refundDeadlineDays", "0");
-    formData.append("campaignEndDate", campaignEndDate?.toISOString() ?? "");
+    formData.append("campaignEndDate", selectedDates.campaignEndDate.toISOString());
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("campaignType", String(campaignData.campaignType));
     formData.append("buttonText", String(campaignData.buttonText));
@@ -1626,7 +1502,6 @@ export default function CampaignDetail() {
   function handleUnpublish(id: string): void {
     setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
-    setIsSubmitting(true);
     formData.append("intent", "unpublish-campaign");
     formData.append("secondaryIntent", "NONE");
     formData.append("products", JSON.stringify(selectedProducts));
@@ -1643,12 +1518,15 @@ export default function CampaignDetail() {
     formData.append("secondaryIntent", "delete-campaign-create-new");
     formData.append("id", id);
     formData.append("name", String(campaignData.campaignName));
-    formData.append("depositPercent", String(campaignData.partialPaymentPercentage));
+    formData.append(
+      "depositPercent",
+      String(campaignData.partialPaymentPercentage),
+    );
     // formData.append("balanceDueDate", DueDateinputValue);
     formData.append("refundDeadlineDays", "0");
     formData.append(
       "campaignEndDate",
-      campaignEndDate ? campaignEndDate.toISOString() : "",
+      selectedDates.campaignEndDate.toISOString(),
     );
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("campaignType", String(campaignData.campaignType));
@@ -1657,11 +1535,17 @@ export default function CampaignDetail() {
     formData.append("paymentMode", String(campaignData.paymentMode));
     formData.append("designFields", JSON.stringify(designFields));
     formData.append("discountType", discountType);
-    formData.append("discountPercentage", String(campaignData.discountPercentage));
+    formData.append(
+      "discountPercentage",
+      String(campaignData.discountPercentage),
+    );
     formData.append("flatDiscount", String(campaignData.flatDiscount));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
-    formData.append("getDueByValt", String(campaignData.getPaymentsViaValtedPayments));
+    formData.append(
+      "getDueByValt",
+      String(campaignData.getPaymentsViaValtedPayments),
+    );
     formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
     formData.append(
       "collectionMode",
@@ -1671,13 +1555,12 @@ export default function CampaignDetail() {
     formData.append("balanceDueDate", String(selectedDates.duePaymentDate));
     formData.append(
       "scheduledFulfilmentType",
-      campaignData.scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
+      campaignData.scheduledFullfillmentType === 1
+        ? "DAYS_AFTER"
+        : "EXACT_DATE",
     );
     formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
-    formData.append(
-      "fulfilmentDate",
-      selectedDates.fullfillmentSchedule,
-    );
+    formData.append("fulfilmentDate", selectedDates.fullfillmentSchedule);
 
     submit(formData, { method: "post" });
   }
@@ -1704,25 +1587,27 @@ export default function CampaignDetail() {
     setSaveBarActive(false);
   };
 
-  useEffect(() => {
-    console.log(selectedDates,'/////////////');
-  },[selectedDates])
 
   function handlePublish(id: string): void {
     setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
-    setIsSubmitting(true);
     formData.append("intent", "publish-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("paymentMode", String(campaignData.paymentMode));
-    formData.append("depositPercent", String(campaignData.partialPaymentPercentage));
-    formData.append("balanceDueDate", DueDateinputValue);
+    formData.append(
+      "depositPercent",
+      String(campaignData.partialPaymentPercentage),
+    );
+    formData.append("balanceDueDate", String(selectedDates.duePaymentDate));
     formData.append(
       "campaignEndDate",
-      campaignEndDate ? campaignEndDate.toISOString() : "",
+      selectedDates.campaignEndDate.toISOString(),
     );
     formData.append("discountType", discountType);
-    formData.append("discountPercentage", String(campaignData.discountPercentage));
+    formData.append(
+      "discountPercentage",
+      String(campaignData.discountPercentage),
+    );
     formData.append("flatDiscount", String(campaignData.flatDiscount));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
@@ -1736,13 +1621,12 @@ export default function CampaignDetail() {
     formData.append("balanceDueDate", String(selectedDates.duePaymentDate));
     formData.append(
       "scheduledFulfilmentType",
-      campaignData.scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
+      campaignData.scheduledFullfillmentType === 1
+        ? "DAYS_AFTER"
+        : "EXACT_DATE",
     );
     formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
-    formData.append(
-      "fulfilmentDate",
-      selectedDates.fullfillmentSchedule
-    );
+    formData.append("fulfilmentDate", selectedDates.fullfillmentSchedule);
 
     submit(formData, { method: "post" });
   }
@@ -1750,12 +1634,7 @@ export default function CampaignDetail() {
   useEffect(() => {
     shopify.saveBar.show("my-save-bar");
     setSaveBarActive(true);
-  }, [
-    designFields,
-    selectedProducts,
-    campaignData,
-    removedVarients,
-  ]);
+  }, [designFields, selectedProducts, campaignData, removedVarients,selectedDates]);
 
   useEffect(() => {
     setSaveBarActive(false);
@@ -1798,16 +1677,11 @@ export default function CampaignDetail() {
     if (criticalChange === false) {
       setCriticalChange(true);
     }
-  }, [
-    selectedProducts,
-    campaignData,
-    criticalChange,
-  ]);
+  }, [selectedProducts, campaignData, criticalChange]);
 
   function handleSaveAsDraft(id: string) {
     setButtonLoading((prev) => ({ ...prev, saveAsDraft: true }));
     const formData = new FormData();
-    setIsSubmitting(true);
     formData.append("intent", "unpublish-campaign");
     formData.append("secondaryIntent", "save-as-draft");
     formData.append("products", JSON.stringify(selectedProducts));
@@ -1826,15 +1700,12 @@ export default function CampaignDetail() {
               <Badge tone="success">Published</Badge>
               {navigation.state !== "idle" && <Spinner size="small" />}
             </div>
-          ) :
-          campaign?.status === "DRAFT" ? (
+          ) : campaign?.status === "DRAFT" ? (
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <Badge tone="info">Draft</Badge>
               {navigation.state !== "idle" && <Spinner size="small" />}
             </div>
-          )
-          :
-          (
+          ) : (
             <div>
               <Badge tone="info">Not published</Badge>
               {navigation.state !== "idle" && <Spinner size="small" />}
@@ -1861,26 +1732,24 @@ export default function CampaignDetail() {
               : handlePublish(String(campaign?.id)),
         }}
         secondaryActions={[
-  {
-    content: "Delete",
-    destructive: true,
-    onAction: () => shopify.modal.show("delete-modal"),
-    loading: buttonLoading.delete,
-  },
-  ...(campaign.status !== "DRAFT"
-    ? [
-        {
-          content: "Save as Draft",
-          onAction: () => {
-            handleSaveAsDraft(String(campaign?.id));
+          {
+            content: "Delete",
+            destructive: true,
+            onAction: () => shopify.modal.show("delete-modal"),
+            loading: buttonLoading.delete,
           },
-          loading: buttonLoading.saveAsDraft,
-        },
-      ]
-    : []),
-]}
-
-       
+          ...(campaign.status !== "DRAFT"
+            ? [
+                {
+                  content: "Save as Draft",
+                  onAction: () => {
+                    handleSaveAsDraft(String(campaign?.id));
+                  },
+                  loading: buttonLoading.saveAsDraft,
+                },
+              ]
+            : []),
+        ]}
       >
         <SaveBar id="my-save-bar">
           <button variant="primary" onClick={handleSave}></button>
@@ -1931,13 +1800,13 @@ export default function CampaignDetail() {
           <input
             type="hidden"
             name="balanceDueDate"
-            value={DueDateinputValue}
+            value={String(selectedDates.duePaymentDate)}
           />
           <input type="hidden" name="refundDeadlineDays" value="0" />
           <input
             type="hidden"
             name="campaignEndDate"
-            value={campaignEndDate ? campaignEndDate.toISOString() : ""}
+            value={selectedDates.campaignEndDate.toISOString()}
           />
           <input
             type="hidden"
@@ -1955,34 +1824,33 @@ export default function CampaignDetail() {
           >
             {/* left */}
             {selected === 0 && (
-             
               <CampaignForm
-                    campaignData={campaignData}
-                    handleCampaignDataChange={handleCampaignDataChange}
-                    handleRemoveTag={handleRemoveTag}
-                    handleRemoveCustomerTag={handleRemoveCustomerTag}
-                    selectedDates={selectedDates}
-                    handleDateChange={handleDateChange}
-                    togglePopover={togglePopover}
-                    popoverActive={popoverActive}
-                    handleMonthChange={handleMonthChange}
-                    handleCampaignEndMonthChange={handleCampaignEndMonthChange}
-                    campaignEndPicker={campaignEndPicker}
-                    month={month}
-                    year={year}
-                    plusStore={true}
-                    setSelected={setSelected}
-                    setProductTagInput={setProductTagInput}
-                    setCustomerTagInput={setCustomerTagInput}
-                    handleKeyDown={handleKeyDown}
-                    handleKeyDownCustomerTag={handleKeyDownCustomerTag}
-                    productTagInput={productTagInput}
-                    customerTagInput={customerTagInput}
-                    formatDate={formatDate}
-                    activeButtonIndex={activeButtonIndex}
-                    handleButtonClick={handleButtonClick}
-                    shopifyPaymentsEnabled={shopifyPaymentsEnabled}
-                  />
+                campaignData={campaignData}
+                handleCampaignDataChange={handleCampaignDataChange}
+                handleRemoveTag={handleRemoveTag}
+                handleRemoveCustomerTag={handleRemoveCustomerTag}
+                selectedDates={selectedDates}
+                handleDateChange={handleDateChange}
+                togglePopover={togglePopover}
+                popoverActive={popoverActive}
+                handleMonthChange={handleMonthChange}
+                handleCampaignEndMonthChange={handleCampaignEndMonthChange}
+                campaignEndPicker={campaignEndPicker}
+                month={month}
+                year={year}
+                plusStore={true}
+                setSelected={setSelected}
+                setProductTagInput={setProductTagInput}
+                setCustomerTagInput={setCustomerTagInput}
+                handleKeyDown={handleKeyDown}
+                handleKeyDownCustomerTag={handleKeyDownCustomerTag}
+                productTagInput={productTagInput}
+                customerTagInput={customerTagInput}
+                formatDate={formatDate}
+                activeButtonIndex={activeButtonIndex}
+                handleButtonClick={handleButtonClick}
+                shopifyPaymentsEnabled={shopifyPaymentsEnabled}
+              />
             )}
             {selected === 1 && (
               <div style={{ flex: 1 }}>
@@ -2012,7 +1880,8 @@ export default function CampaignDetail() {
                       <div style={{ marginTop: 10 }}>
                         <InlineStack gap="200">
                           <Text as="h1" variant="headingMd">
-                            {campaignData.discountPercentage === 0 && campaignData.flatDiscount === 0 ? (
+                            {campaignData.discountPercentage === 0 &&
+                            campaignData.flatDiscount === 0 ? (
                               <Text as="h1" variant="headingLg">
                                 $499.00
                               </Text>
@@ -2023,7 +1892,9 @@ export default function CampaignDetail() {
                                   ? "$" +
                                     (
                                       499.0 -
-                                      (499.0 * campaignData.discountPercentage) / 100
+                                      (499.0 *
+                                        campaignData.discountPercentage) /
+                                        100
                                     ).toFixed(2)
                                   : 499.0 - campaignData.flatDiscount > 0
                                     ? "$" + (499.0 - campaignData.flatDiscount)
@@ -2044,38 +1915,42 @@ export default function CampaignDetail() {
                         </InlineStack>
                       </div>
                     </div>
-                    <div style={{ marginTop: 10 , marginBottom:20}}>
+                    <div style={{ marginTop: 10, marginBottom: 20 }}>
                       <Text as="h1" variant="headingSm">
                         Size
                       </Text>
                       <div style={{ display: "flex", gap: 10 }}>
-                         <div
-    style={{
-      border: "1px solid black",
-      borderRadius: 80,
-      padding: "6px 12px",
-      minWidth: "80px",
-      textAlign: "center",
-      cursor: "pointer",
-    }}
-  >
-    <span style={{ color: "black", fontWeight: 500 }}>Small</span>
-  </div>
+                        <div
+                          style={{
+                            border: "1px solid black",
+                            borderRadius: 80,
+                            padding: "6px 12px",
+                            minWidth: "80px",
+                            textAlign: "center",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span style={{ color: "black", fontWeight: 500 }}>
+                            Small
+                          </span>
+                        </div>
 
-  {/* Active (Medium) */}
-  <div
-    style={{
-      border: "1px solid black",
-      borderRadius: 80,
-      padding: "6px 12px",
-      minWidth: "80px",
-      textAlign: "center",
-      backgroundColor: "black",
-      cursor: "pointer",
-    }}
-  >
-    <span style={{ color: "white", fontWeight: 500 }}>Medium</span>
-  </div>
+                        {/* Active (Medium) */}
+                        <div
+                          style={{
+                            border: "1px solid black",
+                            borderRadius: 80,
+                            padding: "6px 12px",
+                            minWidth: "80px",
+                            textAlign: "center",
+                            backgroundColor: "black",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span style={{ color: "white", fontWeight: 500 }}>
+                            Medium
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div
@@ -2151,7 +2026,7 @@ export default function CampaignDetail() {
                       >
                         <Text as="h1" variant="headingMd">
                           Pay $3.92 now and $35.28 will be charged on{" "}
-                          {formatDate(DueDateinputValue)}
+                          {formatDate(selectedDates.duePaymentDate)}
                         </Text>
                       </div>
                     )}
@@ -2181,7 +2056,8 @@ export default function CampaignDetail() {
                             <p>Pay in full</p>
                           )}
                           <p>
-                            {campaignData.preOrderNoteKey} : {campaignData.preOrderNoteValue}
+                            {campaignData.preOrderNoteKey} :{" "}
+                            {campaignData.preOrderNoteValue}
                           </p>
                         </div>
                       </div>
@@ -2227,7 +2103,7 @@ export default function CampaignDetail() {
                           variant="primary"
                           onClick={() => {
                             // setProductAddType("all")
-                            selectAllProducts();
+                            // selectAllProducts();
                           }}
                         >
                           Add all products
@@ -2254,7 +2130,7 @@ export default function CampaignDetail() {
               </div>
             )}
             {selectedProducts.length > 0 && (
-              <Card title="Selected Products">
+              <Card>
                 <div
                   style={{
                     display: "flex",
@@ -2265,7 +2141,8 @@ export default function CampaignDetail() {
                 >
                   <div>
                     <TextField
-                      // label="Search products"
+                      label="Search products"
+                      labelHidden
                       value={searchTerm}
                       onChange={setSearchTerm}
                       autoComplete="off"

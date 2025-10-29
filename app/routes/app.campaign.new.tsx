@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
-import {
+import type {
   LoaderFunctionArgs,
-  ActionFunctionArgs,
+  ActionFunctionArgs} from "@remix-run/node";
+import {
   json,
   redirect,
 } from "@remix-run/node";
@@ -56,7 +57,7 @@ import {
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { CREATE_CAMPAIGN } from "../graphql/mutation/metaobject";
 import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
-import {
+import type {
   DiscountType,
   Fulfilmentmode,
   scheduledFulfilmentType,
@@ -65,6 +66,7 @@ import { formatCurrency } from "app/helper/currencyFormatter";
 import { formatDate } from "app/utils/formatDate";
 import { allowOutOfStockForVariants } from "app/graphql/mutation/sellingPlan";
 import CampaignForm from "app/components/CampaignForm";
+import { isStoreRegistered } from "app/helper/isStoreRegistered";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin ,session} = await authenticate.admin(request);
@@ -75,6 +77,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
   const shopDomain = session.shop;
+  const isStoreExist = await isStoreRegistered(shopDomain);
+    if(!isStoreExist){
+      return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+    }
   const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
 
   switch (intent) {
@@ -122,11 +128,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const formData = await request.formData();
     const intent = formData.get("intent");
-    console.log("Intent:", intent);
     let admin;
     try {
       const auth = await authenticate.admin(request);
       admin = auth.admin;
+      const { session } = await authenticate.admin(request);
+      const shopDomain = session.shop;
+      const isStoreExist = await isStoreRegistered(shopDomain);
+      if(!isStoreExist){
+        return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+      }
+
     } catch (err) {
       console.error("Admin authentication failed:", err);
       return json({ error: "Admin authentication failed" }, { status: 500 });
@@ -171,7 +183,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          console.log("Products:////////////////////////////////////////////////////////", products);
           await addProductsToCampaign(campaign.id, products ,formData.get("shopId") as string);
 
           // -------------------------------
@@ -305,7 +316,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // }
 
         if (intent !== "SAVE") {
-          const paymentMode = formData.get("paymentMode") as "partial" | "full";
           const discountType = formData.get("discountType") as DiscountType;
 
           const varientIds = products.map((p: any) => p.variantId);
@@ -454,12 +464,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  let { prod, shopId, plusStore ,shopifyPaymentsEnabled } = useLoaderData<typeof loader>();
+  let { prod, shopId, plusStore ,shopifyPaymentsEnabled } = useLoaderData<typeof loader>() as {
+    prod: any[];
+    shopId: string;
+    plusStore: boolean;
+    shopifyPaymentsEnabled: boolean;
+  };
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
   const navigation = useNavigation();
-  const [collectionProducts, setCollectionProducts] = useState(prod);
+  // const [collectionProducts, setCollectionProducts] = useState(prod);
   const submit = useSubmit();
   const navigate = useNavigate();
   const [selected, setSelected] = useState(0);
@@ -483,7 +498,7 @@ export default function Newcampaign() {
   });
   const [warningPopoverActive, setWarningPopoverActive] = useState(false);
   const [productRadio, setproductRadio] = useState("option1");
-  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndPicker, setCampaignEndPicker] = useState({
     month: new Date().getMonth(),
@@ -541,10 +556,9 @@ export default function Newcampaign() {
     buttonTextColor: "#ffffff",
   });
   
-  const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
+  const [activeButtonIndex, setActiveButtonIndex] = useState(0);
   
-  // const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
-  //   useState(shopifyPaymentsEnabled);
+  
   const payment = 3.92;
   const remaining = 35.28;
   const [loading, setLoading] = useState(false);
@@ -626,12 +640,6 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     picker.dispatch(ResourcePicker.Action.OPEN);
   };
 
-  // useEffect(() => {
-  //   if(prod && prod.length > 0 ) {
-  //     setSelectedProducts(prod);
-  //   }
-  //   prod = ;
-  // }, [prod]);
 
   const selectAllProducts = async () => {
     const res = await fetch("/api/products");
@@ -827,7 +835,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     let flag = false;
     if (!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
-      if (productsWithPreorder[i].preorder == true) {
+      if (productsWithPreorder[i]?.preorder == true) {
         flag = true;
         break;
       }
@@ -1371,7 +1379,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                     </Banner>
                   </div>
                 )}
-                <Card title="Selected Products">
+                <Card >
                   <div
                     style={{
                       display: "flex",
@@ -1382,7 +1390,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                   >
                     <div>
                       <TextField
-                        // label="Search products"
+                        label="Search products"
+                        labelHidden
                         value={searchTerm}
                         onChange={setSearchTerm}
                         autoComplete="off"

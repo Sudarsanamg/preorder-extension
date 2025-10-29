@@ -2,7 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 // import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, PaymentMode } from "@prisma/client";
+import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType,  } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 export async function createStore(data: {
@@ -148,6 +148,9 @@ export async function updateCampaign(data: {
   return prisma.preorderCampaign.update({
     where: {
       id: data.id,
+      store:{
+        id: (await getStoreIdByShopId(data.shopId ?? ""))?.id
+      }
     },
     data: {
       name: data.name,
@@ -229,7 +232,6 @@ export async function replaceProductsInCampaign(
   ]);
 }
 
-// utils/products.server.ts
 export async function getAllProducts(request: Request) {
   const { admin } = await authenticate.admin(request);
 
@@ -295,9 +297,14 @@ export async function getCampaignById(id: string) {
   });
 }
 
-export async function deleteCampaign(id: string) {
+export async function deleteCampaign(id: string, shopId: string) {
   return prisma.preorderCampaign.delete({
-    where: { id },
+    where: { 
+      id, 
+      store :{
+        id : (await getStoreIdByShopId(shopId ?? ""))?.id
+      }
+    },
   });
 }
 

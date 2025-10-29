@@ -58,6 +58,7 @@ import PreorderSettingsSkeleton from "app/utils/loader/homeLoader";
 import { handleCampaignStatusChange } from "app/helper/campaignHelper";
 import {checkAppEmbedEnabled} from "app/helper/checkBlockEnable";
 import { AppEmbedBanner } from "app/components/AppEmbedBanner";
+import { isStoreRegistered } from "app/helper/isStoreRegistered";
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -133,6 +134,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
+  const isStoreExist = await isStoreRegistered(shop);
+  if(!isStoreExist){
+    return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+  }
   const formData = await request.formData();
   const intent = formData.get("intent");
 
