@@ -125,7 +125,7 @@ model CampaignOrders {
   dueDate        DateTime?
   totalAmount    Decimal?
   balanceAmount  Decimal?
-  currency       Decimal?
+  currency       String?
   paymentStatus  PaymentStatus
   store          Store         @relation(fields: [storeId] ,references: [id])
   createdAt      BigInt

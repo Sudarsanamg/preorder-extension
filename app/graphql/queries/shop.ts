@@ -1,3 +1,5 @@
+import prisma from "app/db.server";
+
 export const GET_SHOP = `#graphql
   {
     shop {
@@ -61,3 +63,48 @@ export const GET_COLLECTION_PRODUCTS = `#graphql
   }
 `;
 
+export async function isShopifyPaymentsEnabled(
+  shopDomain: string,
+): Promise<boolean> {
+  const query = `
+    query ShopifyPaymentsAccountStatus {
+      shopifyPaymentsAccount {
+        activated
+      }
+    }
+  `;
+
+  const accessToken = await prisma.store.findUnique({
+    where: { shopifyDomain: shopDomain },
+    select: { offlineToken: true },
+  });
+  const response = await fetch(
+    `https://${shopDomain}/admin/api/2025-10/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken?.offlineToken,
+      },
+      body: JSON.stringify({ query }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error(
+      `Shopify API request failed: ${response.status} ${response.statusText}`
+    );
+    return false;
+  }
+
+  const { data, errors } = await response.json();
+
+  // Log GraphQL errors (if any)
+  if (errors) {
+    console.error("GraphQL errors:", errors);
+    return false;
+  }
+
+  // Check if the field exists and is true
+  return data?.shopifyPaymentsAccount?.activated === true;
+}

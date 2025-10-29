@@ -3,6 +3,7 @@ import prisma from "app/db.server";
 // import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, PaymentMode } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export async function createStore(data: {
   shopId: string;
@@ -332,7 +333,10 @@ export async function createOrder({
   balanceAmount,
   paymentStatus,
   storeId,
-  customerEmail
+  customerEmail,
+  totalAmount,
+  currency
+
 }: {
   order_number: number;
   order_id: string;
@@ -342,6 +346,8 @@ export async function createOrder({
   paymentStatus: PaymentStatus;
   storeId: string;
   customerEmail: string;
+  totalAmount: string,
+  currency?: string
 }) {
   try {
     const newOrder = await prisma.campaignOrders.create({
@@ -357,6 +363,8 @@ export async function createOrder({
         customerEmail,
         createdAt: BigInt(Date.now()),
         updatedAt: BigInt(Date.now()),
+        totalAmount :totalAmount ?? new Decimal(totalAmount),
+        currency
       },
     });
 

@@ -47,6 +47,7 @@ import type { CampaignFields, DesignFields } from "../types/type";
 import {
   GET_COLLECTION_PRODUCTS,
   GET_SHOP_WITH_PLAN,
+  isShopifyPaymentsEnabled,
 } from "app/graphql/queries/shop";
 import {
   GET_PRODUCTS_WITH_PREORDER,
@@ -66,13 +67,15 @@ import { allowOutOfStockForVariants } from "app/graphql/mutation/sellingPlan";
 import CampaignForm from "app/components/CampaignForm";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin ,session} = await authenticate.admin(request);
   const response = await admin.graphql(GET_SHOP_WITH_PLAN);
   const data = await response.json();
   const shopId = data.data.shop.id;
   const plusStore = data.data.shop.plan.shopifyPlus;
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
+  const shopDomain = session.shop;
+  const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
 
   switch (intent) {
     case "fetchProductsInCollection": {
@@ -112,7 +115,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true, shopId, plusStore });
+  return json({ success: true, shopId, plusStore ,shopifyPaymentsEnabled });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -149,7 +152,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
-          getDueByValt: formData.get("getDueByValt") === "true",
+          getDueByValt: formData.get("getDueByValt") == "true" ? true : false,
           totalOrders: 0,
           fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
           scheduledFulfilmentType: formData.get(
@@ -451,7 +454,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  let { prod, shopId, plusStore } = useLoaderData<typeof loader>();
+  let { prod, shopId, plusStore ,shopifyPaymentsEnabled } = useLoaderData<typeof loader>();
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
@@ -515,8 +518,7 @@ export default function Newcampaign() {
   discountType:"NONE",
   discountPercentage:0,
   flatDiscount:0,
-  getPaymentsViaValtedPayments:plusStore?true:false
-
+  getPaymentsViaValtedPayments:shopifyPaymentsEnabled
   })
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: "16",
@@ -541,8 +543,8 @@ export default function Newcampaign() {
   
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
   
-  const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
-    useState(plusStore);
+  // const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
+  //   useState(shopifyPaymentsEnabled);
   const payment = 3.92;
   const remaining = 35.28;
   const [loading, setLoading] = useState(false);
@@ -1070,12 +1072,9 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                 productTagInput={productTagInput}
                 customerTagInput={customerTagInput}
                 formatDate={formatDate}
-                setGetPaymentsViaValtedPayments={
-                  setGetPaymentsViaValtedPayments
-                }
-                getPaymentsViaValtedPayments={getPaymentsViaValtedPayments}
                 activeButtonIndex={activeButtonIndex}
                 handleButtonClick={handleButtonClick}
+                shopifyPaymentsEnabled={shopifyPaymentsEnabled}
               />
             )}
             {selected === 1 && (

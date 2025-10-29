@@ -48,10 +48,9 @@ interface CampaignFormProps {
   productTagInput: string;
   customerTagInput: string;
   formatDate: (date: string) => string;
-  setGetPaymentsViaValtedPayments: (val: boolean) => void;
-  getPaymentsViaValtedPayments: boolean;
-  activeButtonIndex: number;
+    activeButtonIndex: number;
   handleButtonClick: (index: number) => void;
+  shopifyPaymentsEnabled: boolean;
 }
 
 export const CampaignForm: React.FC<CampaignFormProps> = ({
@@ -77,10 +76,9 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
   productTagInput,
   customerTagInput,
   formatDate,
-  setGetPaymentsViaValtedPayments,
-  getPaymentsViaValtedPayments,
   activeButtonIndex,
   handleButtonClick,
+  shopifyPaymentsEnabled
 }) => {
   return (
     <div style={{ flex: 1 }}>
@@ -465,13 +463,14 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                     </div>
                   </div>
                   <div style={{ marginTop: 10, marginBottom: 10 }}>
-                    {plusStore && (
+                    {shopifyPaymentsEnabled && (
                       <Checkbox
                         label="Get Due payments via Valted credit cards Note:Works only with Shopify Payments"
-                        checked={getPaymentsViaValtedPayments}
+                        checked={campaignData.getPaymentsViaValtedPayments}
                         onChange={() =>
-                          setGetPaymentsViaValtedPayments(
-                            !getPaymentsViaValtedPayments,
+                          handleCampaignDataChange(
+                            "getPaymentsViaValtedPayments",
+                            !campaignData.getPaymentsViaValtedPayments,
                           )
                         }
                       />

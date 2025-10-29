@@ -1,6 +1,4 @@
 import {
-  addProductsToCampaign,
-  createPreorderCampaign,
   deleteCampaign,
   getCampaignById,
   getCampaignStatus,
@@ -58,7 +56,6 @@ import {
 } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import {
-  CREATE_CAMPAIGN,
   unpublishMutation,
 } from "app/graphql/mutation/metaobject";
 import { GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
@@ -75,7 +72,7 @@ import {
   updateCampaignDataMutation,
   updateCampaignMutation,
 } from "app/graphql/queries/metaobject";
-import { GET_COLLECTION_PRODUCTS, GET_SHOP } from "app/graphql/queries/shop";
+import { GET_COLLECTION_PRODUCTS, GET_SHOP, isShopifyPaymentsEnabled } from "app/graphql/queries/shop";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
 import {
   CampaignStatus,
@@ -89,7 +86,7 @@ import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin ,session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const intent = url.searchParams.get("intent");
   if (intent === "fetchProductsInCollection") {
@@ -171,12 +168,24 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       productImage: variant.image,
       productTitle: variant.productTitle,
     }));
+     const shopDomain = session.shop;
+     const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
+     const getDueByValtResponse = await prisma.preorderCampaign.findUnique({
+       where: {
+         id: params.id!,
+       },
+       select: {
+         getDueByValt: true,
+       },
+     });
 
     return json({
       campaign,
       products,
       parsedDesignSettingsResponse,
       parsedCampaignSettingsResponse,
+      shopifyPaymentsEnabled,
+      getDueByValt:getDueByValtResponse?.getDueByValt
     });
   }
 };
@@ -213,7 +222,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         discountPercent: Number(formData.get("discountPercentage") || "0"),
         discountFixed: Number(formData.get("flatDiscount") || "0"),
         campaignType: Number(formData.get("campaignType")),
-        getDueByValt: false,
+        getDueByValt: (formData.get("getDueByValt") as string) === "true",
         status: campaignCurrentStatus,
         fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
         scheduledFulfilmentType: formData.get(
@@ -835,7 +844,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           discountFixed: Number(formData.get("flatDiscount") || "0"),
           campaignType: Number(formData.get("campaignType")),
           shopId: shopId,
-          getDueByValt: false,
+          getDueByValt: (formData.get("getDueByValt") as string) === "true",
           status: campaignCurrentStatus,
           fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
           scheduledFulfilmentType: formData.get(
@@ -1170,11 +1179,15 @@ export default function CampaignDetail() {
     products,
     parsedDesignSettingsResponse,
     parsedCampaignSettingsResponse,
+    shopifyPaymentsEnabled,
+    getDueByValt
   } = useLoaderData<typeof loader>() as {
     campaign: any;
     products: any[];
     parsedDesignSettingsResponse: any;
     parsedCampaignSettingsResponse: any;
+    shopifyPaymentsEnabled: boolean,
+    getDueByValt:boolean
   };
   const [buttonLoading, setButtonLoading] = useState({
     publish: false,
@@ -1361,9 +1374,10 @@ export default function CampaignDetail() {
     discountType:parsedCampaignData?.discount_type,
     discountPercentage:parsedCampaignData?.discountpercent,
     flatDiscount:parsedCampaignData?.discountfixed,
-    getPaymentsViaValtedPayments:true
+    getPaymentsViaValtedPayments:getDueByValt,
   
     })
+
     const [getPaymentsViaValtedPayments, setGetPaymentsViaValtedPayments] =
         useState(true);
 
@@ -1647,6 +1661,7 @@ export default function CampaignDetail() {
     formData.append("flatDiscount", String(campaignData.flatDiscount));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
+    formData.append("getDueByValt", String(campaignData.getPaymentsViaValtedPayments));
     formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
     formData.append(
       "collectionMode",
@@ -1964,10 +1979,9 @@ export default function CampaignDetail() {
                     productTagInput={productTagInput}
                     customerTagInput={customerTagInput}
                     formatDate={formatDate}
-                    setGetPaymentsViaValtedPayments={setGetPaymentsViaValtedPayments}
-                    getPaymentsViaValtedPayments={getPaymentsViaValtedPayments}
                     activeButtonIndex={activeButtonIndex}
                     handleButtonClick={handleButtonClick}
+                    shopifyPaymentsEnabled={shopifyPaymentsEnabled}
                   />
             )}
             {selected === 1 && (

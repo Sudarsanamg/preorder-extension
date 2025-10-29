@@ -1,4 +1,4 @@
-import { Fulfilmentmode } from "@prisma/client";
+import { DiscountType, Fulfilmentmode } from "@prisma/client";
 import prisma from "app/db.server";
 import { SET_PREORDER_METAFIELDS } from "app/graphql/mutation/metafields";
 import { unpublishMutation } from "app/graphql/mutation/metaobject";
@@ -7,6 +7,8 @@ import { publishMutation } from "app/graphql/queries/metaobject";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
 import { deleteCampaign, updateCampaignStatus } from "app/models/campaign.server";
 import { createSellingPlan } from "app/services/sellingPlan.server";
+import { removeDiscountFromVariants } from "./removeDiscountFromVariants";
+import { applyDiscountToVariants } from "./applyDiscountToVariants";
 
 export const unPublishCampaign = async (admin: any, id: string) => {
   const campaignId = id;
@@ -97,6 +99,11 @@ export const unPublishCampaign = async (admin: any, id: string) => {
     }
 
     await updateCampaignStatus(campaignId!, "UNPUBLISH");
+
+    removeDiscountFromVariants(
+      admin,
+      products.map((product: any) => product.variantId),
+    );
 
     return {
         success: true,
@@ -298,6 +305,18 @@ export const publishCampaign = async (admin: any, id: string) => {
             status: "PUBLISHED",
           },
         });
+
+        const variantIds = products.map((product: any) => {
+          return product.variantId;
+        });
+
+         await applyDiscountToVariants(
+              admin,
+              variantIds,
+              campaignData?.discountType as DiscountType,
+              Number(campaignData?.discountPercent || 0),
+              Number(campaignData?.discountFixed || 0),
+            );
   
   
 };

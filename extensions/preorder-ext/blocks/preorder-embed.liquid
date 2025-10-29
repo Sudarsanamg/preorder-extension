@@ -41,7 +41,7 @@
     }}="{{ variant.metafields.custom.preorder.value }}" {% endfor %}></div>
 
   <!-- Badge Element -->
-  <span id="preorder-badge" style="display:none;" class="preorder-badge">Pre-order</span>
+  <span id="preorder-badge" style="display:none;" class="preorder-badge">Preorder</span>
 
   <!-- Variant Prices -->
   <div id="variant-prices" style="margin-top: 10px; margin-bottom: 10px;">
@@ -51,7 +51,7 @@
     <div class="variant-price" id="variant-{{ variant.id }}" data-instock="{{ variant.available }}"
       style="display:none;">
 
-      {% if allocation and preorder%}
+     {% if allocation and preorder and variant.price < variant.compare_at_price %}
       <!-- Campaign price (if campaign applies) -->
       <span class="campaign-price" style="font-size: large;">{{ variant.price | money }}</span>
       <span class="compare-at campaign-compare" style="text-decoration: line-through; font-size: medium;">

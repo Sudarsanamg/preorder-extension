@@ -218,7 +218,7 @@ export default function Index() {
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
-      shopify?.toast?.show?.("Campaign Updated Successfully");
+      shopify?.toast?.show?.("Action Completed");
       setIsChangingStatus(false);
       setIsModalOpen(false);
       setActivePopoverId(null);
@@ -280,11 +280,12 @@ export default function Index() {
         props: {
           onClick: async () => {
             onStepComplete(2);
+            const formData = new FormData();
+            formData.append("intent", "complete_setup_guide");
 
-            fetcher.submit(JSON.stringify({ intent: "complete_setup_guide" }), {
-              method: "post",
-              action: "",
-              encType: "application/json",
+            fetcher.submit(formData, {
+              method: "POST", 
+              action: "", 
             });
           },
         },

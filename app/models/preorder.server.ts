@@ -1,6 +1,7 @@
 import prisma from "app/db.server";
 
 export async function incrementUnitsSold(store: string, id: string) {
+  console.log("incrementUnitsSold", store, id);
   // Step 0: Get access token
   const accessToken = await prisma.store.findUnique({
     where: { shopifyDomain: store },
@@ -14,16 +15,28 @@ export async function incrementUnitsSold(store: string, id: string) {
   const endpoint = `https://${shopDomain}/admin/api/2023-10/graphql.json`;
 
   // Step 1: Fetch current metafield value
-  const GET_PRODUCT_METAFIELD = `
-    query getProductMetafield($id: ID!) {
-      product(id: $id) {
-        metafield(namespace: "custom", key: "preorder_units_sold") {
-          id
-          value
-        }
+  // const GET_PRODUCT_METAFIELD = `
+  //   query getProductMetafield($id: ID!) {
+  //     product(id: $id) {
+  //       metafield(namespace: "custom", key: "preorder_units_sold") {
+  //         id
+  //         value
+  //       }
+  //     }
+  //   }
+  // `;
+
+  const GET_VARIANT_METAFIELD = `
+  query getVariantMetafield($id: ID!) {
+    productVariant(id: $id) {
+      metafield(namespace: "custom", key: "preorder_units_sold") {
+        id
+        value
       }
     }
-  `;
+  }
+`;
+
 
   let res = await fetch(endpoint, {
     method: "POST",
@@ -32,7 +45,7 @@ export async function incrementUnitsSold(store: string, id: string) {
       "X-Shopify-Access-Token": token,
     },
     body: JSON.stringify({
-      query: GET_PRODUCT_METAFIELD,
+      query: GET_VARIANT_METAFIELD,
       variables: { id },
     }),
   });

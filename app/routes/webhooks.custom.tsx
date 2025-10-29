@@ -16,6 +16,7 @@ import {
 } from "app/graphql/queries/orders";
 import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import { draftOrderInvoiceSendMutation } from "app/graphql/mutation/orders";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export const action = async ({ request }: { request: Request }) => {
   const { topic, shop, payload, admin } = await authenticate.webhook(request);
@@ -57,6 +58,7 @@ export const action = async ({ request }: { request: Request }) => {
         let orderContainsPreorderItem = campaignIds.length > 0;
 
         // //update preorder_units_sold
+        console.log(formattedVariantIds,'formattedVariantIds');
         for (const variantId of formattedVariantIds) {
           try {
             await incrementUnitsSold(shop, variantId);
@@ -173,6 +175,8 @@ export const action = async ({ request }: { request: Request }) => {
             paymentStatus: remaining > 0 ? "PENDING" : "PAID",
             storeId: shopId,
             customerEmail: customerEmail,
+            totalAmount:new Decimal(payload.total_price),
+            currency: payload.currency        
           });
 
           //send update email
@@ -305,7 +309,7 @@ export const action = async ({ request }: { request: Request }) => {
             const duePaymentCreation = await createDuePayment(
               orderId,
               crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-              remaining.toString(),
+               remaining.toString(),
               secondSchedule.currency,
               mandateId,
               secondSchedule.due_at,
