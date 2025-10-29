@@ -530,7 +530,7 @@ export default function Newcampaign() {
   fullPaymentText:"Full Payment",
   partialPaymentText:"Partial Payment",
   partialPaymentInfoText:"Pay {payment} now and {remaining} will be charged on {date}",
-  discountType:"NONE",
+  discountType:"PERCENTAGE",
   discountPercentage:0,
   flatDiscount:0,
   getPaymentsViaValtedPayments:shopifyPaymentsEnabled
@@ -567,6 +567,8 @@ export default function Newcampaign() {
     remove: false,
     cancel: false,
     addAll: false,
+    publish: false,
+    draft: false,
   });
   const [saveBarVisible, setSaveBarVisible] = useState(false);
 
@@ -739,6 +741,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   
   const handleSubmit = () => {
   setLoading(true);
+  handleClick("publish")
   shopify.saveBar.hide("my-save-bar");
   setSaveBarVisible(false);
 
@@ -882,7 +885,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   }
 
   const handleSave = () => {
-  setLoading(true);
+  // setLoading(true);
+  handleClick("draft");
 
   const formData = new FormData();
   formData.append("intent", "SAVE");
@@ -984,8 +988,17 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
         primaryAction={{
           content: "Publish",
           onAction: handleSubmit,
-          loading: loading,
+          loading: buttonLoading.publish,
         }}
+        secondaryActions={[
+          {
+            content: "Save as Draft",
+            onAction: ()=>{
+              handleSave()
+            },
+            loading: buttonLoading.draft,
+          }
+        ]}
       >
         <SaveBar id="my-save-bar">
           <button variant="primary" onClick={handleSave}></button>

@@ -1,4 +1,4 @@
-import { DiscountType, Fulfilmentmode } from "@prisma/client";
+import type { DiscountType, Fulfilmentmode } from "@prisma/client";
 import prisma from "app/db.server";
 import { SET_PREORDER_METAFIELDS } from "app/graphql/mutation/metafields";
 import { unpublishMutation } from "app/graphql/mutation/metaobject";

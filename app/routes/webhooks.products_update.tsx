@@ -29,11 +29,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
         const json = await res.json();
         const campaignId = json.data.productVariant?.metafield?.value;
+        if(!campaignId){
+         continue
+        }
 
         const campaign = await prisma.preorderCampaign.findUnique({
           where: { id: campaignId },
           select: { campaignType: true },
         });
+        if(!campaign){
+          continue
+        }
 
         // Step 2: If preorder == true, update preorder_max_units
         if (campaignId !== "" && campaign?.campaignType === 3) {

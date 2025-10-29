@@ -31,6 +31,7 @@ export function AppEmbedBanner({ shop }: AppEmbedBannerProps) {
           embed in your theme editor.
         </Text>
 
+        <div style={{ marginTop: 10 }}></div>
         <ButtonGroup>
           <Button variant="primary" onClick={handleActivateNow}>
             Activate now

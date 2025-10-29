@@ -372,8 +372,17 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           Number(campaignData.partialPaymentPercentage) > 99
                         }
                       />
-                    </div>
+                    
                   </div>
+                  </div >
+                    {Number(campaignData.partialPaymentPercentage) <= 0 ||
+                          Number(campaignData.partialPaymentPercentage) > 99 &&
+                      <div style={{ margin: 10 }}>
+                        <Text as="p" variant="bodyMd" tone="critical">
+                          Please enter valid discount percentage between 0 and 99
+                        </Text>
+
+                    </div>}
 
                   <div
                     style={{
@@ -409,7 +418,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           id="partialPaymentNote"
                           autoComplete="off"
                           suffix="days after checkout"
-                          value={campaignData.paymentAfterDays}
+                          value={Number(campaignData.paymentAfterDays).toString()}
                           onChange={(e) =>
                             handleCampaignDataChange("paymentAfterDays", e)
                           }
@@ -648,7 +657,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           id="scheduledFullfillmentType"
                           autoComplete="off"
                           suffix="days after checkout"
-                          value={campaignData.scheduledDays}
+                          value={Number(campaignData.scheduledDays).toString()}
                           onChange={(value) =>
                             handleCampaignDataChange("scheduledDays", value)
                           }
