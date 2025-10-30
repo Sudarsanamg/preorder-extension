@@ -255,6 +255,7 @@ export default function Index() {
           url: "/app/campaign/new",
           external: true,
         },
+        
       },
     },
     {
@@ -262,7 +263,7 @@ export default function Index() {
       title: "Activate app embed in Shopify",
       description:
         "You need to activate the app in your store’s theme settings. This makes the preorder button appear on your site.",
-      complete: false,
+      complete: isAppEmbedEnabled,
       primaryButton: {
         content: "Open Theme Editor",
         props: {
@@ -271,6 +272,8 @@ export default function Index() {
               `https://${shop}/admin/themes/current/editor`,
               "_blank",
             ),
+
+            
         },
       },
 
@@ -374,7 +377,10 @@ export default function Index() {
   return (
     <Page>
       <TitleBar title="Preorder Extension" />
-      {!isAppEmbedEnabled && <AppEmbedBanner shop={shop} />}
+      {!isAppEmbedEnabled && <AppEmbedBanner
+       shop={shop} 
+       isAppEmbedEnabled={isAppEmbedEnabled}
+       />}
 
       {/* Header */}
       <div
@@ -540,16 +546,16 @@ export default function Index() {
                         ),
                       disabled: currentStatus === "UNPUBLISH",
                     },
-                    {
-                      content: "Draft",
-                      onAction: () =>
-                        openConfirmModal(
-                          campaignId,
-                          "DRAFT",
-                          String(campaignName),
-                        ),
-                      disabled: currentStatus === "DRAFT",
-                    },
+                    // {
+                    //   content: "Draft",
+                    //   onAction: () =>
+                    //     openConfirmModal(
+                    //       campaignId,
+                    //       "DRAFT",
+                    //       String(campaignName),
+                    //     ),
+                    //   disabled: currentStatus === "DRAFT",
+                    // },
                   ];
 
                   return [

@@ -113,7 +113,7 @@ export const action = async ({ request }: { request: Request }) => {
           //   await AddTagsToOrderMutationResponse.json();
         }
 
-        if (topic === "ORDERS_CREATE" && orderContainsPreorderItem) {
+        if (orderContainsPreorderItem) {
           const orderId = payload.admin_graphql_api_id;
           const formattedOrderId = orderId.split("/").pop();
           const customerId = payload.customer?.admin_graphql_api_id;
@@ -127,7 +127,6 @@ export const action = async ({ request }: { request: Request }) => {
           const data = await response?.json();
           const shop = data?.data.shop;
           const shopId = shop.id;
-          const plusStore = shop.plan.shopifyPlus;
           const storeDomain = shop.primaryDomain?.host;
           console.log(secondSchedule,'secondSchedule')
 
@@ -135,16 +134,14 @@ export const action = async ({ request }: { request: Request }) => {
           // getDueByValt is true
           // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
           let vaultPayment = false;
-          if (plusStore) {
-            const campaign = await prisma.preorderCampaign.findFirst({
-              where: {
-                id: campaignIds[0],
-              },
-            });
+          const campaign = await prisma.preorderCampaign.findFirst({
+            where: {
+              id: campaignIds[0],
+            },
+          });
 
-            if (campaign?.getDueByValt) {
-              vaultPayment = true;
-            }
+          if (campaign?.getDueByValt) {
+            vaultPayment = true;
           }
 
           //find email settings respective to shop

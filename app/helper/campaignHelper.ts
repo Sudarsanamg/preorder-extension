@@ -12,6 +12,7 @@ import { applyDiscountToVariants } from "./applyDiscountToVariants";
 import { GET_SHOP } from "app/graphql/queries/shop";
 
 export const unPublishCampaign = async (admin: any, id: string) => {
+
   const campaignId = id;
   try {
      await admin.graphql(unpublishMutation, {
@@ -139,8 +140,7 @@ export const publishCampaign = async (admin: any, id: string) => {
       });
 
       const products = campaignRecords?.[0]?.products || [];
-      console.log(products,'>>>>>>>>>>>>>');
-
+    
       const campaignData = await prisma.preorderCampaign.findUnique({
         where: { id: campaignId },
       });

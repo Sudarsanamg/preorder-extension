@@ -23,24 +23,39 @@ const CREATE_ORDER_PAYMENT = `
 
 export async function runPayment({
   shop,
+  storeId,
   orderId,
   mandateId,
   amount,
   currency,
 }: {
   shop: string;
+  storeId: string;
   orderId: string;
   mandateId: string;
   amount: number | string;
   currency: string;
 }) {
 
-  const accessToken = await prisma.store.findUnique({
-    where: { shopifyDomain: shop },
-    select: { offlineToken: true },
-  })
+  const store = await prisma.store.findUnique({
+    where: {
+      id: storeId,
+    },
+    include: {
+      campaignOrders: {
+        where: {
+          order_id: orderId,
+        },
+      },
+    },
+  });
 
-  const token = accessToken?.offlineToken;
+  if(!store?.campaignOrders.length ) {
+    throw new Error(`Something went wrong`);
+  }
+
+  const token = store.offlineToken;
+
   if (!token) {
     throw new Error(`Missing offline token for shop ${shop}`);
   }

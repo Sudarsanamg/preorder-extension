@@ -560,6 +560,8 @@ export default function Newcampaign() {
   const designFieldsRef = useRef<DesignFields>(designFields);
   
   const [activeButtonIndex, setActiveButtonIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   
   
   const payment = 3.92;
@@ -744,6 +746,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   const handleSubmit = () => {
   handleClick("publish")
   shopify.saveBar.hide("my-save-bar");
+  setIsSubmitting(true);
   setSaveBarVisible(false);
 
   const formData = new FormData();
@@ -960,6 +963,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   };
 
  useEffect(() => {
+   if (isSubmitting) return;
   const hasUnsavedChanges =
     JSON.stringify(designFields) !== JSON.stringify(designFieldsRef.current) ||
     JSON.stringify(campaignData) !== JSON.stringify(initialCampaignData.current) ||

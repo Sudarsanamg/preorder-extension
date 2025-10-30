@@ -3,9 +3,10 @@ import { Banner, Button, ButtonGroup, Text } from "@shopify/polaris";
 
 interface AppEmbedBannerProps {
   shop: string;
+  isAppEmbedEnabled: boolean;
 }
 
-export function AppEmbedBanner({ shop }: AppEmbedBannerProps) {
+export function AppEmbedBanner({ shop , isAppEmbedEnabled}: AppEmbedBannerProps) {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
@@ -36,7 +37,11 @@ export function AppEmbedBanner({ shop }: AppEmbedBannerProps) {
           <Button variant="primary" onClick={handleActivateNow}>
             Activate now
           </Button>
-          <Button onClick={() => setDismissed(true)}>Already done it</Button>
+          <Button onClick={() => {
+            if(isAppEmbedEnabled){
+                setDismissed(true)
+            }
+            }}>Already done it</Button> 
         </ButtonGroup>
       </Banner>
     </div>
