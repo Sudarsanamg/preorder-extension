@@ -22,6 +22,8 @@ document.addEventListener("DOMContentLoaded", function () {
       btn.style.display = "none";
       return;
     }
+   const quantityError = document.getElementById("quantity-error");
+   quantityError.textContent="";
 
     const isPreorder = btn.dataset.preorder == "true";
     const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
@@ -88,9 +90,21 @@ document.addEventListener("DOMContentLoaded", function () {
       const variantId = btn.dataset.variantId;
       const sellingPlanId = sellingPlanData.dataset.sellingPlan;
       const textEl = btn.querySelector(".button-text");
+      const quantityInput = document.querySelector('input[name="quantity"]');
+      const quantity = parseInt(quantityInput?.value || "1", 10);
+      const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
+      const unitsSold = parseInt(btn.dataset.unitsSold || "0", 10);
+      const remainingUnits = maxUnits - unitsSold;
+      const quantityError = document.getElementById("quantity-error");
 
       textEl.textContent = "Adding to cart...";
       btn.disabled = true;
+      if (quantity > maxUnits) {
+        quantityError.textContent = `You can only preorder up to ${remainingUnits} units for this product.`;
+        textEl.textContent = btn.dataset.originalText || "Pre-order";
+        btn.disabled = false;
+        return;
+      }
 
       try {
         const res = await fetch("/cart/add.js", {
@@ -103,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
             items: [
               {
                 id: variantId,
-                quantity: 1,
+                quantity: quantity,
                 selling_plan: sellingPlanId,
               },
             ],

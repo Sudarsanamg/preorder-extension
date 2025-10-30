@@ -58,7 +58,6 @@ export const action = async ({ request }: { request: Request }) => {
         let orderContainsPreorderItem = campaignIds.length > 0;
 
         // //update preorder_units_sold
-        console.log(formattedVariantIds,'formattedVariantIds');
         for (const variantId of formattedVariantIds) {
           try {
             await incrementUnitsSold(shop, variantId);

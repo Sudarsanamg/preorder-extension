@@ -6,7 +6,7 @@ import {
   updateCampaign,
   updateCampaignStatus,
 } from "../models/campaign.server";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import {
@@ -77,6 +77,7 @@ import { removeDiscountFromVariants } from "app/helper/removeDiscountFromVariant
 import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
+import { formatCurrency } from "app/helper/currencyFormatter";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -1194,7 +1195,7 @@ export default function CampaignDetail() {
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
   });
-  console.log(parsedCampaignData, "campaign");
+const discarding = useRef(false);
 
   const MetaObjectDuePaymentData = parsedCampaignData.payment_schedule;
   const MetaObjectFullfillmentSchedule = parsedCampaignData.fulfillment;
@@ -1211,9 +1212,11 @@ export default function CampaignDetail() {
         ? new Date()
         : MetaObjectFullfillmentSchedule.schedule.value,
   });
+  const initialDates = useRef(selectedDates);
 
   const [productRadio, setproductRadio] = useState("option1");
   const [selectedProducts, setSelectedProducts] = useState(products || []);
+  const initialProducts = useRef(selectedProducts);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndPicker, setCampaignEndPicker] = useState({
     month: selectedDates.campaignEndDate?.getMonth(),
@@ -1289,6 +1292,8 @@ export default function CampaignDetail() {
     flatDiscount: parsedCampaignData?.discountfixed,
     getPaymentsViaValtedPayments: getDueByValt,
   });
+const initialCampaignRef = useRef(campaignData);
+const initialDesignRef = useRef(designFields);
 
   const handleCampaignDataChange = <K extends keyof CampaignFields>(
     field: K,
@@ -1324,16 +1329,16 @@ export default function CampaignDetail() {
     [],
   );
 
-  async function fetchProductsInCollection(id: string) {
-    submit(
-      { intent: "fetchProductsInCollection", collectionId: id },
-      { method: "get" },
-    );
+  // async function fetchProductsInCollection(id: string) {
+  //   submit(
+  //     { intent: "fetchProductsInCollection", collectionId: id },
+  //     { method: "get" },
+  //   );
 
-    // if (prod) {
-    //   setSelectedProducts(prod);
-    // }
-  }
+  //   // if (prod) {
+  //   //   setSelectedProducts(prod);
+  //   // }
+  // }
 
   const openResourcePicker = () => {
     shopify.modal.hide("my-modal");
@@ -1371,12 +1376,12 @@ export default function CampaignDetail() {
         // ✅ collections selected → fetch products inside
         let allProducts: any[] = [];
 
-        for (const collection of payload.selection) {
-          const productsInCollection = await fetchProductsInCollection(
-            collection.id,
-          );
-          allProducts = [...allProducts, ...productsInCollection];
-        }
+        // for (const collection of payload.selection) {
+        //   const productsInCollection = await fetchProductsInCollection(
+        //     collection.id,
+        //   );
+        //   allProducts = [...allProducts, ...productsInCollection];
+        // }
 
         // remove duplicates by product id
         const uniqueProducts = Array.from(
@@ -1583,6 +1588,11 @@ export default function CampaignDetail() {
 
   const handleDiscard = () => {
     // console.log("Discarding");
+    discarding.current = true;
+    setCampaignData({ ...initialCampaignRef.current });
+    setDesignFields({ ...initialDesignRef.current });
+    setSelectedProducts([...initialProducts.current]);
+    setSelectedDates({ ...initialDates.current });
     shopify.saveBar.hide("my-save-bar");
     setSaveBarActive(false);
   };
@@ -1632,6 +1642,21 @@ export default function CampaignDetail() {
   }
 
   useEffect(() => {
+     if (discarding.current) {
+    discarding.current = false;
+    return; 
+  }
+    if(
+      JSON.stringify(designFields) === JSON.stringify(initialDesignRef.current) &&   
+      JSON.stringify(campaignData) === JSON.stringify(initialCampaignRef.current)   &&
+      JSON.stringify(selectedProducts) === JSON.stringify(initialProducts.current)  &&
+      removedVarients.length === 0 &&
+      JSON.stringify(selectedDates) === JSON.stringify(initialDates.current)
+    ){ 
+      shopify.saveBar.hide("my-save-bar");
+      setSaveBarActive(false);
+      return
+    };
     shopify.saveBar.show("my-save-bar");
     setSaveBarActive(true);
   }, [designFields, selectedProducts, campaignData, removedVarients,selectedDates]);
@@ -2046,7 +2071,7 @@ export default function CampaignDetail() {
                             height={80}
                           />
                         </div>
-                        <div>
+                        <div style={{marginTop : 10}}>
                           <p style={{ fontWeight: "bold", fontSize: "16px" }}>
                             Baby Pink T-shirt
                           </p>
@@ -2276,6 +2301,9 @@ export default function CampaignDetail() {
                               <TextField
                                 type="text"
                                 min={0}
+                                label="Inventory limit"
+                                labelHidden
+                                autoComplete="off"
                                 value={
                                   campaignData.campaignType === 3
                                     ? product.variantInventory
@@ -2299,12 +2327,13 @@ export default function CampaignDetail() {
                               textAlign: "center",
                             }}
                           >
-                            ${product.variantPrice}
+                            {formatCurrency(product.variantPrice ,'USD' )}
                           </td>
                           <td
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
+                              cursor: "pointer",
                             }}
                           >
                             <div

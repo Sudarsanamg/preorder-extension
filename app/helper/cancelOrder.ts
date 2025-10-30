@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+import prisma from "app/db.server";
 
 const CANCEL_ORDER = `
   mutation cancelOrder(
@@ -28,24 +28,32 @@ const CANCEL_ORDER = `
 
 export async function cancelPendingOrder({
   shop,
-  accessToken,
   orderId,
   refund = false,
   restock = false,
   reason = "DECLINED",
 }: {
   shop: string;
-  accessToken: string;
   orderId: string;
   refund?: boolean;
   restock?: boolean;
   reason?: "CUSTOMER" | "DECLINED" | "FRAUD" | "INVENTORY" | "OTHER";
 }) {
+
+  const accessToken = await prisma.store.findUnique({
+    where: { shopifyDomain: shop },
+    select: { offlineToken: true },
+  })
+
+  const token = accessToken?.offlineToken;
+  if (!token) {
+    throw new Error(`Missing offline token for shop ${shop}`);
+  }
   const response = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": accessToken,
+      "X-Shopify-Access-Token": token,
     },
     body: JSON.stringify({
       query: CANCEL_ORDER,

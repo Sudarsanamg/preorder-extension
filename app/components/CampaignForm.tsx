@@ -20,7 +20,7 @@ import {
   ClockIcon,
   CalendarCheckIcon,
 } from "@shopify/polaris-icons";
-import { CampaignFields } from "app/types/type";
+import type { CampaignFields } from "app/types/type";
 
 interface CampaignFormProps {
   campaignData: CampaignFields;
@@ -229,6 +229,9 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
               </ButtonGroup>
               <TextField
                 suffix={activeButtonIndex === 0 ? "%" : "$"}
+                autoComplete="off"
+                label="Discount"
+                labelHidden
                 id="discount"
                 type="text"
                 value={
@@ -255,7 +258,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
 
             <Text as="p" variant="bodyMd">
               Can't see discount/strike through price?{" "}
-              <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
+              <Link url="https://help.shopify.com/en/manual/payments/shopify-payments">
                 Contact support
               </Link>
             </Text>
@@ -358,6 +361,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                     <div style={{ flex: 1 }}>
                       <TextField
                         autoComplete="off"
+                        label="Partial payment"
+                        labelHidden
                         suffix={` ${campaignData.partialPaymentType === "percent" ? "%" : "$"} as inital payment`}
                         value={campaignData.partialPaymentPercentage}
                         onChange={(val) => {
@@ -813,13 +818,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           </BlockStack>
         </Card>
       </div>
-      <div style={{ marginTop: 20 }}>
-        <Card>
-          <Button fullWidth onClick={() => setSelected(1)}>
-            Continue to design
-          </Button>
-        </Card>
-      </div>
+      <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+  <Button onClick={() => setSelected(1)} variant="primary">
+    Next
+  </Button>
+</div>
     </div>
   );
 };

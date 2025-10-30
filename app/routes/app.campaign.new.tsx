@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type {
   LoaderFunctionArgs,
   ActionFunctionArgs} from "@remix-run/node";
@@ -491,6 +491,7 @@ export default function Newcampaign() {
     campaignEndDate: new Date(),
     fullfillmentSchedule: new Date(),
   });
+  const initialDates = useRef(selectedDates);
   const [popoverActive, setPopoverActive] = useState({
     duePaymentDate: false,
     fullfillmentSchedule: false,
@@ -555,13 +556,14 @@ export default function Newcampaign() {
     buttonFontSize: "16",
     buttonTextColor: "#ffffff",
   });
+  const initialCampaignData = useRef<CampaignFields>(campaignData);
+  const designFieldsRef = useRef<DesignFields>(designFields);
   
   const [activeButtonIndex, setActiveButtonIndex] = useState(0);
   
   
   const payment = 3.92;
   const remaining = 35.28;
-  const [loading, setLoading] = useState(false);
   const [buttonLoading, SetButtonLoading] = useState({
     add: false,
     remove: false,
@@ -740,7 +742,6 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
 
   
   const handleSubmit = () => {
-  setLoading(true);
   handleClick("publish")
   shopify.saveBar.hide("my-save-bar");
   setSaveBarVisible(false);
@@ -950,18 +951,35 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   const handleDiscard = () => {
     console.log("Discarding");
     shopify.saveBar.hide("my-save-bar");
+    setCampaignData({...initialCampaignData.current});
+    setDesignFields({...designFieldsRef.current});
+    setSelectedProducts([]);
+    setSelectedDates({...initialDates.current});
+    
     setSaveBarVisible(false);
   };
 
-  useEffect(() => {
+ useEffect(() => {
+  const hasUnsavedChanges =
+    JSON.stringify(designFields) !== JSON.stringify(designFieldsRef.current) ||
+    JSON.stringify(campaignData) !== JSON.stringify(initialCampaignData.current) ||
+    selectedProducts.length > 0 ||
+    JSON.stringify(selectedDates) !== JSON.stringify(initialDates.current);
+
+  if (hasUnsavedChanges && !saveBarVisible) {
     shopify.saveBar.show("my-save-bar");
     setSaveBarVisible(true);
-  }, [
-    designFields,
-    selectedProducts,
-    campaignData,
-   
-  ]);
+  } else if (!hasUnsavedChanges && saveBarVisible) {
+    shopify.saveBar.hide("my-save-bar");
+    setSaveBarVisible(false);
+  }
+}, [
+  designFields,
+  selectedProducts,
+  campaignData,
+  selectedDates,
+  saveBarVisible
+]);
 
   useEffect(() => {
     setSaveBarVisible(false);
@@ -1292,7 +1310,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                             height={80}
                           />
                         </div>
-                        <div>
+                        <div >
                           <p style={{ fontWeight: "bold", fontSize: "16px" }}>
                             Baby Pink T-shirt
                           </p>
@@ -1540,6 +1558,9 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                                 <TextField
                                   type="number"
                                   min={0}
+                                  label="Inventory limit"
+                                  labelHidden
+                                  autoComplete="off"
                                   value={product?.maxUnit?.toString()}
                                   onChange={(value) =>
                                     handleMaxUnitChange(

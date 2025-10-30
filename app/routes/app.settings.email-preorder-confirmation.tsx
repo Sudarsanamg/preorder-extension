@@ -15,10 +15,11 @@ import {
   Checkbox,
   RadioButton,
   RangeSlider,
+  Spinner,
 } from "@shopify/polaris";
-import { EmailSettings } from "app/types/type";
+import type { EmailSettings } from "app/types/type";
 import { hexToHsb } from "app/utils/color";
-import { useCallback, useEffect, useState } from "react";
+import {  useEffect, useState } from "react";
 import {
   redirect,
   useLoaderData,
@@ -26,10 +27,11 @@ import {
   useNavigate,
   // useFetcher,
   // useActionData,
+  useNavigation
 } from "@remix-run/react";
-import { createOrUpdateEmailSettings, emailSettingStatusUpdate, getEmailSettingsStatus, getPreorderConfirmationEmailSettings, updateConfrimOrderEmailSettings, updateCustomEmailStatus } from "app/models/campaign.server";
+import {  getEmailSettingsStatus, getPreorderConfirmationEmailSettings, updateConfrimOrderEmailSettings, updateCustomEmailStatus } from "app/models/campaign.server";
 import { authenticate } from "app/shopify.server";
-
+import { isStoreRegistered } from "app/helper/isStoreRegistered";
 
 export async function loader({ request }: { request: Request }) {
   const { admin } = await authenticate.admin(request);
@@ -58,12 +60,19 @@ if (typeof confrimOrderEmailSettingsData === "string") {
 
 export const action = async ({ request }: { request: Request }) => {
   const { session } = await authenticate.admin(request);
+   const shopDomain = session.shop;
+   const isStoreExist = await isStoreRegistered(shopDomain);
+   if (!isStoreExist) {
+     return Response.json(
+       { success: false, error: "Store not found" },
+       { status: 404 },
+     );
+   }
 
   const formData = await request.formData();
   const intent = formData.get("intent");
 
   if (intent === "save-email-preorder-confirmation") {
-    const subject = formData.get("subject");
     const shopId = formData.get("shopId");
     const designFields = formData.get("designFields");
     try {
@@ -101,6 +110,9 @@ export default function EmailPreorderConfirmationSettings() {
   const {shopId ,status ,parsedConfrimOrderEmailSettingsData }= useLoaderData<typeof loader>();
   const parsedSettings = parsedConfrimOrderEmailSettingsData
   const submit = useSubmit();
+  const navigateTo = useNavigation();
+
+
   const options = [
     { label: "Use your theme fonts", value: "inherit" },
     { label: "Helvetica Neue", value: "Helvetica Neue" },
@@ -155,7 +167,7 @@ subject: parsedSettings.subject,
  const [emailSettings, setEmailSettings] = useState<EmailSettings>(initialSettings);
  const [saveBarVisible, setSaveBarVisible] = useState(false);
   const [activePopover, setActivePopover] = useState<null | string>(null);
-
+  
   const handleSave = () => {
     console.log('Saving');
     const formdata = new FormData();
@@ -234,6 +246,9 @@ subject: parsedSettings.subject,
   return (
     <Page
       title="Preorder confirmation email"
+     titleMetadata={
+          <div>{navigateTo.state !== "idle" && <Spinner size="small" />}</div>
+        }
       backAction={{ content: "Back",
         onAction: () => {
           if(saveBarVisible){
@@ -324,7 +339,8 @@ subject: parsedSettings.subject,
                     B
                   </Button>
                   <TextField
-                    // label="Store name"
+                    label="Store name"
+                    labelHidden
                     value={emailSettings.storeNameFontSize}
                     onChange={(value) =>
                       handleEmailSettingsChange("storeNameFontSize", value)
@@ -360,8 +376,13 @@ subject: parsedSettings.subject,
                       />
                     </Popover>
                     <TextField
+                      labelHidden
+                      label="Store name"
+                      autoComplete="off"
                       value={emailSettings.storeNameColor}
-                      onChange={() => {}}
+                      onChange={(value) => {
+                        handleEmailSettingsChange("storeNameColor", value);
+                      }}
                     />
                   </div>
                 </InlineStack>
@@ -387,7 +408,8 @@ subject: parsedSettings.subject,
                     B
                   </Button>
                   <TextField
-                    // label="Store name"
+                    label="Store name"
+                    labelHidden
                     value={emailSettings.subheadingFontSize}
                     autoComplete="off"
                     suffix={"px"}
@@ -423,8 +445,13 @@ subject: parsedSettings.subject,
                       />
                     </Popover>
                     <TextField
+                      labelHidden
+                      label="Store name"
+                      autoComplete="off"
                       value={emailSettings.subheadingColor}
-                      onChange={() => {}}
+                      onChange={(value) => {
+                        handleEmailSettingsChange("subheadingColor", value);
+                      }}
                     />
                   </div>
                 </InlineStack>
@@ -452,7 +479,8 @@ subject: parsedSettings.subject,
                     B
                   </Button>
                   <TextField
-                    // label="Store name"
+                    label="Store name"
+                    labelHidden
                     value={emailSettings.descriptionFontSize}
                     onChange={(value) => {
                       handleEmailSettingsChange("descriptionFontSize", value);
@@ -488,8 +516,13 @@ subject: parsedSettings.subject,
                       />
                     </Popover>
                     <TextField
+                      labelHidden
+                      label="Store name"
+                      autoComplete="off"
                       value={emailSettings.descriptionColor}
-                      onChange={() => {}}
+                      onChange={(value) => {
+                        handleEmailSettingsChange("descriptionColor", value);
+                      }}
                     />
                   </div>
                 </InlineStack>
@@ -513,7 +546,8 @@ subject: parsedSettings.subject,
                     B
                   </Button>
                   <TextField
-                    // label="Store name"
+                    label="Store name"
+                    labelHidden
                     value={emailSettings.productTitleFontSize}
                     autoComplete="off"
                     suffix={"px"}
@@ -549,15 +583,22 @@ subject: parsedSettings.subject,
                       />
                     </Popover>
                     <TextField
+                      labelHidden
+                      label="Store name"
+                      autoComplete="off"
                       value={emailSettings.productTitleColor}
-                      onChange={() => {}}
+                      onChange={(value) => {
+                        handleEmailSettingsChange("productTitleColor",value)
+                      }}
                     />
                   </div>
                 </InlineStack>
                 <TextField
                   label="Preorder Text"
                   value={emailSettings.preorderText}
-                  onChange={() => {}}
+                  onChange={(value) => {
+                    handleEmailSettingsChange("preorderText",value)
+                  }}
                   autoComplete="off"
                 />
                 <TextField
@@ -649,8 +690,16 @@ subject: parsedSettings.subject,
                     />
                   </Popover>
                   <TextField
+                    label="cancelButtonBackgroundColor"
+                    labelHidden
+                    autoComplete="off"
                     value={emailSettings.cancelButtonBackgroundColor}
-                    onChange={() => {}}
+                    onChange={(value) => {
+                      handleEmailSettingsChange(
+                        "cancelButtonBackgroundColor",
+                        value,
+                      );
+                    }}
                   />
                 </div>
                 <RadioButton
@@ -711,6 +760,9 @@ subject: parsedSettings.subject,
                         />
                       </Popover>
                       <TextField
+                        label="cancelButtonGradientColor1"
+                        labelHidden
+                        autoComplete="off"
                         value={emailSettings.cancelButtonGradientColor1}
                       />
                     </div>
@@ -751,6 +803,9 @@ subject: parsedSettings.subject,
                         />
                       </Popover>
                       <TextField
+                        label="cancelButtonGradientColor2"
+                        labelHidden
+                        autoComplete="off"
                         value={emailSettings.cancelButtonGradientColor2}
                       />
                     </div>
@@ -776,7 +831,8 @@ subject: parsedSettings.subject,
                     style={{ display: "flex", alignItems: "center", gap: 10 }}
                   >
                     <TextField
-                      // label="Border size and color"
+                      label="Border size and color"
+                      labelHidden
                       suffix={"px"}
                       value={emailSettings.cancelButtonBorderSize}
                       onChange={(value) => {
@@ -813,7 +869,11 @@ subject: parsedSettings.subject,
                         color={hexToHsb(emailSettings.cancelButtonBorderColor)}
                       />
                     </Popover>
-                    <TextField value={emailSettings.cancelButtonBorderColor} />
+                    <TextField 
+                    label="cancelButtonBorderColor"
+                    labelHidden
+                    autoComplete="off"
+                    value={emailSettings.cancelButtonBorderColor} />
                   </div>
                 </InlineStack>
                 <Text as="h3" variant="headingMd">
@@ -832,7 +892,9 @@ subject: parsedSettings.subject,
                     B
                   </Button>
                   <TextField
-                    // label="Store name"
+                    label="Store name"
+                    labelHidden
+
                     value={emailSettings.cancelButtonFontSize}
                     onChange={(value) => {
                       handleEmailSettingsChange("cancelButtonFontSize", value);
@@ -869,6 +931,9 @@ subject: parsedSettings.subject,
                       />
                     </Popover>
                     <TextField
+                      label="cancelButtonTextColor"
+                      labelHidden
+                      autoComplete="off"
                       value={emailSettings.cancelButtonTextColor}
                       onChange={() => {}}
                     />

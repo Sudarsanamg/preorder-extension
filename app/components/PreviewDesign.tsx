@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, {  useState } from "react";
 import type { DesignFields } from "../types/type";
 import {
   BlockStack,
@@ -12,7 +12,6 @@ import {
   Select,
   Text,
   TextField,
-  InlineStack,
   RangeSlider,
 } from "@shopify/polaris";
 import { hsbToHex, hexToHsb } from "../utils/color";
@@ -35,11 +34,7 @@ export default function PreviewDesign({
     { label: "Arial", value: "Arial" },
     { label: "Courier New", value: "Courier New" },
   ];
-  const [color, setColor] = useState({
-    hue: 120,
-    brightness: 1,
-    saturation: 1,
-  });
+
 
   const [activePopover, setActivePopover] = useState<null | string>(null);
   const handleRangeSliderChange = (input: number) => {
@@ -132,6 +127,9 @@ export default function PreviewDesign({
                 />
               </Popover>
               <TextField
+                label="Color"
+                labelHidden
+                autoComplete="off"
                 value={designFields.buttonBackgroundColor}
                 onChange={() => {}}
               />
@@ -179,7 +177,11 @@ export default function PreviewDesign({
                   color={hexToHsb(designFields.gradientColor1)}
                 />
               </Popover>
-              <TextField value={designFields.gradientColor1} />
+              <TextField
+              label="Color"
+              labelHidden
+              autoComplete="off" 
+              value={designFields.gradientColor1} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <Popover
@@ -205,13 +207,20 @@ export default function PreviewDesign({
                   color={hexToHsb(designFields.gradientColor2)}
                 />
               </Popover>
-              <TextField value={designFields.gradientColor2} />
+              <TextField 
+              label="Color"
+              labelHidden
+              autoComplete="off"
+              value={designFields.gradientColor2} />
             </div>
             </div>)}
 
-            <Text>Border size and color</Text>
+            <Text as="h5" >Border size and color</Text>
             <div style={{ display: "flex", gap: 10 }}>
               <TextField 
+              label="Color"
+              labelHidden
+              autoComplete="off"
               suffix="px"
               onChange={(value)=>{
                 setDesignFields((prev) => ({
@@ -246,18 +255,30 @@ export default function PreviewDesign({
                 color={hexToHsb(designFields.borderColor)}
                  />
               </Popover>
-              <TextField  value={designFields.borderColor}/>
+              <TextField 
+              label="Color"
+              labelHidden
+              autoComplete="off"
+               value={designFields.borderColor}/>
             </div>
 
             <Text variant="bodyMd" as="p">
               Corner radius
             </Text>
-            <TextField suffix="px" onChange={(value) => setDesignFields((prev) => ({ ...prev, borderRadius: value }))}  value={designFields.borderRadius}/>
+            <TextField 
+            label="Color"
+              labelHidden
+              autoComplete="off"
+            suffix="px" onChange={(value) => setDesignFields((prev) => ({ ...prev, borderRadius: value }))}  value={designFields.borderRadius}/>
             <Divider />
 
-            <Text>Text</Text>
+            <Text as="h5">Text</Text>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <TextField suffix="px" onChange={(value) => setDesignFields((prev) => ({ ...prev, buttonFontSize: value }))} value={designFields.buttonFontSize} />
+              <TextField 
+              label="Color"
+              labelHidden
+              autoComplete="off"
+              suffix="px" onChange={(value) => setDesignFields((prev) => ({ ...prev, buttonFontSize: value }))} value={designFields.buttonFontSize} />
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Popover
@@ -283,18 +304,31 @@ export default function PreviewDesign({
                   color={hexToHsb(designFields.buttonTextColor)}
                    />
                 </Popover>
-                <TextField  value={designFields.buttonTextColor}/>
+                <TextField  
+                label="Color"
+              labelHidden
+              autoComplete="off"
+                value={designFields.buttonTextColor}/>
               </div>
             </div>
             <Divider />
             <Text as="h3">Spacing</Text>
             <div style={{ display: "flex", gap: 10 }}>
-              <TextField label="Inside top" suffix="px" value={designFields.spacingIT} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingIT: value }))} />
-              <TextField label="Inside bottom" suffix="px"  value={designFields.spacingIB} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingIB: value }))}/>
+              <TextField
+               label="Inside top"
+               autoComplete="off"
+                suffix="px" value={designFields.spacingIT} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingIT: value }))} />
+              <TextField label="Inside bottom"
+              autoComplete="off"
+               suffix="px"  value={designFields.spacingIB} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingIB: value }))}/>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <TextField label="Outside top"  value={designFields.spacingOT} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingOT: value }))} suffix="px" />
-              <TextField label="Outside bottom" suffix="px"  value={designFields.spacingOB} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingOB: value }))} />
+              <TextField label="Outside top" 
+              autoComplete="off"
+               value={designFields.spacingOT} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingOT: value }))} suffix="px" />
+              <TextField label="Outside bottom" suffix="px" 
+              autoComplete="off"
+               value={designFields.spacingOB} onChange={(value) => setDesignFields((prev) => ({ ...prev, spacingOB: value }))} />
             </div>
           </BlockStack>
         </Card>
@@ -322,6 +356,9 @@ export default function PreviewDesign({
           </Text>
           <div style={{ display: "flex", gap: 10 }}>
             <TextField
+            label="Color"
+              labelHidden
+              autoComplete="off"
               suffix="px"
               value={designFields.messageFontSize}
               onChange={(value) =>
@@ -353,6 +390,9 @@ export default function PreviewDesign({
               />
             </Popover>
             <TextField
+            label="Color"
+              labelHidden
+              autoComplete="off"
               value={designFields.preorderMessageColor}
               onChange={() => {}}
             />
@@ -361,9 +401,9 @@ export default function PreviewDesign({
       </Card>
       {/* )} */}
 
-      <Card>
-        <Button fullWidth onClick={()=>setTabSelected(2)}>Continue to products</Button>
-      </Card>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button  onClick={()=>setTabSelected(2)} variant="primary">Next</Button>
+      </div>
     </BlockStack>
   );
 }

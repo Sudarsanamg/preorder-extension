@@ -56,7 +56,7 @@ import { SetupGuide } from "app/components/setupGuide";
 import prisma from "app/db.server";
 import PreorderSettingsSkeleton from "app/utils/loader/homeLoader";
 import { handleCampaignStatusChange } from "app/helper/campaignHelper";
-import {checkAppEmbedEnabled} from "app/helper/checkBlockEnable";
+import { checkAppEmbedEnabled } from "app/helper/checkBlockEnable";
 import { AppEmbedBanner } from "app/components/AppEmbedBanner";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 // ---------------- Loader ----------------
@@ -127,7 +127,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     emailCampaignStatus,
     shop,
     setupGuide,
-    isAppEmbedEnabled
+    isAppEmbedEnabled,
   });
 };
 
@@ -135,8 +135,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
   const isStoreExist = await isStoreRegistered(shop);
-  if(!isStoreExist){
-    return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+  if (!isStoreExist) {
+    return Response.json(
+      { success: false, error: "Store not found" },
+      { status: 404 },
+    );
   }
   const formData = await request.formData();
   const intent = formData.get("intent");
@@ -183,8 +186,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // ---------------- Component ----------------
 export default function Index() {
   useWebVitals({ path: "/app" });
-  const { campaigns, emailCampaignStatus, shop, setupGuide ,isAppEmbedEnabled} =
-    useLoaderData<typeof loader>();
+  const {
+    campaigns,
+    emailCampaignStatus,
+    shop,
+    setupGuide,
+    isAppEmbedEnabled,
+  } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showGuide, setShowGuide] = useState(!setupGuide);
@@ -289,8 +297,8 @@ export default function Index() {
             formData.append("intent", "complete_setup_guide");
 
             fetcher.submit(formData, {
-              method: "POST", 
-              action: "", 
+              method: "POST",
+              action: "",
             });
           },
         },
@@ -366,7 +374,7 @@ export default function Index() {
   return (
     <Page>
       <TitleBar title="Preorder Extension" />
-       {!isAppEmbedEnabled && <AppEmbedBanner shop={shop} />}
+      {!isAppEmbedEnabled && <AppEmbedBanner shop={shop} />}
 
       {/* Header */}
       <div
@@ -424,6 +432,7 @@ export default function Index() {
                 onAction: handleConfirmStatusChange,
                 loading: isChangingStatus,
                 disabled: isChangingStatus,
+                destructive: modalState.newStatus === "DELETE",
               }}
               secondaryActions={[
                 {
@@ -436,22 +445,29 @@ export default function Index() {
               <Modal.Section>
                 <Text as="p">
                   Are you sure you want to change{" "}
-                  <strong>{modalState.campaignName}</strong> to{" "}
-                  <strong>{modalState.newStatus}</strong>?
+                  <strong>{modalState.campaignName}</strong> to {" "}
+                  <strong>
+                    {modalState?.newStatus
+                      ? modalState.newStatus.charAt(0).toUpperCase() +
+                        modalState.newStatus.slice(1).toLowerCase()
+                      : ""}
+                  </strong>
+                  ?
                 </Text>
               </Modal.Section>
             </Modal>
 
-            { uniqueRows.length > 0 &&
+            {uniqueRows.length > 0 && (
               <div style={{ padding: "1rem" }}>
-              <TextField
-                label="Search"
-                value={search}
-                onChange={setSearch}
-                placeholder="Search by Campaign Name"
-                autoComplete="off"
-              />
-            </div>}
+                <TextField
+                  label="Search"
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Search by Campaign Name"
+                  autoComplete="off"
+                />
+              </div>
+            )}
 
             {uniqueRows.length > 0 ? (
               <DataTable
@@ -522,7 +538,7 @@ export default function Index() {
                           "UNPUBLISHED",
                           String(campaignName),
                         ),
-                      disabled: currentStatus === "UNPUBLISHED",
+                      disabled: currentStatus === "UNPUBLISH",
                     },
                     {
                       content: "Draft",

@@ -1,27 +1,23 @@
-// app/cron.server.ts
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import { cancelPendingOrder} from "../helper/cancelOrder";
 
-// Runs every minute
 export const loader = async () => {
   console.log("⏰ cancel Cron endpoint hit...");
 
-  const duePayments = await prisma.vaultedPayment.findMany({
+  const orders = await prisma.vaultedPayment.findMany({
     where: { paymentStatus: "PENDING", 
-      accessToken: { not: null }
      },
   });
 
-  for (const payment of duePayments) {
+  for (const payment of orders) {
     try {
       await cancelPendingOrder({
-        shop: "us-demo-store-2.myshopify.com",
-        accessToken: payment.accessToken ?? "",
+        shop: payment.storeDomain,
         orderId: payment.orderId,
         refund: false,
-  restock: false,
-  reason: "DECLINED",
+        restock: false,
+        reason: "DECLINED",
       });
 
       await prisma.vaultedPayment.update({

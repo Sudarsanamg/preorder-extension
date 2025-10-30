@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
-    document.getElementById("app-preorder-embed").prepend(countdownEl);
+    document.getElementById("campaign-countdown").append(countdownEl);
     return countdownEl;
   }
 

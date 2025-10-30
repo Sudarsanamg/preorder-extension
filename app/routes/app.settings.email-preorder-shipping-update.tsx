@@ -16,9 +16,9 @@ import {
   RadioButton,
   RangeSlider,
 } from "@shopify/polaris";
-import { EmailSettings } from "app/types/type";
+import type { EmailSettings } from "app/types/type";
 import { hexToHsb } from "app/utils/color";
-import {  useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   redirect,
   useLoaderData,
@@ -27,9 +27,9 @@ import {
   // useFetcher,
   // useActionData,
 } from "@remix-run/react";
-import {  createOrUpdateShippingEmailSettings, getShippingEmailSettingsStatus, shippingEmailSettingsStatusUpdate } from "app/models/campaign.server";
+// import {  createOrUpdateShippingEmailSettings, getShippingEmailSettingsStatus, shippingEmailSettingsStatusUpdate } from "app/models/campaign.server";
 import { authenticate } from "app/shopify.server";
-
+import { isStoreRegistered } from "app/helper/isStoreRegistered";
 
 export async function loader({ request }: { request: Request }) {
   const { admin } = await authenticate.admin(request);
@@ -45,51 +45,54 @@ export async function loader({ request }: { request: Request }) {
   const response = await admin.graphql(query);
   const data = await response.json();
 
-  const shopId = data.data.shop.id; 
-  // const status  = await getShippingEmailSettingsStatus(shopId); 
-  return {shopId , status: false};
+  const shopId = data.data.shop.id;
+  // const status  = await getShippingEmailSettingsStatus(shopId);
+  return { shopId, status: false };
 }
 
 export const action = async ({ request }: { request: Request }) => {
-   const { session } = await authenticate.admin(request);
-  
-    const formData = await request.formData();
-    const intent = formData.get("intent");
-  
-    if (intent === "save-email-preorder-confirmation") {
-      const subject = formData.get("subject");
-      const shopId = formData.get("shopId");
-      const designFields = formData.get("designFields");
-  
-      try {
-        // await createOrUpdateShippingEmailSettings(String(shopId), JSON.parse(designFields as string));
-      } catch (error) {
-        console.error("Error saving email settings:", error);
-        return { success: false, error: "Failed to save email settings." };
-      }
-     
+  const { session } = await authenticate.admin(request);
+  const shopDomain = session.shop;
+  const isStoreExist = await isStoreRegistered(shopDomain);
+  if (!isStoreExist) {
+    return Response.json(
+      { success: false, error: "Store not found" },
+      { status: 404 },
+    );
+  }
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "save-email-preorder-confirmation") {
+    const subject = formData.get("subject");
+    const shopId = formData.get("shopId");
+    const designFields = formData.get("designFields");
+
+    try {
+      // await createOrUpdateShippingEmailSettings(String(shopId), JSON.parse(designFields as string));
+    } catch (error) {
+      console.error("Error saving email settings:", error);
+      return { success: false, error: "Failed to save email settings." };
     }
-    if (intent === "change-status") {
-      const status = formData.get("status");
-      const shopId = formData.get("shopId");
-      try {
-          // await shippingEmailSettingsStatusUpdate(String(shopId), status == "true" ? "true" : "false");
-        return { success: true, status: status === "true" };
-      } catch (error) {
-        console.error("Error changing email settings status:", error);
-        redirect("/app");
-      }
+  }
+  if (intent === "change-status") {
+    const status = formData.get("status");
+    const shopId = formData.get("shopId");
+    try {
+      // await shippingEmailSettingsStatusUpdate(String(shopId), status == "true" ? "true" : "false");
+      return { success: true, status: status === "true" };
+    } catch (error) {
+      console.error("Error changing email settings status:", error);
+      redirect("/app");
     }
-    return { success: false };
+  }
+  return { success: false };
 };
 
-
-
-
 export default function EmailPreorderConfirmationSettings() {
-
   const shopify = useAppBridge();
-    const {shopId ,status }= useLoaderData<typeof loader>();
+  const { shopId, status } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   // const fetcher = useFetcher();
   // const actionData = useActionData();
@@ -104,7 +107,7 @@ export default function EmailPreorderConfirmationSettings() {
   ];
   const [subject, setSubject] = useState("Delivery update for order {order}");
   const initialEmailSettings: EmailSettings = {
-     subject: "Delivery update for order {order}",
+    subject: "Delivery update for order {order}",
     font: "inherit",
 
     storeName: "preorderstore",
@@ -147,29 +150,28 @@ export default function EmailPreorderConfirmationSettings() {
     cancelButtonGradientColor1: "#757575",
     cancelButtonGradientColor2: "#757575",
     cancelButtonBorderRadius: "8",
-  }
-  const [emailSettings, setEmailSettings] = useState<EmailSettings>(initialEmailSettings);
+  };
+  const [emailSettings, setEmailSettings] =
+    useState<EmailSettings>(initialEmailSettings);
   const [saveBarVisible, setSaveBarVisible] = useState(false);
 
   const [activePopover, setActivePopover] = useState<null | string>(null);
 
-
-  
   const handleSave = () => {
-    console.log('Saving');
+    console.log("Saving");
     const formdata = new FormData();
     formdata.append("intent", "save-email-preorder-confirmation");
     formdata.append("subject", subject);
     formdata.append("designFields", JSON.stringify(emailSettings));
-    formdata.append("shopId",shopId); 
+    formdata.append("shopId", shopId);
     submit(formdata, { method: "post" });
-    shopify.saveBar.hide('my-save-bar');
+    shopify.saveBar.hide("my-save-bar");
     setSaveBarVisible(false);
   };
 
   const handleDiscard = () => {
-    console.log('Discarding');
-    shopify.saveBar.hide('my-save-bar');
+    console.log("Discarding");
+    shopify.saveBar.hide("my-save-bar");
     setSaveBarVisible(false);
   };
 
@@ -198,52 +200,47 @@ export default function EmailPreorderConfirmationSettings() {
     }));
   };
 
- 
-
   const togglePopover = (field: string) => {
     setActivePopover((prev) => (prev === field ? null : field));
   };
 
-
-
   useEffect(() => {
-
     const hasChanges =
       subject !== initialEmailSettings.subject ||
       JSON.stringify(emailSettings) !== JSON.stringify(initialEmailSettings);
     if (hasChanges && !saveBarVisible) {
-      shopify.saveBar.show('my-save-bar');
+      shopify.saveBar.show("my-save-bar");
       setSaveBarVisible(true);
     } else if (!hasChanges && saveBarVisible) {
-      shopify.saveBar.hide('my-save-bar');
+      shopify.saveBar.hide("my-save-bar");
       setSaveBarVisible(false);
     }
   }, [emailSettings, subject]);
 
-   function handleSwitch(status: boolean) {
-    console.log("Toggling status to:", status);
-    const formData = new FormData();
-    formData.append("intent", "change-status");
-    formData.append("status", (status).toString());
-    formData.append("shopId", shopId);
-    submit(formData, { method: "post" });
-    // navigate(0);
-  }
+  //  function handleSwitch(status: boolean) {
+  //   console.log("Toggling status to:", status);
+  //   const formData = new FormData();
+  //   formData.append("intent", "change-status");
+  //   formData.append("status", (status).toString());
+  //   formData.append("shopId", shopId);
+  //   submit(formData, { method: "post" });
+  //   // navigate(0);
+  // }
 
   return (
     <Page
       title="Preorder confirmation email"
-      backAction={{ content: "Back",
+      backAction={{
+        content: "Back",
 
         onAction: () => {
-          if(saveBarVisible){
+          if (saveBarVisible) {
             shopify.saveBar.leaveConfirmation();
+          } else {
+            navigate("/app");
           }
-          else{
-          navigate("/app");
-          }
-
-        }}}
+        },
+      }}
       // primaryAction={{
       //   content: status === false ? "Turn On" : "Turn Off",
       //   onAction: () => {
@@ -251,7 +248,7 @@ export default function EmailPreorderConfirmationSettings() {
       //   },
       // }}
     >
-       <SaveBar id="my-save-bar">
+      <SaveBar id="my-save-bar">
         <button variant="primary" onClick={handleSave}></button>
         <button onClick={handleDiscard}></button>
       </SaveBar>
@@ -596,285 +593,334 @@ export default function EmailPreorderConfirmationSettings() {
                 />
                 {emailSettings.showCancelButton && (
                   <div>
-
-                
-                <TextField
-                  label="Button text"
-                  value={emailSettings.cancelButtonText}
-                  onChange={(value) => {
-                    handleEmailSettingsChange("cancelButtonText", value);
-                  }}
-                  autoComplete="off"
-                />
-                <Text as="p" variant="bodyMd">
-                  Opens up order cancelation page. Use {"{order}"} for order
-                  number
-                </Text>
-                <Text variant="headingMd" as="h2" >
-                  Background
-                </Text>
-                <RadioButton
-                  label="Single Colour Background" // checked={value === 'disabled'}
-                  onChange={() => {
-                    handleEmailSettingsChange("cancelButtonStyle", "single");
-                  }}
-                  checked={emailSettings.cancelButtonStyle === "single"}
-                />
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Popover
-                    active={activePopover === "cancelButtonBackgroundColor"}
-                    activator={
-                      <div
-                        style={{
-                          height: 40,
-                          width: 40,
-                          backgroundColor:
-                            emailSettings.cancelButtonBackgroundColor,
-                          borderRadius: "8px",
-                        }}
-                        onClick={() =>
+                    <TextField
+                      label="Button text"
+                      value={emailSettings.cancelButtonText}
+                      onChange={(value) => {
+                        handleEmailSettingsChange("cancelButtonText", value);
+                      }}
+                      autoComplete="off"
+                    />
+                    <Text as="p" variant="bodyMd">
+                      Opens up order cancelation page. Use {"{order}"} for order
+                      number
+                    </Text>
+                    <Text variant="headingMd" as="h2">
+                      Background
+                    </Text>
+                    <RadioButton
+                      label="Single Colour Background" // checked={value === 'disabled'}
+                      onChange={() => {
+                        handleEmailSettingsChange(
+                          "cancelButtonStyle",
+                          "single",
+                        );
+                      }}
+                      checked={emailSettings.cancelButtonStyle === "single"}
+                    />
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    >
+                      <Popover
+                        active={activePopover === "cancelButtonBackgroundColor"}
+                        activator={
+                          <div
+                            style={{
+                              height: 40,
+                              width: 40,
+                              backgroundColor:
+                                emailSettings.cancelButtonBackgroundColor,
+                              borderRadius: "8px",
+                            }}
+                            onClick={() =>
+                              togglePopover("cancelButtonBackgroundColor")
+                            }
+                          ></div>
+                        }
+                        autofocusTarget="first-node"
+                        onClose={() =>
                           togglePopover("cancelButtonBackgroundColor")
                         }
-                      ></div>
-                    }
-                    autofocusTarget="first-node"
-                    onClose={() => togglePopover("cancelButtonBackgroundColor")}
-                  >
-                    <ColorPicker
-                      onChange={(color) =>
-                        handleColorChange(color, "cancelButtonBackgroundColor")
-                      }
-                      color={hexToHsb(
-                        emailSettings.cancelButtonBackgroundColor,
-                      )}
+                      >
+                        <ColorPicker
+                          onChange={(color) =>
+                            handleColorChange(
+                              color,
+                              "cancelButtonBackgroundColor",
+                            )
+                          }
+                          color={hexToHsb(
+                            emailSettings.cancelButtonBackgroundColor,
+                          )}
+                        />
+                      </Popover>
+                      <TextField
+                        value={emailSettings.cancelButtonBackgroundColor}
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <RadioButton
+                      label="Gradient background" // checked={value === 'disabled'}
+                      onChange={() => {
+                        handleEmailSettingsChange(
+                          "cancelButtonStyle",
+                          "gradient",
+                        );
+                      }}
+                      checked={emailSettings.cancelButtonStyle === "gradient"}
                     />
-                  </Popover>
-                  <TextField
-                    value={emailSettings.cancelButtonBackgroundColor}
-                    onChange={() => {}}
-                  />
-                </div>
-                <RadioButton
-                  label="Gradient background" // checked={value === 'disabled'}
-                  onChange={() => {
-                    handleEmailSettingsChange("cancelButtonStyle", "gradient");
-                  }}
-                  checked={emailSettings.cancelButtonStyle === "gradient"}
-                />
-                {emailSettings.cancelButtonStyle === "gradient" && (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                    }}
-                  >
-                    <RangeSlider
-                      label="Gradient angle degree"
-                      value={Number(emailSettings.cancelButtonGradientDegree)}
-                      onChange={handleRangeSliderChange}
-                      output
-                    />
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 10 }}
-                    >
-                      <Popover
-                        active={activePopover === "cancelButtonGradientColor1"}
-                        activator={
-                          <div
-                            style={{
-                              height: 40,
-                              width: 40,
-                              backgroundColor:
-                                emailSettings.cancelButtonGradientColor1,
-                              borderRadius: "8px",
-                            }}
-                            onClick={() =>
+                    {emailSettings.cancelButtonStyle === "gradient" && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 10,
+                        }}
+                      >
+                        <RangeSlider
+                          label="Gradient angle degree"
+                          value={Number(
+                            emailSettings.cancelButtonGradientDegree,
+                          )}
+                          onChange={handleRangeSliderChange}
+                          output
+                        />
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
+                          <Popover
+                            active={
+                              activePopover === "cancelButtonGradientColor1"
+                            }
+                            activator={
+                              <div
+                                style={{
+                                  height: 40,
+                                  width: 40,
+                                  backgroundColor:
+                                    emailSettings.cancelButtonGradientColor1,
+                                  borderRadius: "8px",
+                                }}
+                                onClick={() =>
+                                  togglePopover("cancelButtonGradientColor1")
+                                }
+                              ></div>
+                            }
+                            autofocusTarget="first-node"
+                            onClose={() =>
                               togglePopover("cancelButtonGradientColor1")
                             }
-                          ></div>
-                        }
-                        autofocusTarget="first-node"
-                        onClose={() =>
-                          togglePopover("cancelButtonGradientColor1")
-                        }
-                      >
-                        <ColorPicker
-                          onChange={(color) =>
-                            handleColorChange(
-                              color,
-                              "cancelButtonGradientColor1",
-                            )
-                          }
-                          color={hexToHsb(
-                            emailSettings.cancelButtonGradientColor1,
-                          )}
-                        />
-                      </Popover>
-                      <TextField
-                        value={emailSettings.cancelButtonGradientColor1}
-                      />
-                    </div>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 10 }}
-                    >
-                      <Popover
-                        active={activePopover === "cancelButtonGradientColor2"}
-                        activator={
-                          <div
-                            style={{
-                              height: 40,
-                              width: 40,
-                              backgroundColor:
-                                emailSettings.cancelButtonGradientColor2,
-                              borderRadius: "8px",
-                            }}
-                            onClick={() =>
+                          >
+                            <ColorPicker
+                              onChange={(color) =>
+                                handleColorChange(
+                                  color,
+                                  "cancelButtonGradientColor1",
+                                )
+                              }
+                              color={hexToHsb(
+                                emailSettings.cancelButtonGradientColor1,
+                              )}
+                            />
+                          </Popover>
+                          <TextField
+                            value={emailSettings.cancelButtonGradientColor1}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
+                          <Popover
+                            active={
+                              activePopover === "cancelButtonGradientColor2"
+                            }
+                            activator={
+                              <div
+                                style={{
+                                  height: 40,
+                                  width: 40,
+                                  backgroundColor:
+                                    emailSettings.cancelButtonGradientColor2,
+                                  borderRadius: "8px",
+                                }}
+                                onClick={() =>
+                                  togglePopover("cancelButtonGradientColor2")
+                                }
+                              ></div>
+                            }
+                            autofocusTarget="first-node"
+                            onClose={() =>
                               togglePopover("cancelButtonGradientColor2")
                             }
-                          ></div>
-                        }
-                        autofocusTarget="first-node"
-                        onClose={() =>
-                          togglePopover("cancelButtonGradientColor2")
-                        }
-                      >
-                        <ColorPicker
-                          onChange={(color) =>
-                            handleColorChange(
-                              color,
-                              "cancelButtonGradientColor2",
-                            )
-                          }
-                          color={hexToHsb(
-                            emailSettings.cancelButtonGradientColor2,
-                          )}
-                        />
-                      </Popover>
-                      <TextField
-                        value={emailSettings.cancelButtonGradientColor2}
-                      />
-                    </div>
-                  </div>
-                )}
-                <TextField
-                  label="Corner radius"
-                  value={emailSettings.cancelButtonBorderRadius}
-                  suffix={"px"}
-                  onChange={(value) => {
-                    handleEmailSettingsChange(
-                      "cancelButtonBorderRadius",
-                      value,
-                    );
-                  }}
-                  autoComplete="off"
-                />
-                <Text as="h3" variant="headingMd">
-                  Border size and color
-                </Text>
-                <InlineStack gap="200" wrap={false}>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 10 }}
-                  >
+                          >
+                            <ColorPicker
+                              onChange={(color) =>
+                                handleColorChange(
+                                  color,
+                                  "cancelButtonGradientColor2",
+                                )
+                              }
+                              color={hexToHsb(
+                                emailSettings.cancelButtonGradientColor2,
+                              )}
+                            />
+                          </Popover>
+                          <TextField
+                            value={emailSettings.cancelButtonGradientColor2}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <TextField
-                      // label="Border size and color"
+                      label="Corner radius"
+                      value={emailSettings.cancelButtonBorderRadius}
                       suffix={"px"}
-                      value={emailSettings.cancelButtonBorderSize}
                       onChange={(value) => {
                         handleEmailSettingsChange(
-                          "cancelButtonBorderSize",
+                          "cancelButtonBorderRadius",
                           value,
                         );
                       }}
                       autoComplete="off"
                     />
-                    <Popover
-                      active={activePopover === "cancelButtonBorderColor"}
-                      activator={
-                        <div
-                          style={{
-                            height: 30,
-                            width: 30,
-                            backgroundColor:
-                              emailSettings.cancelButtonBorderColor,
-                            borderRadius: "8px",
+                    <Text as="h3" variant="headingMd">
+                      Border size and color
+                    </Text>
+                    <InlineStack gap="200" wrap={false}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                        }}
+                      >
+                        <TextField
+                          // label="Border size and color"
+                          suffix={"px"}
+                          value={emailSettings.cancelButtonBorderSize}
+                          onChange={(value) => {
+                            handleEmailSettingsChange(
+                              "cancelButtonBorderSize",
+                              value,
+                            );
                           }}
-                          onClick={() =>
+                          autoComplete="off"
+                        />
+                        <Popover
+                          active={activePopover === "cancelButtonBorderColor"}
+                          activator={
+                            <div
+                              style={{
+                                height: 30,
+                                width: 30,
+                                backgroundColor:
+                                  emailSettings.cancelButtonBorderColor,
+                                borderRadius: "8px",
+                              }}
+                              onClick={() =>
+                                togglePopover("cancelButtonBorderColor")
+                              }
+                            ></div>
+                          }
+                          autofocusTarget="first-node"
+                          onClose={() =>
                             togglePopover("cancelButtonBorderColor")
                           }
-                        ></div>
-                      }
-                      autofocusTarget="first-node"
-                      onClose={() => togglePopover("cancelButtonBorderColor")}
-                    >
-                      <ColorPicker
-                        onChange={(color) =>
-                          handleColorChange(color, "cancelButtonBorderColor")
-                        }
-                        color={hexToHsb(emailSettings.cancelButtonBorderColor)}
+                        >
+                          <ColorPicker
+                            onChange={(color) =>
+                              handleColorChange(
+                                color,
+                                "cancelButtonBorderColor",
+                              )
+                            }
+                            color={hexToHsb(
+                              emailSettings.cancelButtonBorderColor,
+                            )}
+                          />
+                        </Popover>
+                        <TextField
+                          value={emailSettings.cancelButtonBorderColor}
+                        />
+                      </div>
+                    </InlineStack>
+                    <Text as="h3" variant="headingMd">
+                      Text style
+                    </Text>
+                    <InlineStack gap="200" wrap={false}>
+                      <Button
+                        pressed={emailSettings.cancelButtonBold}
+                        onClick={() => {
+                          handleEmailSettingsChange(
+                            "cancelButtonBold",
+                            !emailSettings.cancelButtonBold,
+                          );
+                        }}
+                      >
+                        B
+                      </Button>
+                      <TextField
+                        // label="Store name"
+                        value={emailSettings.cancelButtonFontSize}
+                        onChange={(value) => {
+                          handleEmailSettingsChange(
+                            "cancelButtonFontSize",
+                            value,
+                          );
+                        }}
+                        autoComplete="off"
+                        suffix={"px"}
                       />
-                    </Popover>
-                    <TextField value={emailSettings.cancelButtonBorderColor} />
-                  </div>
-                </InlineStack>
-                <Text as="h3" variant="headingMd">
-                  Text style
-                </Text>
-                <InlineStack gap="200" wrap={false}>
-                  <Button
-                    pressed={emailSettings.cancelButtonBold}
-                    onClick={() => {
-                      handleEmailSettingsChange(
-                        "cancelButtonBold",
-                        !emailSettings.cancelButtonBold,
-                      );
-                    }}
-                  >
-                    B
-                  </Button>
-                  <TextField
-                    // label="Store name"
-                    value={emailSettings.cancelButtonFontSize}
-                    onChange={(value) => {
-                      handleEmailSettingsChange("cancelButtonFontSize", value);
-                    }}
-                    autoComplete="off"
-                    suffix={"px"}
-                  />
-                  {/* colour picker to change the text colour */}
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 5 }}
-                  >
-                    <Popover
-                      active={activePopover === "cancelButtonTextColor"}
-                      activator={
-                        <div
-                          style={{
-                            height: 30,
-                            width: 30,
-                            backgroundColor:
+                      {/* colour picker to change the text colour */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                      >
+                        <Popover
+                          active={activePopover === "cancelButtonTextColor"}
+                          activator={
+                            <div
+                              style={{
+                                height: 30,
+                                width: 30,
+                                backgroundColor:
+                                  emailSettings.cancelButtonTextColor,
+                                borderRadius: "8px",
+                              }}
+                              onClick={() =>
+                                togglePopover("cancelButtonTextColor")
+                              }
+                            ></div>
+                          }
+                          autofocusTarget="first-node"
+                          onClose={() => togglePopover("cancelButtonTextColor")}
+                        >
+                          <ColorPicker
+                            onChange={(color) =>
+                              handleColorChange(color, "cancelButtonTextColor")
+                            }
+                            color={hexToHsb(
                               emailSettings.cancelButtonTextColor,
-                            borderRadius: "8px",
-                          }}
-                          onClick={() => togglePopover("cancelButtonTextColor")}
-                        ></div>
-                      }
-                      autofocusTarget="first-node"
-                      onClose={() => togglePopover("cancelButtonTextColor")}
-                    >
-                      <ColorPicker
-                        onChange={(color) =>
-                          handleColorChange(color, "cancelButtonTextColor")
-                        }
-                        color={hexToHsb(emailSettings.cancelButtonTextColor)}
-                      />
-                    </Popover>
-                    <TextField
-                      value={emailSettings.cancelButtonTextColor}
-                      onChange={() => {}}
-                    />
-                  </div>
-                </InlineStack>
+                            )}
+                          />
+                        </Popover>
+                        <TextField
+                          value={emailSettings.cancelButtonTextColor}
+                          onChange={() => {}}
+                        />
+                      </div>
+                    </InlineStack>
                   </div>
                 )}
               </BlockStack>
@@ -954,48 +1000,71 @@ export default function EmailPreorderConfirmationSettings() {
                 />
               </div>
               <div>
-                <div style={{color: emailSettings.productTitleColor,
-                  fontSize: `${emailSettings.productTitleFontSize}px`,}}>
-                <Text as="h2" 
-                  fontWeight={emailSettings.productTitleBold ? "bold" : "regular"}
-                 
+                <div
+                  style={{
+                    color: emailSettings.productTitleColor,
+                    fontSize: `${emailSettings.productTitleFontSize}px`,
+                  }}
                 >
-                  Baby Pink T-shirt
-                </Text>
+                  <Text
+                    as="h2"
+                    fontWeight={
+                      emailSettings.productTitleBold ? "bold" : "regular"
+                    }
+                  >
+                    Baby Pink T-shirt
+                  </Text>
                 </div>
                 <Text as="p">{emailSettings.preorderText}</Text>
                 <Text as="p">{emailSettings.fullPaymentText}</Text>
               </div>
             </div>
-            {emailSettings.showCancelButton  && (<div
-              style={{
-                marginTop: 20,
-                display: "flex",
-                justifyContent: "center",
-                gap: 10,
-              }}
-            >
+            {emailSettings.showCancelButton && (
               <div
                 style={{
-                  border: `${emailSettings.cancelButtonBorderSize}px solid ${emailSettings.cancelButtonBorderColor}`,
-                  padding: 3,
-                  borderRadius: `${emailSettings.cancelButtonBorderRadius}px`,
-                  backgroundColor: emailSettings.cancelButtonStyle === "single"
-                    ? emailSettings.cancelButtonBackgroundColor
-                    : ``,
-                  background : emailSettings.cancelButtonStyle === "gradient" ? `linear-gradient(${emailSettings.cancelButtonGradientDegree}deg, ${emailSettings.cancelButtonGradientColor1}, ${emailSettings.cancelButtonGradientColor2})` : ``,
-                  cursor: "pointer",
+                  marginTop: 20,
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: 10,
                 }}
               >
-                <div style={{fontSize: `${emailSettings.cancelButtonFontSize}px`,color: emailSettings.cancelButtonTextColor, textAlign: "center", padding: "8px 16px", borderRadius: `${emailSettings.cancelButtonBorderRadius}px`,}}>
-                <Text as="p" alignment="center"
-                fontWeight={emailSettings.cancelButtonBold ? "bold" : "regular"}
-                 >
-                  Cancel order 6272079777777 
-                </Text>
+                <div
+                  style={{
+                    border: `${emailSettings.cancelButtonBorderSize}px solid ${emailSettings.cancelButtonBorderColor}`,
+                    padding: 3,
+                    borderRadius: `${emailSettings.cancelButtonBorderRadius}px`,
+                    backgroundColor:
+                      emailSettings.cancelButtonStyle === "single"
+                        ? emailSettings.cancelButtonBackgroundColor
+                        : ``,
+                    background:
+                      emailSettings.cancelButtonStyle === "gradient"
+                        ? `linear-gradient(${emailSettings.cancelButtonGradientDegree}deg, ${emailSettings.cancelButtonGradientColor1}, ${emailSettings.cancelButtonGradientColor2})`
+                        : ``,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: `${emailSettings.cancelButtonFontSize}px`,
+                      color: emailSettings.cancelButtonTextColor,
+                      textAlign: "center",
+                      padding: "8px 16px",
+                      borderRadius: `${emailSettings.cancelButtonBorderRadius}px`,
+                    }}
+                  >
+                    <Text
+                      as="p"
+                      alignment="center"
+                      fontWeight={
+                        emailSettings.cancelButtonBold ? "bold" : "regular"
+                      }
+                    >
+                      Cancel order 6272079777777
+                    </Text>
+                  </div>
                 </div>
               </div>
-            </div>
             )}
           </Card>
         </div>

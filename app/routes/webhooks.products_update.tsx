@@ -1,4 +1,4 @@
-import { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "app/db.server";
 
@@ -6,7 +6,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, topic, payload } = await authenticate.webhook(request);
 
   if (topic === "PRODUCTS_UPDATE") {
-    const productId = payload.id;
     const variants = payload.variants;
 
     try {
@@ -15,7 +14,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const available = variant.inventory_quantity;
 
         // Step 1: Fetch variant metafield preorder
-        const res = await admin.graphql(
+        const res = await admin?.graphql(
           `#graphql
           query getMetafield($id: ID!) {
             productVariant(id: $id) {
@@ -27,8 +26,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           `,
           { variables: { id: variantId } },
         );
-        const json = await res.json();
-        const campaignId = json.data.productVariant?.metafield?.value;
+        const json = await res?.json();
+        const campaignId = json?.data.productVariant?.metafield?.value;
         if(!campaignId){
          continue
         }
@@ -43,7 +42,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         // Step 2: If preorder == true, update preorder_max_units
         if (campaignId !== "" && campaign?.campaignType === 3) {
-          await admin.graphql(
+          await admin?.graphql(
             `#graphql
             mutation setMetafield($id: ID!, $value: String!) {
               metafieldsSet(metafields: [

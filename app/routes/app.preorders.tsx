@@ -17,9 +17,9 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "app/shopify.server";
-import { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { getOrders } from "app/models/campaign.server";
-import { Link, useActionData, useLoaderData, useNavigate, useSubmit } from "@remix-run/react";
+import { Link, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
 import { useCallback, useEffect, useState } from "react";
 import type { IndexFiltersProps, TabProps } from "@shopify/polaris";
 import {
@@ -96,7 +96,6 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
   if (intent === "shipping-notification") {
     const subject = formData.get("subject");
     const message = formData.get("message");
-    const orderIds = formData.get("orderIds");
 
     // Fetch shop data
     const response = await admin.graphql(GET_SHOP_WITH_PLAN);
@@ -112,7 +111,7 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
       },
     });
 
-    let template = emailSettings?.ShippingEmailSettings;
+    let template : any = emailSettings?.ShippingEmailSettings;
     if (template) {
       template.subject = subject;
       template.description = message;
@@ -232,7 +231,7 @@ export default function AdditionalPage() {
   }
 
   // Filtering logic
-  const filteredOrders = allOrders.filter((order) => {
+  const filteredOrders = allOrders.filter((order:any) => {
     const matchesQuery =
       queryValue === "" ||
       order.orderNumber.toLowerCase().includes(queryValue.toLowerCase());
@@ -318,6 +317,7 @@ export default function AdditionalPage() {
                 "_blank",
               );
             }}
+            to=""
           >
             <Text variant="bodyMd" fontWeight="bold" as="span">
               {orderNumber}

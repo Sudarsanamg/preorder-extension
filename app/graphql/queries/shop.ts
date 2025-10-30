@@ -78,14 +78,18 @@ export async function isShopifyPaymentsEnabled(
     where: { shopifyDomain: shopDomain },
     select: { offlineToken: true },
   });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (typeof accessToken?.offlineToken === "string") {
+    headers["X-Shopify-Access-Token"] = accessToken.offlineToken;
+  }
+
   const response = await fetch(
     `https://${shopDomain}/admin/api/2025-10/graphql.json`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": accessToken?.offlineToken,
-      },
+      headers,
       body: JSON.stringify({ query }),
     }
   );
