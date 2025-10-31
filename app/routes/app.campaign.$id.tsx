@@ -32,6 +32,7 @@ import {
   useNavigate,
   useLoaderData,
   useNavigation,
+  useActionData,
 } from "@remix-run/react";
 import { DeleteIcon } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
@@ -47,7 +48,7 @@ import {
 } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { unpublishMutation } from "app/graphql/mutation/metaobject";
-import { GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
+import { GET_PRODUCTS_WITH_PREORDER_WITH_ID, GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
 import {
   allowOutOfStockForVariants,
@@ -98,7 +99,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
         variables: { id: collectionId },
       });
-      const resData: any = (await response.json)
+      const resData: any = ( await response.json)
         ? await response.json()
         : response;
 
@@ -168,10 +169,15 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       productTitle: variant.productTitle,
     }));
     const shopDomain = session.shop;
+     const shopResponse = await admin.graphql(GET_SHOP);
+      const shopResponseData = await shopResponse.json();
+      const shopId = shopResponseData.data.shop.id;
+   
     const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
     const getDueByValtResponse = await prisma.preorderCampaign.findUnique({
       where: {
         id: params.id!,
+        shopId: shopId,
       },
       select: {
         getDueByValt: true,
@@ -192,6 +198,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { admin ,session} = await authenticate.admin(request);
   const shop = session.shop;
+  const response = await admin.graphql(GET_SHOP);
+  const data = await response.json();
+  const shopId = data.data.shop.id;
   const isStoreExist = await isStoreRegistered(shop);
   if(!isStoreExist){
     return Response.json({ success: false, error: "Store not found" }, { status: 404 });
@@ -202,6 +211,35 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const secondaryIntent = formData.get("secondaryIntent") as string;
   const campaignCurrentStatusResponse = await getCampaignStatus(params.id!);
   const campaignCurrentStatus = campaignCurrentStatusResponse?.status;
+  if (intent === "productsWithPreorder") {
+    let productIds = JSON.parse(formData.get("products") as string);
+
+    const currentCampaignId = (formData.get("campaignId") as string) || null;
+
+    productIds = productIds.map((product: any) => product.variantId);
+
+    const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER_WITH_ID, {
+      variables: { ids: productIds },
+    });
+    const data = await response.json();
+
+    const productsWithPreorder = data.data.nodes.map((node: any) => {
+      let assocCampaignId = node?.metafield?.value ?? null;
+      if (assocCampaignId === "null") assocCampaignId = null;
+
+      const associatedWithOtherCampaign =
+        !!assocCampaignId && assocCampaignId !== currentCampaignId;
+
+      return {
+        id: node.id,
+        title: node.title,
+        associatedCampaignId: assocCampaignId,
+        associatedWithOtherCampaign,
+      };
+    });
+
+    return json({ productsWithPreorder });
+  }
   if (intent === "update-campaign") {
     try {
       await updateCampaign({
@@ -720,7 +758,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       allowOutOfStockForVariants(admin, products);
     }
 
-    await updateCampaignStatus(params.id!, "PUBLISHED");
+    await updateCampaignStatus(params.id!, "PUBLISHED",shopId);
     return redirect(`/app/`);
   }
 
@@ -804,17 +842,18 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           );
         }
       }
+      // const response = await admin.graphql(GET_SHOP);
+      // const data = await response.json();
+      // const shopId = data.data.shop.id;
 
-      await updateCampaignStatus(params.id!, "UNPUBLISH");
+      await updateCampaignStatus(params.id!, "UNPUBLISH",shopId);
       // if (secondaryIntent === "NONE" || secondaryIntent === "delete-campaign") {
       removeDiscountFromVariants(
         admin,
         products.map((product: any) => product.variantId),
       );
       // }
-      const response = await admin.graphql(GET_SHOP);
-      const data = await response.json();
-      const shopId = data.data.shop.id;
+      
 
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!,shopId);
@@ -1061,6 +1100,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         await updateCampaignStatus(
           campaign.id,
           campaignCurrentStatus as CampaignStatus,
+          shopId
         );
         const removedVarients = formData.get("removedVarients") as string;
         const parsedRemovedVarients = removedVarients
@@ -1144,7 +1184,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       if (secondaryIntent === "save-as-draft") {
         const campaignId = (formData.get("id") ?? "") as string;
-        await updateCampaignStatus(campaignId, "DRAFT");
+        await updateCampaignStatus(campaignId, "DRAFT",shopId);
         return redirect("/app");
       }
 
@@ -1173,11 +1213,17 @@ export default function CampaignDetail() {
     shopifyPaymentsEnabled: boolean;
     getDueByValt: boolean;
   };
+   const { productsWithPreorder } = useActionData<typeof action>() ?? {
+      productsWithPreorder: [],
+    };
+  console.log(productsWithPreorder);
   const [buttonLoading, setButtonLoading] = useState({
     publish: false,
     delete: false,
     save: false,
     saveAsDraft: false,
+    addAll: false,
+
   });
 
   const navigation = useNavigation();
@@ -1294,6 +1340,9 @@ const discarding = useRef(false);
   });
 const initialCampaignRef = useRef(campaignData);
 const initialDesignRef = useRef(designFields);
+const [productFetched,setProductFetched] = useState(false);
+const [warningPopoverActive, setWarningPopoverActive] = useState(false);
+
 
   const handleCampaignDataChange = <K extends keyof CampaignFields>(
     field: K,
@@ -1372,6 +1421,7 @@ const initialDesignRef = useRef(designFields);
           })),
         );
         setSelectedProducts(products);
+        setProductFetched(true);
       } else {
         // ✅ collections selected → fetch products inside
         let allProducts: any[] = [];
@@ -1714,6 +1764,57 @@ const initialDesignRef = useRef(designFields);
 
     submit(formData, { method: "post" });
   }
+
+    const selectAllProducts = async () => {
+      setButtonLoading(() => ({ ...buttonLoading, addAll: true }));
+      const res = await fetch("/api/products");
+      const allVariants = await res.json();
+      setSelectedProducts(allVariants);
+      setButtonLoading(() => ({ ...buttonLoading, addAll: false }));
+      setProductFetched(true);
+    };
+
+  useEffect(() => {
+    // if (productFetched === true) {
+      const formData = new FormData();
+      formData.append("intent", "productsWithPreorder");
+      formData.append("products", JSON.stringify(selectedProducts));
+      formData.append("campaignId", campaign.id);
+      setProductFetched(false);
+
+      submit(formData, { method: "post" });
+    // }
+  }, [ selectedProducts, campaign.id]);
+
+   useEffect(() => {
+    let flag = false;
+    if (!productsWithPreorder) return;
+    for (let i = 0; i < productsWithPreorder.length; i++) {
+      console.log(productsWithPreorder[i]);
+      if (productsWithPreorder[i]?.associatedWithOtherCampaign == true) {
+        flag = true;
+        break;
+      }
+    }
+
+
+    if (flag) {
+      setWarningPopoverActive(true);
+    } else {
+      setWarningPopoverActive(false);
+    }
+  }, [selectedProducts, productsWithPreorder]);
+
+  const handleDuplication=(id: any) =>{
+    const prod = productsWithPreorder?.find(
+      (product: any) => product.id === id,
+    )
+    if(prod && prod.associatedWithOtherCampaign == true){
+      return true;
+    }
+  }
+
+    
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -2071,7 +2172,7 @@ const initialDesignRef = useRef(designFields);
                             height={80}
                           />
                         </div>
-                        <div style={{marginTop : 10}}>
+                        <div style={{ marginTop: 10 }}>
                           <p style={{ fontWeight: "bold", fontSize: "16px" }}>
                             Baby Pink T-shirt
                           </p>
@@ -2126,9 +2227,10 @@ const initialDesignRef = useRef(designFields);
                         </Button>
                         <Button
                           variant="primary"
+                          loading={buttonLoading.addAll}
                           onClick={() => {
                             // setProductAddType("all")
-                            // selectAllProducts();
+                            selectAllProducts();
                           }}
                         >
                           Add all products
@@ -2155,201 +2257,228 @@ const initialDesignRef = useRef(designFields);
               </div>
             )}
             {selectedProducts.length > 0 && (
-              <Card>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "10px",
-                  }}
-                >
-                  <div>
-                    <TextField
-                      label="Search products"
-                      labelHidden
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                      autoComplete="off"
-                      placeholder="Search by product name"
-                    />
+              <div>
+                {warningPopoverActive && (
+                  <div style={{ padding: "8px" }}>
+                    <Banner
+                      title="Some of the products are assigned to multiple campaigns"
+                      tone="warning"
+                    >
+                      <p>
+                        Highlighted products are assigned to multiple Preorder
+                        campaigns. When publishing this campaign products will
+                        be removed from other campaigns.
+                      </p>
+                    </Banner>
                   </div>
-                  <div>
-                    <ButtonGroup>
-                      <Button onClick={openResourcePicker}>
-                        Add More Products
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setRemovedVarients([
-                            ...removedVarients,
-                            ...selectedProducts.map((p) => p.variantId),
-                          ]);
-                          setSelectedProducts([]);
-                        }}
-                      >
-                        Remove all Products
-                      </Button>
-                    </ButtonGroup>
+                )}
+                <Card>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "10px",
+                    }}
+                  >
+                    <div>
+                      <TextField
+                        label="Search products"
+                        labelHidden
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        autoComplete="off"
+                        placeholder="Search by product name"
+                      />
+                    </div>
+                    <div>
+                      <ButtonGroup>
+                        <Button onClick={openResourcePicker}>
+                          Add More Products
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setRemovedVarients([
+                              ...removedVarients,
+                              ...selectedProducts.map((p) => p.variantId),
+                            ]);
+                            setSelectedProducts([]);
+                          }}
+                        >
+                          Remove all Products
+                        </Button>
+                      </ButtonGroup>
+                    </div>
                   </div>
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Image
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Product
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Inventory
-                        </th>
-                        {campaignData.campaignType !== 3 && (
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                      <thead>
+                        <tr>
                           <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
                             }}
                           >
-                            Inventory limit
+                            Image
                           </th>
-                        )}
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        >
-                          Price
-                        </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #eee",
-                          }}
-                        ></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProducts.map((product) => (
-                        <tr key={product.varientId}>
-                          <td
+                          <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
-                              textAlign: "center",
                             }}
                           >
-                            <img
-                              src={product.productImage}
-                              alt={product.variantTitle}
-                              style={{
-                                width: 50,
-                                height: 50,
-                                objectFit: "cover",
-                              }}
-                            />
-                          </td>
-                          <td
+                            Product
+                          </th>
+                          <th
                             style={{
                               padding: "8px",
                               borderBottom: "1px solid #eee",
-                              textAlign: "center",
                             }}
                           >
-                            {product.variantTitle !== "Default Title"
-                              ? product.variantTitle
-                              : product.productTitle}
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                              textAlign: "center",
-                            }}
-                          >
-                            {product.variantInventory
-                              ? product.variantInventory
-                              : product.inventory}
-                          </td>
+                            Inventory
+                          </th>
                           {campaignData.campaignType !== 3 && (
+                            <th
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                              }}
+                            >
+                              Inventory limit
+                            </th>
+                          )}
+                          <th
+                            style={{
+                              padding: "8px",
+                              borderBottom: "1px solid #eee",
+                            }}
+                          >
+                            Price
+                          </th>
+                          <th
+                            style={{
+                              padding: "8px",
+                              borderBottom: "1px solid #eee",
+                            }}
+                          ></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProducts.map((product) => (
+                          <tr
+                            key={product.varientId}
+                            style={{
+                              backgroundColor: handleDuplication(
+                                product.variantId,
+                              )
+                                ? "#ea9898ff"
+                                : "",
+                            }}
+                          >
                             <td
                               style={{
                                 padding: "8px",
                                 borderBottom: "1px solid #eee",
-                                width: "100px",
                                 textAlign: "center",
                               }}
                             >
-                              <TextField
-                                type="text"
-                                min={0}
-                                label="Inventory limit"
-                                labelHidden
-                                autoComplete="off"
-                                value={
-                                  campaignData.campaignType === 3
-                                    ? product.variantInventory
-                                      ? product.variantInventory
-                                      : product.inventory
-                                    : product?.maxUnit.toString() || "0"
-                                }
-                                onChange={(value) =>
-                                  handleMaxUnitChange(
-                                    product.variantId,
-                                    Number(value),
-                                  )
-                                }
+                              <img
+                                src={product.productImage}
+                                alt={product.variantTitle}
+                                style={{
+                                  width: 50,
+                                  height: 50,
+                                  objectFit: "cover",
+                                }}
                               />
                             </td>
-                          )}
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                              textAlign: "center",
-                            }}
-                          >
-                            {formatCurrency(product.variantPrice ,'USD' )}
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <div
-                              onClick={() => {
-                                handleRemoveProduct(product.variantId);
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                                textAlign: "center",
                               }}
                             >
-                              <Icon source={DeleteIcon} />
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+                              {product.variantTitle !== "Default Title"
+                                ? product.variantTitle
+                                : product.productTitle}
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                                textAlign: "center",
+                              }}
+                            >
+                              {product.variantInventory
+                                ? product.variantInventory
+                                : product.inventory}
+                            </td>
+                            {campaignData.campaignType !== 3 && (
+                              <td
+                                style={{
+                                  padding: "8px",
+                                  borderBottom: "1px solid #eee",
+                                  width: "100px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                <TextField
+                                  type="text"
+                                  min={0}
+                                  label="Inventory limit"
+                                  labelHidden
+                                  autoComplete="off"
+                                  value={
+                                    campaignData.campaignType === 3
+                                      ? product.variantInventory
+                                        ? product.variantInventory
+                                        : product.inventory
+                                      : product?.maxUnit.toString() || "0"
+                                  }
+                                  onChange={(value) =>
+                                    handleMaxUnitChange(
+                                      product.variantId,
+                                      Number(value),
+                                    )
+                                  }
+                                />
+                              </td>
+                            )}
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                                textAlign: "center",
+                              }}
+                            >
+                              {formatCurrency(product.variantPrice, "USD")}
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #eee",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <div
+                                onClick={() => {
+                                  handleRemoveProduct(product.variantId);
+                                }}
+                              >
+                                <Icon source={DeleteIcon} />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
             )}
             <Modal id="my-modal">
               <div

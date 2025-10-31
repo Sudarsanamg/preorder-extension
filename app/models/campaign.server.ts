@@ -308,9 +308,12 @@ export async function deleteCampaign(id: string, shopId: string) {
   });
 }
 
-export async function updateCampaignStatus(id: string, status: CampaignStatus) {
+export async function updateCampaignStatus(id: string, status: CampaignStatus,shopId: string) {
   return prisma.preorderCampaign.update({
-    where: { id },
+    where: {
+       id,
+       shopId
+       },
     data: { status },
   });
 }
@@ -319,6 +322,28 @@ export async function getOrders(shopId: string) {
   return prisma.campaignOrders.findMany({
     where: {
       shopId: shopId,
+    },
+    select: {
+      order_id: true,
+      order_number: true,
+      dueDate: true,
+      balanceAmount: true,
+      paymentStatus: true,
+      storeId: true,
+      customerEmail: true
+    },
+    orderBy: {
+      order_number: "desc",
+    },
+   
+  });
+}
+
+export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfilmentmode) {
+  return prisma.campaignOrders.findMany({
+    where: {
+      shopId: shopId,
+      
     },
     select: {
       order_id: true,

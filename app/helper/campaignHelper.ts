@@ -9,9 +9,9 @@ import { deleteCampaign, updateCampaignStatus } from "app/models/campaign.server
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { removeDiscountFromVariants } from "./removeDiscountFromVariants";
 import { applyDiscountToVariants } from "./applyDiscountToVariants";
-import { GET_SHOP } from "app/graphql/queries/shop";
+// import { GET_SHOP } from "app/graphql/queries/shop";
 
-export const unPublishCampaign = async (admin: any, id: string) => {
+export const unPublishCampaign = async (admin: any, id: string , shopId?: string) => {
 
   const campaignId = id;
   try {
@@ -100,7 +100,7 @@ export const unPublishCampaign = async (admin: any, id: string) => {
       }
     }
 
-    await updateCampaignStatus(campaignId!, "UNPUBLISH");
+    await updateCampaignStatus(campaignId!, "UNPUBLISH",shopId!);
 
     removeDiscountFromVariants(
       admin,
@@ -118,7 +118,7 @@ export const unPublishCampaign = async (admin: any, id: string) => {
 };
 
 
-export const publishCampaign = async (admin: any, id: string) => {
+export const publishCampaign = async (admin: any, id: string, shopId: string) => {
   const campaignId = id;
 
    try {
@@ -300,12 +300,7 @@ export const publishCampaign = async (admin: any, id: string) => {
            allowOutOfStockForVariants(admin, products);
          }
 
-        await prisma.preorderCampaign.update({
-          where: { id: campaignId },
-          data: {
-            status: "PUBLISHED",
-          },
-        });
+        updateCampaignStatus(campaignId, "PUBLISHED",shopId);
 
         const variantIds = products.map((product: any) => {
           return product.variantId;
@@ -327,10 +322,11 @@ export const publishCampaign = async (admin: any, id: string) => {
 export const handleCampaignStatusChange = async (
   admin: any,
   campaignId: string,
-  newStatus: string
+  newStatus: string,
+  shopId: string
 )=>{
   if(newStatus === "DRAFT"){
-    await unPublishCampaign(admin,campaignId);
+    await unPublishCampaign(admin,campaignId, shopId);
     await prisma.preorderCampaign.update({
       where: { id: campaignId },
       data: {
@@ -339,16 +335,13 @@ export const handleCampaignStatusChange = async (
     })
   }
   if(newStatus === "PUBLISHED"){
-    await publishCampaign(admin,campaignId);
+    await publishCampaign(admin,campaignId,shopId);
   }
   if(newStatus === "UNPUBLISHED"){
-    await unPublishCampaign(admin,campaignId);
+    await unPublishCampaign(admin,campaignId, shopId);
   }
   if(newStatus === "DELETE"){
     await unPublishCampaign(admin,campaignId);
-     const response = await admin.graphql(GET_SHOP);
-      const data = await response.json();
-      const shopId = data.data.shop.id;
 
     await deleteCampaign(campaignId,shopId);
   }

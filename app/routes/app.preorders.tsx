@@ -124,7 +124,6 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
       const getOrderWithProductsResponse = await getOrderWithProducts(
         order.orderId,
         session.shop,
-        session.accessToken,
       );
 
       const emailTemplate = generateEmailTemplate(
@@ -181,6 +180,7 @@ export default function AdditionalPage() {
   const { mode, setMode } = useSetIndexFiltersMode();
 
   const tabs: TabProps[] = [
+    { content: "All", id: "all-tab" },
     { content: "Unfulfilled", id: "unfulfilled-tab" },
     { content: "Fulfilled", id: "fulfilled-tab" },
     { content: "On Hold", id: "onhold-tab" },
@@ -237,11 +237,11 @@ export default function AdditionalPage() {
       order.orderNumber.toLowerCase().includes(queryValue.toLowerCase());
 
     const matchesTab =
-      selectedTab === 0
+      selectedTab === 1
         ? order.fulfillmentStatus === "unfulfilled"
-        : selectedTab === 1
+        : selectedTab === 2
           ? order.fulfillmentStatus === "fulfilled"
-          : selectedTab === 2
+          : selectedTab === 3
             ? order.fulfillmentStatus === "on_hold"
             : true;
 
@@ -496,6 +496,10 @@ export default function AdditionalPage() {
             { title: "Payment status" },
             { title: "Fulfillment status" },
           ]}
+        //    pagination={{
+        //   hasNext: true,
+        //   onNext: () => {},
+        // }}
         >
           {rowMarkup}
         </IndexTable>

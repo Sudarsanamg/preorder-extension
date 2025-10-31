@@ -134,6 +134,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
+  const response = await admin.graphql(GET_SHOP);
+    const data = await response.json();
+    const shopId = data.data.shop.id;
   const isStoreExist = await isStoreRegistered(shop);
   if (!isStoreExist) {
     return Response.json(
@@ -142,8 +145,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
   const formData = await request.formData();
-  const intent = formData.get("intent");
-
+  const intent = formData.get("intent"); 
   if (intent === "complete_setup_guide") {
     try {
       await prisma.store.update({
@@ -169,7 +171,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const campaignId = formData.get("campaignId") as string;
     const newStatus = formData.get("newStatus") as string;
     try {
-      await handleCampaignStatusChange(admin, campaignId, newStatus);
+      await handleCampaignStatusChange(admin, campaignId, newStatus,shopId);
       return json({ success: true, message: "Campaign status updated" });
     } catch (error) {
       console.error("Error updating campaign status:", error);

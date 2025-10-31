@@ -15,6 +15,7 @@ import {
   Checkbox,
   RadioButton,
   RangeSlider,
+  Spinner,
 } from "@shopify/polaris";
 import type { EmailSettings } from "app/types/type";
 import { hexToHsb } from "app/utils/color";
@@ -24,6 +25,7 @@ import {
   useLoaderData,
   useSubmit,
   useNavigate,
+  useNavigation,
   // useFetcher,
   // useActionData,
 } from "@remix-run/react";
@@ -94,6 +96,8 @@ export default function EmailPreorderConfirmationSettings() {
   const shopify = useAppBridge();
   const { shopId, status } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+    const navigation = useNavigation();
+  
   // const fetcher = useFetcher();
   // const actionData = useActionData();
   // console.log("Shop ID in component:", shopId);
@@ -230,6 +234,9 @@ export default function EmailPreorderConfirmationSettings() {
   return (
     <Page
       title="Preorder confirmation email"
+      titleMetadata={
+                <div>{navigation.state !== "idle" && <Spinner size="small" />}</div>
+              }
       backAction={{
         content: "Back",
 
@@ -343,6 +350,7 @@ export default function EmailPreorderConfirmationSettings() {
                             width: 30,
                             backgroundColor: emailSettings.storeNameColor,
                             borderRadius: "8px",
+                            border: "1px solid #ccc",
                           }}
                           onClick={() => togglePopover("storeNameColor")}
                         ></div>
@@ -385,7 +393,8 @@ export default function EmailPreorderConfirmationSettings() {
                     B
                   </Button>
                   <TextField
-                    // label="Store name"
+                    label="Store name"
+                    labelHidden
                     value={emailSettings.subheadingFontSize}
                     autoComplete="off"
                     suffix={"px"}
@@ -406,6 +415,8 @@ export default function EmailPreorderConfirmationSettings() {
                             width: 30,
                             backgroundColor: emailSettings.subheadingColor,
                             borderRadius: "8px",
+                            border: "1px solid #ccc",
+                          
                           }}
                           onClick={() => togglePopover("subheadingColor")}
                         ></div>
@@ -471,6 +482,8 @@ export default function EmailPreorderConfirmationSettings() {
                             width: 30,
                             backgroundColor: emailSettings.descriptionColor,
                             borderRadius: "8px",
+                            border: "1px solid #ccc",
+
                           }}
                           onClick={() => togglePopover("descriptionColor")}
                         ></div>
@@ -511,7 +524,8 @@ export default function EmailPreorderConfirmationSettings() {
                     B
                   </Button>
                   <TextField
-                    // label="Store name"
+                    label="Store name"
+                    labelHidden
                     value={emailSettings.productTitleFontSize}
                     autoComplete="off"
                     suffix={"px"}
@@ -532,6 +546,7 @@ export default function EmailPreorderConfirmationSettings() {
                             width: 30,
                             backgroundColor: emailSettings.productTitleColor,
                             borderRadius: "8px",
+                            border: "1px solid #ccc",
                           }}
                           onClick={() => togglePopover("productTitleColor")}
                         ></div>
@@ -547,6 +562,9 @@ export default function EmailPreorderConfirmationSettings() {
                       />
                     </Popover>
                     <TextField
+                      label="Store name"
+                      labelHidden
+                      autoComplete="off"
                       value={emailSettings.productTitleColor}
                       onChange={() => {}}
                     />
@@ -577,7 +595,7 @@ export default function EmailPreorderConfirmationSettings() {
               </BlockStack>
             </Card>
             <Card>
-              <BlockStack gap="300">
+              <BlockStack gap="100">
                 <Text variant="headingMd" as="h2">
                   Button
                 </Text>
@@ -605,9 +623,12 @@ export default function EmailPreorderConfirmationSettings() {
                       Opens up order cancelation page. Use {"{order}"} for order
                       number
                     </Text>
+                    <BlockStack gap="200">
+                      <div style={{marginTop:10}}>
                     <Text variant="headingMd" as="h2">
                       Background
                     </Text>
+                    </div>
                     <RadioButton
                       label="Single Colour Background" // checked={value === 'disabled'}
                       onChange={() => {
@@ -626,11 +647,12 @@ export default function EmailPreorderConfirmationSettings() {
                         activator={
                           <div
                             style={{
-                              height: 40,
-                              width: 40,
+                              height: 30,
+                              width: 30,
                               backgroundColor:
                                 emailSettings.cancelButtonBackgroundColor,
                               borderRadius: "8px",
+                              border: "1px solid #ccc",
                             }}
                             onClick={() =>
                               togglePopover("cancelButtonBackgroundColor")
@@ -699,11 +721,12 @@ export default function EmailPreorderConfirmationSettings() {
                             activator={
                               <div
                                 style={{
-                                  height: 40,
-                                  width: 40,
+                                  height: 30,
+                                  width: 30,
                                   backgroundColor:
                                     emailSettings.cancelButtonGradientColor1,
                                   borderRadius: "8px",
+                                  border: "1px solid #ccc",
                                 }}
                                 onClick={() =>
                                   togglePopover("cancelButtonGradientColor1")
@@ -745,11 +768,12 @@ export default function EmailPreorderConfirmationSettings() {
                             activator={
                               <div
                                 style={{
-                                  height: 40,
-                                  width: 40,
+                                  height: 30,
+                                  width: 30,
                                   backgroundColor:
                                     emailSettings.cancelButtonGradientColor2,
                                   borderRadius: "8px",
+                                  border: "1px solid #ccc",
                                 }}
                                 onClick={() =>
                                   togglePopover("cancelButtonGradientColor2")
@@ -779,6 +803,10 @@ export default function EmailPreorderConfirmationSettings() {
                         </div>
                       </div>
                     )}
+                    </BlockStack>
+
+                    <BlockStack gap="200">
+                      <div style={{marginTop:10}}>
                     <TextField
                       label="Corner radius"
                       value={emailSettings.cancelButtonBorderRadius}
@@ -791,6 +819,7 @@ export default function EmailPreorderConfirmationSettings() {
                       }}
                       autoComplete="off"
                     />
+                    </div>
                     <Text as="h3" variant="headingMd">
                       Border size and color
                     </Text>
@@ -824,6 +853,7 @@ export default function EmailPreorderConfirmationSettings() {
                                 backgroundColor:
                                   emailSettings.cancelButtonBorderColor,
                                 borderRadius: "8px",
+                                border: "1px solid #ccc",
                               }}
                               onClick={() =>
                                 togglePopover("cancelButtonBorderColor")
@@ -897,6 +927,7 @@ export default function EmailPreorderConfirmationSettings() {
                                 backgroundColor:
                                   emailSettings.cancelButtonTextColor,
                                 borderRadius: "8px",
+                                border: "1px solid #ccc",
                               }}
                               onClick={() =>
                                 togglePopover("cancelButtonTextColor")
@@ -921,6 +952,7 @@ export default function EmailPreorderConfirmationSettings() {
                         />
                       </div>
                     </InlineStack>
+                    </BlockStack>
                   </div>
                 )}
               </BlockStack>

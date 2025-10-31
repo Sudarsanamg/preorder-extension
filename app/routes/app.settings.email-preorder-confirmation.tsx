@@ -361,6 +361,7 @@ subject: parsedSettings.subject,
                             width: 30,
                             backgroundColor: emailSettings.storeNameColor,
                             borderRadius: "8px",
+                            border: "1px solid grey",
                           }}
                           onClick={() => togglePopover("storeNameColor")}
                         ></div>
@@ -430,6 +431,7 @@ subject: parsedSettings.subject,
                             width: 30,
                             backgroundColor: emailSettings.subheadingColor,
                             borderRadius: "8px",
+                            border: "1px solid grey",
                           }}
                           onClick={() => togglePopover("subheadingColor")}
                         ></div>
@@ -501,6 +503,7 @@ subject: parsedSettings.subject,
                             width: 30,
                             backgroundColor: emailSettings.descriptionColor,
                             borderRadius: "8px",
+                            border: "1px solid grey",
                           }}
                           onClick={() => togglePopover("descriptionColor")}
                         ></div>
@@ -568,6 +571,7 @@ subject: parsedSettings.subject,
                             width: 30,
                             backgroundColor: emailSettings.productTitleColor,
                             borderRadius: "8px",
+                            border: "1px solid grey",
                           }}
                           onClick={() => togglePopover("productTitleColor")}
                         ></div>
@@ -620,7 +624,7 @@ subject: parsedSettings.subject,
               </BlockStack>
             </Card>
             <Card>
-              <BlockStack gap="500">
+              <BlockStack gap="200">
                 <Text variant="headingMd" as="h2">
                   Button
                 </Text>
@@ -650,11 +654,16 @@ subject: parsedSettings.subject,
                   Opens up order cancelation page. Use {"{order}"} for order
                   number
                 </Text>
+                <div style={{marginTop:10,marginBottom:10}}>
                 <Text variant="headingMd" as="h2">
                   Background
                 </Text>
+                </div>
+
+                <BlockStack gap="200"> 
+
                 <RadioButton
-                  label="Single Colour Background" // checked={value === 'disabled'}
+                  label="Single Colour Background" 
                   onChange={() => {
                     handleEmailSettingsChange("cancelButtonStyle", "solid");
                   }}
@@ -666,11 +675,12 @@ subject: parsedSettings.subject,
                     activator={
                       <div
                         style={{
-                          height: 40,
-                          width: 40,
+                          height: 30,
+                          width: 30,
                           backgroundColor:
                             emailSettings.cancelButtonBackgroundColor,
                           borderRadius: "8px",
+                          border: "1px solid grey",
                         }}
                         onClick={() =>
                           togglePopover("cancelButtonBackgroundColor")
@@ -703,7 +713,7 @@ subject: parsedSettings.subject,
                   />
                 </div>
                 <RadioButton
-                  label="Gradient background" // checked={value === 'disabled'}
+                  label="Gradient background" 
                   onChange={() => {
                     handleEmailSettingsChange("cancelButtonStyle", "gradient");
                   }}
@@ -731,11 +741,12 @@ subject: parsedSettings.subject,
                         activator={
                           <div
                             style={{
-                              height: 40,
-                              width: 40,
+                              height: 30,
+                              width: 30,
                               backgroundColor:
                                 emailSettings.cancelButtonGradientColor1,
                               borderRadius: "8px",
+                              border: "1px solid grey",
                             }}
                             onClick={() =>
                               togglePopover("cancelButtonGradientColor1")
@@ -774,11 +785,12 @@ subject: parsedSettings.subject,
                         activator={
                           <div
                             style={{
-                              height: 40,
-                              width: 40,
+                              height: 30,
+                              width: 30,
                               backgroundColor:
                                 emailSettings.cancelButtonGradientColor2,
                               borderRadius: "8px",
+                              border: "1px solid grey",
                             }}
                             onClick={() =>
                               togglePopover("cancelButtonGradientColor2")
@@ -811,6 +823,9 @@ subject: parsedSettings.subject,
                     </div>
                   </div>
                 )}
+
+                </BlockStack>
+                <BlockStack gap="200">
                 <TextField
                   label="Corner radius"
                   value={emailSettings.cancelButtonBorderRadius}
@@ -853,6 +868,7 @@ subject: parsedSettings.subject,
                             backgroundColor:
                               emailSettings.cancelButtonBorderColor,
                             borderRadius: "8px",
+                            border: "1px solid grey",
                           }}
                           onClick={() =>
                             togglePopover("cancelButtonBorderColor")
@@ -916,6 +932,7 @@ subject: parsedSettings.subject,
                             backgroundColor:
                               emailSettings.cancelButtonTextColor,
                             borderRadius: "8px",
+                            border: "1px solid grey",
                           }}
                           onClick={() => togglePopover("cancelButtonTextColor")}
                         ></div>
@@ -939,6 +956,7 @@ subject: parsedSettings.subject,
                     />
                   </div>
                 </InlineStack>
+                </BlockStack>
                   </div>
                 )}
               </BlockStack>

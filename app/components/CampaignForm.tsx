@@ -101,7 +101,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         <div style={{ marginTop: 6 }}>
           <p>This is only visible for you</p>
         </div>
-        <div>
+        <div style={{ marginTop: 6 }}>
           <Text as="h4" variant="headingSm">
             Preorder
           </Text>
@@ -179,9 +179,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
 
       <div style={{ marginTop: 20 }}>
         <Card>
-          <Text as="h4" variant="headingSm">
+          <div style={{marginBottom:10}}>
+          <Text as="h4" variant="headingSm" >
             Preorder Button
           </Text>
+          </div>
           <TextField
             id="preorderButtonText"
             label="Button Text"
@@ -269,9 +271,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       {/* preorder Note */}
       <div style={{ marginTop: 20 }}>
         <Card>
+          <div style={{marginBottom:10}}>
           <Text as="h4" variant="headingSm">
             Preorder note
           </Text>
+          </div>
           <p>Visible in cart, checkout, transactional emails</p>
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
             <TextField
@@ -295,12 +299,14 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       {/* payment type */}
       <div style={{ marginTop: 20 }}>
         <Card>
+          <div style={{marginBottom:10}}>
           <Text as="h4" variant="headingSm">
             Payment
           </Text>
+          </div>
           <div>
             {/* <LegacyStack vertical> */}
-            <BlockStack gap={"300"}>
+            <BlockStack gap={"100"}>
               <RadioButton
                 label="Full payment"
                 checked={campaignData.paymentMode === "full"}
@@ -530,9 +536,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       </div>
       <div style={{ marginTop: 20 }}>
         <Card>
+          <div style={{marginBottom:10}}>
           <Text as="h4" variant="headingSm">
             Campaign End Date and Time
           </Text>
+          </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={{ flex: 1 }}>
               <Popover
@@ -592,10 +600,12 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       </div>
       <div style={{ marginTop: 20 }}>
         <Card>
+          <div style={{marginBottom:10}}>
           <Text as="h4" variant="headingSm">
             Set fulfilment status for orders with preorder items
           </Text>
-          <BlockStack gap={"100"}>
+          </div>
+          <BlockStack gap={"050"}>
             <RadioButton
               label="Unfulfilled"
               checked={campaignData.fulfilmentMode === "UNFULFILED"}

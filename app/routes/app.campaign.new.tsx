@@ -47,6 +47,7 @@ import PreviewDesign from "app/components/PreviewDesign";
 import type { CampaignFields, DesignFields } from "../types/type";
 import {
   GET_COLLECTION_PRODUCTS,
+  GET_SHOP,
   GET_SHOP_WITH_PLAN,
   isShopifyPaymentsEnabled,
 } from "app/graphql/queries/shop";
@@ -129,11 +130,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const formData = await request.formData();
     const intent = formData.get("intent");
     let admin;
+    let shopId;
+    
     try {
       const auth = await authenticate.admin(request);
       admin = auth.admin;
       const { session } = await authenticate.admin(request);
       const shopDomain = session.shop;
+      const response = await admin.graphql(GET_SHOP);
+      const data = await response.json();
+      shopId = data.data.shop.id;
+      
       const isStoreExist = await isStoreRegistered(shopDomain);
       if(!isStoreExist){
         return Response.json({ success: false, error: "Store not found" }, { status: 404 });
@@ -429,6 +436,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         await updateCampaignStatus(
           campaign.id,
           intent === "SAVE" ? "DRAFT" : "PUBLISHED",
+          shopId
         );
 
         return redirect("/app");
@@ -561,6 +569,7 @@ export default function Newcampaign() {
   
   const [activeButtonIndex, setActiveButtonIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasCollectionFetched, setHasCollectionFetched] = useState(false);
 
   
   
@@ -883,10 +892,15 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
       { intent: "fetchProductsInCollection", collectionId: id },
       { method: "get" },
     );
-    if (prod) {
-      setSelectedProducts(prod);
-    }
   }
+
+ useEffect(() => {
+
+  if (prod && prod.length > 0 && !hasCollectionFetched) {
+    setSelectedProducts(prod);
+    setHasCollectionFetched(true); 
+  }
+}, [prod,hasCollectionFetched]);
 
   const handleSave = () => {
   // setLoading(true);
@@ -982,7 +996,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   selectedProducts,
   campaignData,
   selectedDates,
-  saveBarVisible
+  saveBarVisible,
+  isSubmitting
 ]);
 
   useEffect(() => {
@@ -1438,7 +1453,10 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                         <Button onClick={openResourcePicker}>
                           Add More Products
                         </Button>
-                        <Button onClick={() => setSelectedProducts([])}>
+                        <Button onClick={() => {
+                        setSelectedProducts([])
+                        
+                        }}>
                           Remove all Products
                         </Button>
                       </ButtonGroup>

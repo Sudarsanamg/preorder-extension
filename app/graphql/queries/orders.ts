@@ -1,3 +1,5 @@
+import prisma from "app/db.server";
+
 export const getOrdersFulfillmentStatus = `
 query getOrdersFulfillmentStatus($ids: [ID!]!) {
   nodes(ids: $ids) {
@@ -59,7 +61,7 @@ export const getOrderVaultedMethods = `
     }
   `;
 
-export async function getOrderWithProducts(orderId: string, shopDomain: string, accessToken: string) {
+export async function getOrderWithProducts(orderId: string, shopDomain: string) {
   const query = `
     query GetOrderWithProducts($orderId: ID!) {
       order(id: $orderId) {
@@ -96,6 +98,17 @@ export async function getOrderWithProducts(orderId: string, shopDomain: string, 
   `;
   
   const variables = { orderId };
+
+  const store = await prisma.store.findUnique({
+    where: { shopifyDomain: shopDomain },
+    select: { offlineToken: true },
+  });
+
+  if (!store?.offlineToken) {
+    throw new Error(`No access token found for shop: ${shopDomain}`);
+  }
+
+  let accessToken = store.offlineToken;
 
   try {
     const response = await fetch(`https://${shopDomain}/admin/api/2023-01/graphql.json`, {

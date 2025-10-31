@@ -13,6 +13,7 @@ import {
   AddTagsToOrderMutation,
   draftOrderCreate,
   getOrderVaultedMethods,
+  getOrderWithProducts,
 } from "app/graphql/queries/orders";
 import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import { draftOrderInvoiceSendMutation } from "app/graphql/mutation/orders";
@@ -24,6 +25,7 @@ export const action = async ({ request }: { request: Request }) => {
     if (topic === "ORDERS_CREATE") {
       try {
         const products = payload.line_items || [];
+        console.log(products);
         const line_items = payload.line_items || [];
         const variantIds = line_items.map((item: any) => item.variant_id);
 
@@ -176,11 +178,16 @@ export const action = async ({ request }: { request: Request }) => {
           });
 
           //send update email
+          const getOrderWithProductsResponse = await getOrderWithProducts(
+            orderId,
+            storeDomain,
+          );
+          
           try {
             if (emailConsent?.sendCustomEmail) {
               const emailTemplate = generateEmailTemplate(
                 ParsedemailSettings,
-                products,
+                getOrderWithProductsResponse,
                 formattedOrderId,
               );
 

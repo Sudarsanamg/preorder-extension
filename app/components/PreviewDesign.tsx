@@ -108,10 +108,11 @@ export default function PreviewDesign({
                 activator={
                   <div
                     style={{
-                      height: 40,
-                      width: 40,
+                      height: 30,
+                      width: 30,
                       backgroundColor: designFields.buttonBackgroundColor,
                       borderRadius: "8px",
+                      border: "1px solid gray",
                     }}
                     onClick={() => togglePopover("buttonBackgroundColor")}
                   ></div>
@@ -159,10 +160,11 @@ export default function PreviewDesign({
                 activator={
                   <div
                     style={{
-                      height: 40,
-                      width: 40,
+                      height: 30,
+                      width: 30,
                       backgroundColor: designFields.gradientColor1,
                       borderRadius: "8px",
+                      border: "1px solid gray"
                     }}
                     onClick={() => togglePopover("gradientColor1")}
                   ></div>
@@ -189,10 +191,11 @@ export default function PreviewDesign({
                 activator={
                   <div
                     style={{
-                      height: 40,
-                      width: 40,
+                      height: 30,
+                      width: 30,
                       backgroundColor: designFields.gradientColor2,
                       borderRadius: "8px",
+                      border: "1px solid gray"
                     }}
                     onClick={() => togglePopover("gradientColor2")}
                   ></div>
@@ -237,10 +240,11 @@ export default function PreviewDesign({
                 activator={
                   <div
                     style={{
-                      height: 40,
-                      width: 40,
+                      height: 30,
+                      width: 30,
                       backgroundColor: designFields.borderColor,
                       borderRadius: "8px",
+                      border: "1px solid gray"
                     }}
                     onClick={() => togglePopover("borderColor")}
                   ></div>
@@ -286,10 +290,11 @@ export default function PreviewDesign({
                   activator={
                     <div
                       style={{
-                        height: 40,
-                        width: 40,
+                        height: 30,
+                        width: 30,
                         backgroundColor: designFields.buttonTextColor,
                         borderRadius: "8px",
+                        border: "1px solid gray"
                       }}
                       onClick={() => togglePopover("buttonTextColor")}
                     ></div>
@@ -371,10 +376,11 @@ export default function PreviewDesign({
               activator={
                 <div
                   style={{
-                    height: 40,
-                    width: 40,
+                    height: 30,
+                    width: 30,
                     backgroundColor: designFields.preorderMessageColor,
                     borderRadius: "8px",
+                    border: "1px solid gray",                
                   }}
                   onClick={() => togglePopover("preorderMessageColor")}
                 ></div>
@@ -395,6 +401,7 @@ export default function PreviewDesign({
               autoComplete="off"
               value={designFields.preorderMessageColor}
               onChange={() => {}}
+            
             />
           </div>
         </BlockStack>
