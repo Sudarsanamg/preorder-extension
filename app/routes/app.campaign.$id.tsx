@@ -23,7 +23,6 @@ import {
   Banner,
   Badge,
   InlineStack,
-  Spinner,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -31,7 +30,7 @@ import {
   useSubmit,
   useNavigate,
   useLoaderData,
-  useNavigation,
+  // useNavigation,
   useActionData,
 } from "@remix-run/react";
 import { DeleteIcon } from "@shopify/polaris-icons";
@@ -515,7 +514,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         //need to remove selling group and
         //remove metafields
         for (const variantId of parsedRemovedVarients) {
-          const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+          const { data } :any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
             variables: {
               id: variantId,
             },
@@ -1112,7 +1111,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           //need to remove selling group and
           //remove metafields
           for (const variantId of parsedRemovedVarients) {
-            const { data } = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+            const { data } :any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
               variables: {
                 id: variantId,
               },
@@ -1227,7 +1226,7 @@ export default function CampaignDetail() {
 
   });
 
-  const navigation = useNavigation();
+  // const navigation = useNavigation();
   const campaignSettingsMap = parsedCampaignSettingsResponse;
   const parsedCampaignData = campaignSettingsMap;
   const designFieldsMap = parsedDesignSettingsResponse;
@@ -1342,6 +1341,7 @@ const discarding = useRef(false);
 const initialCampaignRef = useRef(campaignData);
 const initialDesignRef = useRef(designFields);
 const [productFetched,setProductFetched] = useState(false);
+console.log(productFetched)
 const [warningPopoverActive, setWarningPopoverActive] = useState(false);
  const [noProductWarning, setNoProductWarning] = useState(false);
 const [errors, setErrors] = useState<string[]>([]);
@@ -1557,12 +1557,16 @@ const [errors, setErrors] = useState<string[]>([]);
     submit(formData, { method: "post" });
   }
 
-  function handleUnpublish(id: string): void {
+  async function handleUnpublish(id: string): Promise<void> {
 
-    validateForm();
-     if(errors.length > 0){
-      return;
+    const valid= await validateForm();
+    console.log(valid,'?????????????????')
+    if(!valid){
+      return
     }
+
+
+    
     if(selectedProducts.length === 0){
       setNoProductWarning(true);
       return
@@ -1636,11 +1640,12 @@ const [errors, setErrors] = useState<string[]>([]);
 
   const handleSave = async () => {
     
-     validateForm();
+   const valid = await validateForm();
 
-     if(errors.length > 0){
-      return;
-    }
+   if(valid === false){
+    return;
+   }
+
     if(selectedProducts.length === 0){
       setNoProductWarning(true);
       return
@@ -1673,13 +1678,17 @@ const [errors, setErrors] = useState<string[]>([]);
   };
 
 
- async function handlePublish(id: string): void {
+ async function handlePublish(id: string): Promise<void> {
 
-    await validateForm();
+   const valid = await validateForm();
 
-    if(errors.length > 0){
-      return;
-    }
+   if(valid === false){
+    return;
+   }
+
+    // if(errors.length > 0){
+    //   return;
+    // }
     if(selectedProducts.length === 0){
       setNoProductWarning(true);
       return
@@ -2129,7 +2138,12 @@ const [errors, setErrors] = useState<string[]>([]);
             {(selected === 0 || selected === 1) && (
               <div style={{ flex: 1, marginLeft: 20 }}>
                 {/* preview */}
-                <div style={{ position: "sticky", top: 20 }}>
+                <div style={{ position: "sticky", top: 20  ,
+                  maxWidth: '400px',
+                  
+                }} 
+
+                >
                   <Card>
                     <div style={{ display: "flex", justifyContent: "center" }}>
                       <Text as="h4" variant="headingSm">

@@ -51,7 +51,7 @@ export const action = async ({ request }: { request: Request }) => {
           }
         }
         if(campaignIds.length === 0) {
-          return Response.json({ error: "No preorder found" }, { status: 500 });
+          return Response.json({ error: "No preorder found" }, { status: 200 });
         }
 
         // find unique campaign ids

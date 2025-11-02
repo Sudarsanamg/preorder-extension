@@ -30,6 +30,7 @@ export default function PreviewDesign({
   setDesignFields,
   setTabSelected,
 }: PreviewDesignProps) {
+  const initialDesignRef = React.useRef(designFields);
   const [selected, setSelected] = useState<"default" | "custom">("default");
   const options = [
     { label: "Use your theme fonts", value: "inherit" },
@@ -71,7 +72,9 @@ export default function PreviewDesign({
           <ButtonGroup variant="segmented" fullWidth>
             <Button
               pressed={selected === "default"}
-              onClick={() => setSelected("default")}
+              onClick={() => {
+                setDesignFields(initialDesignRef.current);
+                setSelected("default")}}
               size="large"
             >
               Default
