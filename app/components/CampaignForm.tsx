@@ -81,7 +81,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
   shopifyPaymentsEnabled
 }) => {
   return (
-    <div style={{ flex: 1 }}>
+    <div style={{ flex: 1 }} className="left">
       <Card>
         <BlockStack>
           <Text as="h1" variant="headingLg">
@@ -97,6 +97,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           onChange={(value) => {
             handleCampaignDataChange("campaignName", value);
           }}
+          error={
+            campaignData.campaignName.length > 50
+              ? "Campaign name must be less than 50 characters"
+              : ""
+          }
         />
         <div style={{ marginTop: 6 }}>
           <p>This is only visible for you</p>
@@ -179,10 +184,10 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
 
       <div style={{ marginTop: 20 }}>
         <Card>
-          <div style={{marginBottom:10}}>
-          <Text as="h4" variant="headingSm" >
-            Preorder Button
-          </Text>
+          <div style={{ marginBottom: 10 }}>
+            <Text as="h4" variant="headingSm">
+              Preorder Button
+            </Text>
           </div>
           <TextField
             id="preorderButtonText"
@@ -191,6 +196,13 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
             autoComplete="off"
             value={campaignData.buttonText}
             onChange={(e) => handleCampaignDataChange("buttonText", e)}
+            error={
+              campaignData.buttonText.length === 0
+                ? "Button text is required"
+                : campaignData.buttonText.length > 15
+                  ? "Button text must be less than 15 characters"
+                  : ""
+            }
           />
           <TextField
             id="preorderMessage"
@@ -199,6 +211,13 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
             value={campaignData.shippingMessage}
             onChange={(e) => handleCampaignDataChange("shippingMessage", e)}
             autoComplete="off"
+            error={
+              campaignData.shippingMessage.length === 0
+                ? "Message is required"
+                : campaignData.shippingMessage.length > 50
+                  ? "Message must be less than 50 characters"
+                  : ""
+            }
           />
         </Card>
       </div>
@@ -206,7 +225,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       {/* discount */}
       <div style={{ marginTop: 20 }}>
         <Card>
-          <BlockStack gap={"300"}>
+          <BlockStack gap={"400"}>
             <Text as="h4" variant="headingSm">
               Discount
             </Text>
@@ -216,19 +235,28 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           Shopify Payments
                         </Link>{" "}
                       </Text> */}
+
             <InlineStack gap="400">
-              <ButtonGroup variant="segmented">
-                <Button
-                  pressed={activeButtonIndex === 0}
-                  onClick={() => handleButtonClick(0)}
-                  icon={DiscountIcon}
-                ></Button>
-                <Button
-                  pressed={activeButtonIndex === 1}
-                  onClick={() => handleButtonClick(1)}
-                  icon={CashDollarIcon}
-                ></Button>
-              </ButtonGroup>
+              <div
+                style={{
+                  flexShrink: 0,
+                }}
+              >
+                <ButtonGroup variant="segmented">
+                  <Button
+                    pressed={activeButtonIndex === 0}
+                    onClick={() => handleButtonClick(0)}
+                    icon={DiscountIcon}
+                  ></Button>
+                  <Button
+                    pressed={activeButtonIndex === 1}
+                    onClick={() =>{ 
+                      handleCampaignDataChange("discountPercentage", 0);
+                      handleButtonClick(1)}}
+                    icon={CashDollarIcon}
+                  ></Button>
+                </ButtonGroup>
+              </div>
               <TextField
                 suffix={activeButtonIndex === 0 ? "%" : "$"}
                 autoComplete="off"
@@ -244,11 +272,21 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 onChange={(val) => {
                   if (isNaN(Number(val))) return;
                   if (activeButtonIndex === 0) {
+                    // if(Number(val) > 99) return
                     handleCampaignDataChange("discountPercentage", Number(val));
                   } else {
+                    // if(String(val).length > 6) return
                     handleCampaignDataChange("flatDiscount", Number(val));
                   }
                 }}
+                error={
+                  activeButtonIndex === 0
+                    ? campaignData.discountPercentage < 0 ||
+                      campaignData.discountPercentage > 99
+                    : activeButtonIndex === 1
+                      ? String(campaignData.flatDiscount).length > 6
+                      : ""
+                }
               />
             </InlineStack>
             {(activeButtonIndex === 0 && campaignData.discountPercentage < 0) ||
@@ -256,13 +294,18 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
               <Text as="p" variant="bodyMd" tone="critical">
                 Please enter valid discount percentage between 0 and 99
               </Text>
+            ) : activeButtonIndex === 1 &&
+              String(campaignData.flatDiscount).length > 6 ? (
+              <Text as="p" variant="bodyMd" tone="critical">
+                Please enter valid discount amount less than 6 digits
+              </Text>
             ) : null}
 
-            <Text as="p" variant="bodyMd">
-              Can't see discount/strike through price?{" "}
-              <Link url="https://help.shopify.com/en/manual/payments/shopify-payments">
+            <Text as="p" variant="bodyMd" tone="base">
+              Enter discount that to be applied on this campaign products.
+              {/* <Link url="https://help.shopify.com/en/manual/payments/shopify-payments">
                 Contact support
-              </Link>
+              </Link> */}
             </Text>
           </BlockStack>
         </Card>
@@ -271,10 +314,10 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       {/* preorder Note */}
       <div style={{ marginTop: 20 }}>
         <Card>
-          <div style={{marginBottom:10}}>
-          <Text as="h4" variant="headingSm">
-            Preorder note
-          </Text>
+          <div style={{ marginBottom: 10 }}>
+            <Text as="h4" variant="headingSm">
+              Preorder note
+            </Text>
           </div>
           <p>Visible in cart, checkout, transactional emails</p>
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
@@ -284,6 +327,13 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
               autoComplete="off"
               value={campaignData.preOrderNoteKey}
               onChange={(e) => handleCampaignDataChange("preOrderNoteKey", e)}
+              error={
+                campaignData.preOrderNoteKey.length === 0
+                  ? "Preorder note key is required"
+                  : campaignData.preOrderNoteKey.length > 20
+                    ? "Preorder note key must be less than 20 characters"
+                    : ""
+              }
             />
             <TextField
               id="preorderNote"
@@ -291,6 +341,13 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
               autoComplete="off"
               value={campaignData.preOrderNoteValue}
               onChange={(e) => handleCampaignDataChange("preOrderNoteValue", e)}
+              error={
+                campaignData.preOrderNoteValue.length === 0
+                  ? "Preorder note value is required"
+                  : campaignData.preOrderNoteValue.length > 20
+                    ? "Preorder note value must be less than 20 characters"
+                    : ""
+              }
             />
           </div>
         </Card>
@@ -299,10 +356,10 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       {/* payment type */}
       <div style={{ marginTop: 20 }}>
         <Card>
-          <div style={{marginBottom:10}}>
-          <Text as="h4" variant="headingSm">
-            Payment
-          </Text>
+          <div style={{ marginBottom: 10 }}>
+            <Text as="h4" variant="headingSm">
+              Payment
+            </Text>
           </div>
           <div>
             {/* <LegacyStack vertical> */}
@@ -324,6 +381,13 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                       handleCampaignDataChange("fullPaymentText", e)
                     }
                     value={campaignData.fullPaymentText}
+                    error={
+                      campaignData.fullPaymentText.length === 0
+                        ? "Full payment text is required"
+                        : campaignData.fullPaymentText.length > 20
+                          ? "Full payment text must be less than 20 characters"
+                          : ""
+                    }
                   />
                   <Text as="p" variant="bodyMd">
                     Visible in cart, checkout, transactional emails
@@ -370,30 +434,28 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                         label="Partial payment"
                         labelHidden
                         suffix={` ${campaignData.partialPaymentType === "percent" ? "%" : "$"} as inital payment`}
-                        value={campaignData.partialPaymentPercentage}
+                        value={Number(
+                          campaignData.partialPaymentPercentage,
+                        ).toString()}
                         onChange={(val) => {
                           if (isNaN(Number(val))) return;
+                          // if(Number(val) > 99) return
                           handleCampaignDataChange(
                             "partialPaymentPercentage",
                             val,
                           );
                         }}
                         error={
-                          Number(campaignData.partialPaymentPercentage) <= 0 ||
+                          (campaignData.partialPaymentType === "percent" &&
+                            Number(campaignData.partialPaymentPercentage) <=
+                              0) ||
                           Number(campaignData.partialPaymentPercentage) > 99
+                            ? "Please enter valid percentage between 1 and 99"
+                            : ""
                         }
                       />
-                    
+                    </div>
                   </div>
-                  </div >
-                    {Number(campaignData.partialPaymentPercentage) <= 0 ||
-                          Number(campaignData.partialPaymentPercentage) > 99 &&
-                      <div style={{ margin: 10 }}>
-                        <Text as="p" variant="bodyMd" tone="critical">
-                          Please enter valid discount percentage between 0 and 99
-                        </Text>
-
-                    </div>}
 
                   <div
                     style={{
@@ -429,7 +491,9 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           id="partialPaymentNote"
                           autoComplete="off"
                           suffix="days after checkout"
-                          value={Number(campaignData.paymentAfterDays).toString()}
+                          value={Number(
+                            campaignData.paymentAfterDays,
+                          ).toString()}
                           onChange={(e) =>
                             handleCampaignDataChange("paymentAfterDays", e)
                           }
@@ -503,6 +567,13 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                       handleCampaignDataChange("partialPaymentText", value)
                     }
                     value={campaignData.partialPaymentText}
+                    error={
+                      campaignData.partialPaymentText.length > 50
+                        ? "Partial payment text cannot exceed 50 characters"
+                        : campaignData.partialPaymentText.length === 0
+                          ? "This field cannot be empty"
+                          : ""
+                    }
                   />
                   <Text as="p" variant="bodyMd">
                     Visible in cart, checkout, transactional emails
@@ -518,6 +589,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                             "partialPaymentInfoText",
                             value,
                           )
+                        }
+                        error={
+                          campaignData.partialPaymentInfoText.length === 0
+                            ? "This field cannot be empty"
+                            : ""
                         }
                       />
                       <Text as="p" variant="bodyMd">
@@ -536,13 +612,20 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       </div>
       <div style={{ marginTop: 20 }}>
         <Card>
-          <div style={{marginBottom:10}}>
-          <Text as="h4" variant="headingSm">
-            Campaign End Date and Time
-          </Text>
+          <div style={{ marginBottom: 10 }}>
+            <Text as="h4" variant="headingSm">
+              Campaign End Date and Time
+            </Text>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ flex: 1 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ flex: 1, flexShrink: 0 }}>
               <Popover
                 active={popoverActive.campaignEndDate}
                 activator={
@@ -579,7 +662,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 />
               </Popover>
             </div>
-            <div>
+            <div
+              onKeyDown={(e) => {
+                e.preventDefault();
+              }}
+            >
               <TextField
                 id="campaignEndTime"
                 autoComplete="off"
@@ -589,6 +676,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 value={campaignData.campaignEndTime}
                 onChange={(value) =>
                   handleCampaignDataChange("campaignEndTime", value)
+                }
+                error={
+                  campaignData.campaignEndTime.length === 0
+                    ? "Select valid time"
+                    : ""
                 }
               />
             </div>
@@ -600,10 +692,10 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
       </div>
       <div style={{ marginTop: 20 }}>
         <Card>
-          <div style={{marginBottom:10}}>
-          <Text as="h4" variant="headingSm">
-            Set fulfilment status for orders with preorder items
-          </Text>
+          <div style={{ marginBottom: 10 }}>
+            <Text as="h4" variant="headingSm">
+              Set fulfilment status for orders with preorder items
+            </Text>
           </div>
           <BlockStack gap={"050"}>
             <RadioButton
@@ -687,7 +779,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                               <TextField
                                 label="Select date for fullfillment"
                                 value={formatDate(
-                                  selectedDates.fullfillmentSchedule)}
+                                  selectedDates.fullfillmentSchedule,
+                                )}
                                 type="text"
                                 onFocus={() => {
                                   togglePopover("fullfillmentSchedule");
@@ -828,13 +921,17 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           </BlockStack>
         </Card>
       </div>
-      <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
-  <Button onClick={() => setSelected(1)} variant="primary">
-    Next
-  </Button>
-</div>
+      <div
+        style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}
+      >
+        <Button onClick={() => setSelected(1)} variant="primary">
+          Next
+        </Button>
+      </div>
     </div>
   );
 };
 
 export default CampaignForm;
+
+

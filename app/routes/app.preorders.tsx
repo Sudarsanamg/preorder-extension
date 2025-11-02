@@ -211,6 +211,7 @@ export default function AdditionalPage() {
           label="Payment Status"
           labelHidden
           options={[
+            { label: "All", value: "" },
             { label: "Paid", value: "paid" },
             { label: "Partially paid", value: "pending" },
           ]}
@@ -457,6 +458,7 @@ export default function AdditionalPage() {
           </BlockStack>
         </Modal.Section>
       </Modal>
+      <div style={{ margin:20}}>
       <Card>
         <IndexFilters
           queryValue={queryValue}
@@ -504,6 +506,7 @@ export default function AdditionalPage() {
           {rowMarkup}
         </IndexTable>
       </Card>
+      </div>
     </Page>
   );
 }

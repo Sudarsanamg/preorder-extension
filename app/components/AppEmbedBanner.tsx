@@ -1,24 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Banner, Button, ButtonGroup, Text } from "@shopify/polaris";
 
 interface AppEmbedBannerProps {
   shop: string;
   isAppEmbedEnabled: boolean;
+  handleRefresh: () => void;
+  isRefreshing: boolean;
 }
 
-export function AppEmbedBanner({ shop , isAppEmbedEnabled}: AppEmbedBannerProps) {
+export function AppEmbedBanner({
+  shop,
+  isAppEmbedEnabled,
+  handleRefresh,
+  isRefreshing,
+}: AppEmbedBannerProps) {
   const [dismissed, setDismissed] = useState(false);
+  const [loader, setLoader] = useState(false);
+
+  useEffect(() => {
+    if ( loader) {
+      setTimeout(() => {
+        setLoader(false);
+      },2000)
+    }
+  }, [isAppEmbedEnabled,loader]);
 
   if (dismissed) return null;
 
   const handleActivateNow = () => {
-    // Redirect merchant to Theme Editor App Embed section
-    // Replace your extension ID below 👇
     window.open(
       `https://${shop}/admin/themes/current/editor?context=apps&activateAppId=preorder-extension`,
-      "_blank",
+      "_blank"
     );
   };
+
+  const handleClickRefresh = async () => {
+    setLoader(true);
+    handleRefresh();
+    
+  };
+  
 
   return (
     <div style={{ marginBottom: "1rem" }}>
@@ -37,11 +58,9 @@ export function AppEmbedBanner({ shop , isAppEmbedEnabled}: AppEmbedBannerProps)
           <Button variant="primary" onClick={handleActivateNow}>
             Activate now
           </Button>
-          <Button onClick={() => {
-            if(isAppEmbedEnabled){
-                setDismissed(true)
-            }
-            }}>Already done it</Button> 
+          <Button loading={loader} onClick={handleClickRefresh}>
+            Refresh
+          </Button>
         </ButtonGroup>
       </Banner>
     </div>

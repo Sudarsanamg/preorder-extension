@@ -68,6 +68,8 @@ import { formatDate } from "app/utils/formatDate";
 import { allowOutOfStockForVariants } from "app/graphql/mutation/sellingPlan";
 import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
+import { CampaignSchema, DesignSchema } from "app/utils/validator/zodValidateSchema";
+// import styles from "../styles/campaignFormStyle.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin ,session} = await authenticate.admin(request);
@@ -470,6 +472,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Unexpected error occurred" }, { status: 500 });
   }
 };
+// export function links() {
+//   return [{ rel: "stylesheet", href: styles }];
+// }
 
 export default function Newcampaign() {
   let { prod, shopId, plusStore ,shopifyPaymentsEnabled } = useLoaderData<typeof loader>() as {
@@ -485,9 +490,9 @@ export default function Newcampaign() {
   // const [collectionProducts, setCollectionProducts] = useState(prod);
   const submit = useSubmit();
   const navigate = useNavigate();
-  const [selected, setSelected] = useState(0);
-  const [productTagInput, setProductTagInput] = useState("");
-  const [customerTagInput, setCustomerTagInput] = useState("");
+  const [selected, setSelected] = useState<number>(0);
+  const [productTagInput, setProductTagInput] = useState<string>("");
+  const [customerTagInput, setCustomerTagInput] = useState<string>("");
   const [{ month, year }, setMonthYear] = useState({
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
@@ -505,7 +510,7 @@ export default function Newcampaign() {
     fullfillmentSchedule: false,
     campaignEndDate: false,
   });
-  const [warningPopoverActive, setWarningPopoverActive] = useState(false);
+  const [warningPopoverActive, setWarningPopoverActive] = useState<boolean>(false);
   const [productRadio, setproductRadio] = useState("option1");
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -570,6 +575,9 @@ export default function Newcampaign() {
   const [activeButtonIndex, setActiveButtonIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasCollectionFetched, setHasCollectionFetched] = useState(false);
+  const [noProductWarning, setNoProductWarning] = useState(false);
+    const [errors, setErrors] = useState<string[]>([]);
+
 
   
   
@@ -753,6 +761,14 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
 
   
   const handleSubmit = () => {
+    validateForm();
+    if(errors.length > 0) return;
+
+
+    if(selectedProducts.length === 0){
+      setNoProductWarning(true);
+      return;
+    }
   handleClick("publish")
   shopify.saveBar.hide("my-save-bar");
   setIsSubmitting(true);
@@ -902,9 +918,54 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   }
 }, [prod,hasCollectionFetched]);
 
+const validateForm = () => {
+  const campaignResult: any = CampaignSchema.safeParse(campaignData);
+  const designResult: any = DesignSchema.safeParse(designFields);
+
+  const collectErrors = (obj: any) => {
+    let messages: string[] = [];
+    for (const key in obj) {
+      if (Array.isArray(obj[key]?._errors)) {
+        messages.push(...obj[key]._errors);
+      }
+      if (typeof obj[key] === "object" && obj[key] !== null) {
+        messages.push(...collectErrors(obj[key]));
+      }
+    }
+    return messages;
+  };
+
+  let errorMessages: string[] = [];
+
+  if (!campaignResult.success) {
+    const formatted = campaignResult.error.format();
+    errorMessages = [...errorMessages, ...collectErrors(formatted)];
+  }
+
+  if (!designResult.success) {
+    const formattedDesign = designResult.error.format();
+    errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
+  }
+
+  if (errorMessages.length > 0) {
+    setErrors(errorMessages);
+    return;
+  }
+
+  setErrors([]);
+}
+
   const handleSave = () => {
   // setLoading(true);
+  validateForm();
+   if(errors.length > 0) {
+    return;
+  }
+  if(selectedProducts.length == 0) {
+    return;
+  }
   handleClick("draft");
+ 
 
   const formData = new FormData();
   formData.append("intent", "SAVE");
@@ -1008,9 +1069,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     <AppProvider i18n={enTranslations}>
       <Page
         title="Create Preorder Campaign"
-        titleMetadata={
-          <div>{navigation.state !== "idle" && <Spinner size="small" />}</div>
-        }
+       
         backAction={{
           content: "Back",
           onAction: () => {
@@ -1030,11 +1089,11 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
         secondaryActions={[
           {
             content: "Save as Draft",
-            onAction: ()=>{
-              handleSave()
+            onAction: () => {
+              handleSave();
             },
             loading: buttonLoading.draft,
-          }
+          },
         ]}
       >
         <SaveBar id="my-save-bar">
@@ -1042,6 +1101,28 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
           <button onClick={handleDiscard}></button>
         </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
+        {errors.length > 0 && (
+          <Banner
+            title="Please fix the following errors"
+            tone="critical"
+          >
+            <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+              {errors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </Banner>
+        )}
+        {(noProductWarning && errors.length === 0) &&
+           <Banner
+          title="Cannot save campaign"
+          tone="warning"
+          onDismiss={() => setNoProductWarning(false)}
+        >
+          You must select at least one product before saving your campaign.
+        </Banner>
+      }
+        
 
         <form method="post" onSubmit={handleSubmit}>
           <input type="hidden" name="intent" value="create-campaign" />
@@ -1104,6 +1185,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
               paddingBottom: 20,
               paddingTop: 20,
             }}
+            className="form-parent"
           >
             {/* left */}
             {selected === 0 && (
@@ -1136,7 +1218,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
               />
             )}
             {selected === 1 && (
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1 }} className="left">
                 <PreviewDesign
                   designFields={designFields}
                   setDesignFields={setDesignFields}
@@ -1147,16 +1229,24 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
 
             {/* right */}
             {(selected === 0 || selected === 1) && (
-              <div style={{ flex: 1, marginLeft: 20, gap: 20 }}>
+              <div style={{ flex: 1, marginLeft: 20, gap: 20 }} className="right">
                 {/* preview */}
-                <div style={{ position: "sticky", top: 20, gap: 20 }}>
+                <div
+                  style={{
+                    position: "sticky",
+                    top: 20,
+                    gap: 20,
+                    maxWidth: "400px",
+                    // maxHeight: "600px",
+                  }}
+                >
                   <Card>
                     <div style={{ display: "flex", justifyContent: "center" }}>
                       <Text as="h4" variant="headingSm">
                         Preview
                       </Text>
                     </div>
-                    <div style={{}}>
+                    <div style={{ fontFamily: designFields.fontFamily }}>
                       <Text as="h1" variant="headingLg">
                         White T-shirt
                       </Text>
@@ -1198,7 +1288,13 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                         </InlineStack>
                       </div>
                     </div>
-                    <div style={{ marginTop: 10, marginBottom: 20 }}>
+                    <div
+                      style={{
+                        marginTop: 10,
+                        marginBottom: 20,
+                        fontFamily: designFields.fontFamily,
+                      }}
+                    >
                       <Text as="h1" variant="headingSm">
                         Size
                       </Text>
@@ -1241,36 +1337,31 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                       style={{
                         marginTop: designFields.spacingOT + "px",
                         marginBottom: designFields.spacingOB + "px",
+                        fontFamily: designFields.fontFamily,
                       }}
                     >
                       <div
                         style={{
-                          // height: 50,
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
-                          backgroundColor:
-                            designFields.buttonStyle === "single"
-                              ? designFields.buttonBackgroundColor
-                              : "black",
                           background:
                             designFields.buttonStyle === "gradient"
                               ? `linear-gradient(${designFields.gradientDegree}deg, ${designFields.gradientColor1}, ${designFields.gradientColor2})`
-                              : "black",
-                          borderRadius: designFields.borderRadius + "px",
-                          // marginTop: "auto",
+                              : designFields.buttonBackgroundColor,
+                          borderRadius: `${designFields.borderRadius}px`,
                           borderColor: designFields.borderColor,
-                          borderWidth: designFields.borderSize + "px",
+                          borderWidth: `${designFields.borderSize}px`,
                           borderStyle: "solid",
-                          paddingTop: designFields.spacingIT + "px",
-                          paddingBottom: designFields.spacingIB + "px",
+                          paddingTop: `${designFields.spacingIT}px`,
+                          paddingBottom: `${designFields.spacingIB}px`,
                         }}
                       >
                         <span
                           style={{
                             color: designFields.buttonTextColor,
                             fontWeight: "bold",
-                            fontSize: designFields.buttonFontSize + "px",
+                            fontSize: `${designFields.buttonFontSize}px`,
                           }}
                         >
                           {campaignData.buttonText}
@@ -1282,6 +1373,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                         display: "flex",
                         justifyContent: "center",
                         padding: 5,
+                        fontFamily: designFields.fontFamily,
                       }}
                     >
                       <Text as="h1" variant="headingMd">
@@ -1306,7 +1398,12 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                     </div>
                     {campaignData.paymentMode === "partial" && (
                       <div
-                        style={{ display: "flex", justifyContent: "center" }}
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          fontFamily: designFields.fontFamily,
+                          textAlign: "center",
+                        }}
                       >
                         <Text as="h1" variant="headingMd">
                           {formattedText}
@@ -1329,7 +1426,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                             height={80}
                           />
                         </div>
-                        <div >
+                        <div>
                           <p style={{ fontWeight: "bold", fontSize: "16px" }}>
                             Baby Pink T-shirt
                           </p>
@@ -1413,6 +1510,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                 </div>
               </div>
             )}
+
             {selectedProducts.length > 0 && (
               <div>
                 {warningPopoverActive && (
@@ -1429,7 +1527,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                     </Banner>
                   </div>
                 )}
-                <Card >
+
+                <Card>
                   <div
                     style={{
                       display: "flex",
@@ -1453,10 +1552,11 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
                         <Button onClick={openResourcePicker}>
                           Add More Products
                         </Button>
-                        <Button onClick={() => {
-                        setSelectedProducts([])
-                        
-                        }}>
+                        <Button
+                          onClick={() => {
+                            setSelectedProducts([]);
+                          }}
+                        >
                           Remove all Products
                         </Button>
                       </ButtonGroup>

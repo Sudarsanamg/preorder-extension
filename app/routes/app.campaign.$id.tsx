@@ -79,6 +79,7 @@ import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import { formatCurrency } from "app/helper/currencyFormatter";
+import { CampaignSchema, DesignSchema } from "app/utils/validator/zodValidateSchema";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -1342,6 +1343,8 @@ const initialCampaignRef = useRef(campaignData);
 const initialDesignRef = useRef(designFields);
 const [productFetched,setProductFetched] = useState(false);
 const [warningPopoverActive, setWarningPopoverActive] = useState(false);
+ const [noProductWarning, setNoProductWarning] = useState(false);
+const [errors, setErrors] = useState<string[]>([]);
 
 
   const handleCampaignDataChange = <K extends keyof CampaignFields>(
@@ -1555,6 +1558,17 @@ const [warningPopoverActive, setWarningPopoverActive] = useState(false);
   }
 
   function handleUnpublish(id: string): void {
+
+    validateForm();
+     if(errors.length > 0){
+      return;
+    }
+    if(selectedProducts.length === 0){
+      setNoProductWarning(true);
+      return
+    }
+    
+
     setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
     formData.append("intent", "unpublish-campaign");
@@ -1621,6 +1635,17 @@ const [warningPopoverActive, setWarningPopoverActive] = useState(false);
   }
 
   const handleSave = async () => {
+    
+     validateForm();
+
+     if(errors.length > 0){
+      return;
+    }
+    if(selectedProducts.length === 0){
+      setNoProductWarning(true);
+      return
+    }
+    
     setButtonLoading((prev) => ({ ...prev, save: true }));
     try {
       if (criticalChange === true) {
@@ -1648,7 +1673,18 @@ const [warningPopoverActive, setWarningPopoverActive] = useState(false);
   };
 
 
-  function handlePublish(id: string): void {
+ async function handlePublish(id: string): void {
+
+    await validateForm();
+
+    if(errors.length > 0){
+      return;
+    }
+    if(selectedProducts.length === 0){
+      setNoProductWarning(true);
+      return
+    }
+    
     setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
     formData.append("intent", "publish-campaign");
@@ -1814,27 +1850,107 @@ const [warningPopoverActive, setWarningPopoverActive] = useState(false);
     }
   }
 
+
+  // const validateForm = async() => {
+  //   const campaignResult: any = CampaignSchema.safeParse(campaignData);
+  //   const designResult: any = DesignSchema.safeParse(designFields);
+  
+  //   const collectErrors = (obj: any) => {
+  //     let messages: string[] = [];
+  //     for (const key in obj) {
+  //       if (Array.isArray(obj[key]?._errors)) {
+  //         messages.push(...obj[key]._errors);
+  //       }
+  //       if (typeof obj[key] === "object" && obj[key] !== null) {
+  //         messages.push(...collectErrors(obj[key]));
+  //       }
+  //     }
+  //     return messages;
+  //   };
+  
+  //   let errorMessages: string[] = [];
+  
+  //   if (!campaignResult.success) {
+  //     const formatted = campaignResult.error.format();
+  //     errorMessages = [...errorMessages, ...collectErrors(formatted)];
+  //   }
+  
+  //   if (!designResult.success) {
+  //     const formattedDesign = designResult.error.format();
+  //     errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
+  //   }
+  
+  //   if (errorMessages.length > 0) {
+  //     setErrors(errorMessages);
+  //     return;
+  //   }
+  
+  //   setErrors([]);
+  // }
+
+
+    const validateForm = async () => {
+    const campaignResult: any = CampaignSchema.safeParse(campaignData);
+    const designResult: any = DesignSchema.safeParse(designFields);
+    console.log(campaignResult);
+    console.log(designResult);
+
+    const collectErrors = (obj: any) => {
+      let messages: string[] = [];
+      for (const key in obj) {
+        if (Array.isArray(obj[key]?._errors)) {
+          messages.push(...obj[key]._errors);
+        }
+        if (typeof obj[key] === "object" && obj[key] !== null) {
+          messages.push(...collectErrors(obj[key]));
+        }
+      }
+      return messages;
+    };
+
+    let errorMessages: string[] = [];
+
+    if (!campaignResult.success) {
+      const formatted = campaignResult.error.format();
+      errorMessages = [...errorMessages, ...collectErrors(formatted)];
+    }
+
+
+    if (!designResult.success) {
+      const formattedDesign = designResult.error.format();
+      errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
+    }
+
+    if (errorMessages.length > 0) {
+      setErrors(errorMessages);
+      return false;
+    }
+
+    setErrors([]);
+    return true;
+  };
+
     
 
   return (
     <AppProvider i18n={enTranslations}>
       <Page
-        title={`Update ${campaignData.campaignName}`}
+        title={`Update Campaign`}
         titleMetadata={
           campaign?.status === "PUBLISHED" ? (
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <Badge tone="success">Published</Badge>
-              {navigation.state !== "idle" && <Spinner size="small" />}
+              {/* {navigation.state !== "idle" && <Spinner size="small" />} */}
             </div>
           ) : campaign?.status === "DRAFT" ? (
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <Badge tone="info">Draft</Badge>
-              {navigation.state !== "idle" && <Spinner size="small" />}
+              {/* {navigation.state !== "idle" && <Spinner size="small" />} */}
             </div>
           ) : (
             <div>
               <Badge tone="info">Not published</Badge>
-              {navigation.state !== "idle" && <Spinner size="small" />}
+              {/* {navigation.state !== "idle" && <Spinner size="small" />} */}
             </div>
           )
         }
@@ -1881,6 +1997,27 @@ const [warningPopoverActive, setWarningPopoverActive] = useState(false);
           <button variant="primary" onClick={handleSave}></button>
           <button onClick={handleDiscard}></button>
         </SaveBar>
+        {errors.length > 0 && (
+                  <Banner
+                    title="Please fix the following errors"
+                    tone="critical"
+                  >
+                    <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                      {errors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </Banner>
+                )}
+                {(noProductWarning && errors.length === 0) &&
+                   <Banner
+                  title="Cannot save campaign"
+                  tone="warning"
+                  onDismiss={() => setNoProductWarning(false)}
+                >
+                  You must select at least one product before saving your campaign.
+                </Banner>
+              }
         <Modal id="delete-modal">
           <p style={{ padding: "10px" }}>
             Delete "{campaign?.name}" This will also remove the campaign from

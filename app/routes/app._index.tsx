@@ -9,6 +9,7 @@ import {
   useNavigate,
   useNavigation,
   useFetcher,
+  useRevalidator,
 } from "@remix-run/react";
 import {
   Page,
@@ -59,6 +60,7 @@ import { handleCampaignStatusChange } from "app/helper/campaignHelper";
 import { checkAppEmbedEnabled } from "app/helper/checkBlockEnable";
 import { AppEmbedBanner } from "app/components/AppEmbedBanner";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
+
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -318,6 +320,10 @@ export default function Index() {
     },
   ];
   const [items, setItems] = useState(ITEMS);
+  const revalidator = useRevalidator();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+
 
   const rows = campaigns.map((campaign) => ({
     id: campaign.id,
@@ -376,12 +382,21 @@ export default function Index() {
     fetcher.submit(formData, { method: "post" });
   };
 
+ const handleRefresh = async () => {
+  setIsRefreshing(true);
+  revalidator.revalidate();
+  setIsRefreshing(false);
+};
+
   return (
     <Page>
       <TitleBar title="Preorder Extension" />
-      {!isAppEmbedEnabled && <AppEmbedBanner
+      {!isAppEmbedEnabled && 
+      <AppEmbedBanner
        shop={shop} 
        isAppEmbedEnabled={isAppEmbedEnabled}
+       handleRefresh={handleRefresh}
+       isRefreshing={isRefreshing}
        />}
 
       {/* Header */}
@@ -796,7 +811,7 @@ export default function Index() {
               <Divider />
 
               {/* Customize sender email */}
-              <div>
+              {/* <div>
                 <div
                   style={{
                     display: "flex",
@@ -824,7 +839,7 @@ export default function Index() {
                     </Button>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </BlockStack>
           </Card>
         </Card>
