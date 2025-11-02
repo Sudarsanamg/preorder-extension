@@ -12,9 +12,11 @@ import {
   Select,
   Text,
   TextField,
+  
 } from "@shopify/polaris";
 import React from "react";
 // import { hsbToHex, hexToHsb } from "@shopify/polaris";
+import {hexToHsb} from "../utils/color";
 
 import { EmailSettings } from "app/types/type";
 
@@ -399,7 +401,7 @@ export default function EmailDesignEditor({
                 />
               </BlockStack>
             </Card>
-            <Card>
+            {/* <Card>
               <BlockStack gap="200">
                 <Text variant="headingMd" as="h2">
                   Button
@@ -695,7 +697,7 @@ export default function EmailDesignEditor({
                     suffix={"px"}
                   />
                   {/* colour picker to change the text colour */}
-                  <div
+                  {/* <div
                     style={{ display: "flex", alignItems: "center", gap: 5 }}
                   >
                     <Popover
@@ -736,7 +738,7 @@ export default function EmailDesignEditor({
                   </div>
                 )}
               </BlockStack>
-            </Card>
+            </Card> */} 
           </BlockStack>
         </div>
         {/* right */}
@@ -746,6 +748,7 @@ export default function EmailDesignEditor({
             top: 20,
             flex: 1,
             fontFamily: emailSettings.font,
+            maxWidth:"400px",
           }}
         >
           <Card padding="800">

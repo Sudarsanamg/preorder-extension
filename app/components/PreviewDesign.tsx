@@ -74,7 +74,8 @@ export default function PreviewDesign({
               pressed={selected === "default"}
               onClick={() => {
                 setDesignFields(initialDesignRef.current);
-                setSelected("default")}}
+                setSelected("default");
+              }}
               size="large"
             >
               Default
@@ -242,7 +243,7 @@ export default function PreviewDesign({
                 autoComplete="off"
                 suffix="px"
                 onChange={(value) => {
-                  if(isNaN(Number(value))) return;
+                  if (isNaN(Number(value))) return;
                   setDesignFields((prev) => ({
                     ...prev,
                     borderSize: value,
@@ -250,8 +251,12 @@ export default function PreviewDesign({
                 }}
                 value={designFields.borderSize}
                 error={
-                  designFields.borderSize ===  ""? "This field is required" :
-                  Number(designFields.borderSize) <= 0 || Number(designFields.borderSize) > 50 ? "Border size must be between 1 and 50" : ""
+                  designFields.borderSize === ""
+                    ? "This field is required"
+                    : Number(designFields.borderSize) <= 0 ||
+                        Number(designFields.borderSize) > 50
+                      ? "Border size must be between 1 and 50"
+                      : ""
                 }
               />
               {/* <ColorPicker onChange={setColor} color={color} /> */}
@@ -298,43 +303,48 @@ export default function PreviewDesign({
               labelHidden
               autoComplete="off"
               suffix="px"
-              onChange={(value) =>{
-                if(isNaN(Number(value))) return;
-                setDesignFields((prev) => ({ ...prev, borderRadius: value }))
-              }
-              }
+              onChange={(value) => {
+                if (isNaN(Number(value))) return;
+                setDesignFields((prev) => ({ ...prev, borderRadius: value }));
+              }}
               value={designFields.borderRadius}
               error={
-                designFields.borderRadius ===  ""? "This field is required" :
-
-                Number(designFields.borderRadius) <= 0 || Number(designFields.borderRadius) > 100 ? "Border radius must be between 1 and 100" : ""
+                designFields.borderRadius === ""
+                  ? "This field is required"
+                  : Number(designFields.borderRadius) <= 0 ||
+                      Number(designFields.borderRadius) > 100
+                    ? "Border radius must be between 1 and 100"
+                    : ""
               }
             />
             <Divider />
 
             <Text as="h5">Button Text</Text>
-            <div style={{ display: "flex", gap: 10, flexShrink:0 }}>
+            <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
               <TextField
                 label="Color"
                 labelHidden
                 autoComplete="off"
                 suffix="px"
-                onChange={(value) =>{
-                  if(isNaN(Number(value))) return;
+                onChange={(value) => {
+                  if (isNaN(Number(value))) return;
                   setDesignFields((prev) => ({
                     ...prev,
                     buttonFontSize: value,
-                  }))
-                }
-                }
+                  }));
+                }}
                 value={designFields.buttonFontSize}
                 error={
-                  designFields.buttonFontSize ===  ""? "This field is required" :
-                  Number(designFields.buttonFontSize) <= 0 || Number(designFields.buttonFontSize) > 50 ? "Font size must be between 1 and 50" : ""
+                  designFields.buttonFontSize === ""
+                    ? "This field is required"
+                    : Number(designFields.buttonFontSize) <= 0 ||
+                        Number(designFields.buttonFontSize) > 50
+                      ? "Font size must be between 1 and 50"
+                      : ""
                 }
               />
 
-              <div style={{ display: "flex", gap: 10 , flexShrink:0 }}>
+              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
                 <Popover
                   active={activePopover === "buttonTextColor"}
                   activator={
@@ -377,30 +387,35 @@ export default function PreviewDesign({
                 autoComplete="off"
                 suffix="px"
                 value={designFields.spacingIT}
-                onChange={(value) =>{
-                  if(isNaN(Number(value))) return;
-                  setDesignFields((prev) => ({ ...prev, spacingIT: value }))
-                }
-              }
+                onChange={(value) => {
+                  if (isNaN(Number(value))) return;
+                  setDesignFields((prev) => ({ ...prev, spacingIT: value }));
+                }}
                 error={
-                  designFields.spacingIT ===  ""? "This field is required" :
-                  Number(designFields.spacingIT) <= 0 || Number(designFields.spacingIT) > 50 ? "Spacing must be between 1 and 50" : ""
+                  designFields.spacingIT === ""
+                    ? "This field is required"
+                    : Number(designFields.spacingIT) <= 0 ||
+                        Number(designFields.spacingIT) > 50
+                      ? "Spacing must be between 1 and 50"
+                      : ""
                 }
-                
               />
               <TextField
                 label="Inside bottom"
                 autoComplete="off"
                 suffix="px"
                 value={designFields.spacingIB}
-                onChange={(value) =>{
-                  if(isNaN(Number(value))) return;
-                  setDesignFields((prev) => ({ ...prev, spacingIB: value }))
-                }
-                }
+                onChange={(value) => {
+                  if (isNaN(Number(value))) return;
+                  setDesignFields((prev) => ({ ...prev, spacingIB: value }));
+                }}
                 error={
-                  designFields.spacingIB ===  ""? "This field is required" :
-                  Number(designFields.spacingIB) <= 0 || Number(designFields.spacingIB) > 50 ? "Spacing must be between 1 and 50" : ""
+                  designFields.spacingIB === ""
+                    ? "This field is required"
+                    : Number(designFields.spacingIB) <= 0 ||
+                        Number(designFields.spacingIB) > 50
+                      ? "Spacing must be between 1 and 50"
+                      : ""
                 }
               />
             </div>
@@ -409,16 +424,18 @@ export default function PreviewDesign({
                 label="Outside top"
                 autoComplete="off"
                 value={designFields.spacingOT}
-                onChange={(value) =>{
-                  if(isNaN(Number(value))) return;
-                  setDesignFields((prev) => ({ ...prev, spacingOT: value }))
-                }
-                }
+                onChange={(value) => {
+                  if (isNaN(Number(value))) return;
+                  setDesignFields((prev) => ({ ...prev, spacingOT: value }));
+                }}
                 error={
-                  designFields.spacingOT ===  ""? "This field is required" :
-                  Number(designFields.spacingOT) <= 0 || Number(designFields.spacingOT) > 50 ? "Spacing must be between 1 and 50" : ""
+                  designFields.spacingOT === ""
+                    ? "This field is required"
+                    : Number(designFields.spacingOT) <= 0 ||
+                        Number(designFields.spacingOT) > 50
+                      ? "Spacing must be between 1 and 50"
+                      : ""
                 }
-
                 suffix="px"
               />
               <TextField
@@ -426,14 +443,17 @@ export default function PreviewDesign({
                 suffix="px"
                 autoComplete="off"
                 value={designFields.spacingOB}
-                onChange={(value) =>{
-                  if(isNaN(Number(value))) return;
-                  setDesignFields((prev) => ({ ...prev, spacingOB: value }))
-                }
-                }
+                onChange={(value) => {
+                  if (isNaN(Number(value))) return;
+                  setDesignFields((prev) => ({ ...prev, spacingOB: value }));
+                }}
                 error={
-                  designFields.spacingOB ===  ""? "This field is required" :
-                  Number(designFields.spacingOB) <= 0 || Number(designFields.spacingOB) > 50 ? "Spacing must be between 1 and 50" : ""
+                  designFields.spacingOB === ""
+                    ? "This field is required"
+                    : Number(designFields.spacingOB) <= 0 ||
+                        Number(designFields.spacingOB) > 50
+                      ? "Spacing must be between 1 and 50"
+                      : ""
                 }
               />
             </div>
@@ -468,14 +488,17 @@ export default function PreviewDesign({
               autoComplete="off"
               suffix="px"
               value={designFields.messageFontSize}
-              onChange={(value) =>{
-                if(isNaN(Number(value))) return;
-                setDesignFields((pre) => ({ ...pre, messageFontSize: value }))
-              }
-              }
+              onChange={(value) => {
+                if (isNaN(Number(value))) return;
+                setDesignFields((pre) => ({ ...pre, messageFontSize: value }));
+              }}
               error={
-                designFields.messageFontSize ===  ""? "This field is required" :
-                Number(designFields.messageFontSize) <= 0 || Number(designFields.messageFontSize) > 50 ? "Font size must be between 1 and 50" : ""
+                designFields.messageFontSize === ""
+                  ? "This field is required"
+                  : Number(designFields.messageFontSize) <= 0 ||
+                      Number(designFields.messageFontSize) > 50
+                    ? "Font size must be between 1 and 50"
+                    : ""
               }
             />
 
@@ -517,14 +540,14 @@ export default function PreviewDesign({
       </Card>
       {/* )} */}
 
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", justifyContent: "flex-start" }}>
+      <div className="hidden md:flex justify-between">
+        <div className="flex justify-start">
           <Button onClick={() => setTabSelected(0)} variant="primary">
             Back
           </Button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div className="flex justify-end">
           <Button onClick={() => setTabSelected(2)} variant="primary">
             Next
           </Button>

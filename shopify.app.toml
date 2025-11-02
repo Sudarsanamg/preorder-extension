@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://ruth-mazda-publicly-cycle.trycloudflare.com"
+application_url = "https://ser-starting-maintained-griffin.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -13,12 +13,12 @@ automatically_update_urls_on_dev = true
 api_version = "2025-07"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/create" ]
@@ -30,13 +30,13 @@ scopes = "read_customers,read_metaobjects,read_orders,read_payment_mandate,read_
 
 [auth]
 redirect_urls = [
-  "https://ruth-mazda-publicly-cycle.trycloudflare.com/auth/callback",
-  "https://ruth-mazda-publicly-cycle.trycloudflare.com/auth/shopify/callback",
-  "https://ruth-mazda-publicly-cycle.trycloudflare.com/api/auth/callback"
+  "https://ser-starting-maintained-griffin.trycloudflare.com/auth/callback",
+  "https://ser-starting-maintained-griffin.trycloudflare.com/auth/shopify/callback",
+  "https://ser-starting-maintained-griffin.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://ruth-mazda-publicly-cycle.trycloudflare.com/apps/cancel-order"
+url = "https://ser-starting-maintained-griffin.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

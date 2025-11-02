@@ -70,6 +70,7 @@ import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import { CampaignSchema, DesignSchema } from "app/utils/validator/zodValidateSchema";
 // import styles from "../styles/campaignFormStyle.css";
+import "../tailwind.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin ,session} = await authenticate.admin(request);
@@ -1179,13 +1180,13 @@ const validateForm = () => {
             <button onClick={handleDiscard}></button>
           </SaveBar> */}
           <div
-            style={{
-              display: "flex",
-              position: "relative",
-              paddingBottom: 20,
-              paddingTop: 20,
-            }}
-            className="form-parent"
+            // style={{
+            //   display: "flex",
+            //   position: "relative",
+            //   paddingBottom: 20,
+            //   paddingTop: 20,
+            // }}
+            className="form-parent  gap-10 md:flex  m-3"
           >
             {/* left */}
             {selected === 0 && (
@@ -1229,7 +1230,7 @@ const validateForm = () => {
 
             {/* right */}
             {(selected === 0 || selected === 1) && (
-              <div style={{ flex: 1, marginLeft: 20, gap: 20 }} className="right">
+              <div style={{ flex: 1, marginLeft: 20, gap: 20 }} className="right mt-10 md:mt-0" >
                 {/* preview */}
                 <div
                   style={{
@@ -1447,10 +1448,29 @@ const validateForm = () => {
               </div>
             )}
           </div>
+
+          <div className="flex md:hidden justify-end mt-3">
+
+          {selected === 1 && <div className=" flex md:hidden justify-start mt-5 mb-5 mr-3">
+            <Button onClick={() => setSelected(selected - 1)} variant="primary">
+              Back
+            </Button>
+          </div>}
+
+          <div className=" flex md:hidden justify-end mt-5 mb-5">
+            <Button onClick={() =>{ setSelected(selected + 1)
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+            
+          } variant="primary">
+              Next
+            </Button>
+          </div>
+          </div>
         </form>
 
         {selected === 2 && (
-          <div>
+          <div className="m-2 mb-5" >
             {selectedProducts.length === 0 && (
               <div>
                 <Card padding={"3200"}>
@@ -1468,14 +1488,14 @@ const validateForm = () => {
                         Add products to Preorder
                       </Text>
                     </div>
-                    <div>
+                    <div style={{ display:"flex",textAlign: "center" }}>
                       <Text as="p" variant="bodySm">
                         Products and variants that are added will be prepared
                         for preorder after the campaign is published
                       </Text>
                     </div>
-                    <div>
-                      <ButtonGroup>
+                    <div style={{ display: "flex", gap: "12px" }}>
+                      <ButtonGroup fullWidth>
                         <Button onClick={() => shopify.modal.show("my-modal")}>
                           Add Specific Product
                         </Button>
