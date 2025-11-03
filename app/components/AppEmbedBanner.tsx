@@ -42,7 +42,7 @@ export function AppEmbedBanner({
   
 
   return (
-    <div style={{ marginBottom: "1rem" }}>
+    <div style={{ marginBottom: "1rem" ,margin:5 }}>
       <Banner
         title="App embed not enabled"
         tone="warning"

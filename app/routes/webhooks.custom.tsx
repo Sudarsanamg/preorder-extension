@@ -303,7 +303,7 @@ export const action = async ({ request }: { request: Request }) => {
               variables: { id: orderId },
             });
 
-            const { data } = await response?.json();
+            const { data } : any = await response?.json();
             const methods =
               data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
             const mandateId = methods?.[0]?.id;

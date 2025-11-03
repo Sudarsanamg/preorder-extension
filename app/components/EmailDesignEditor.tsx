@@ -2,13 +2,10 @@ import {
   BlockStack,
   Button,
   Card,
-  Checkbox,
-  ColorPicker,
+
   InlineStack,
-  Link,
   Popover,
-  RadioButton,
-  RangeSlider,
+
   Select,
   Text,
   TextField,
@@ -16,10 +13,12 @@ import {
 } from "@shopify/polaris";
 import React from "react";
 // import { hsbToHex, hexToHsb } from "@shopify/polaris";
-import {hexToHsb} from "../utils/color";
+// import {hexToHsb} from "../utils/color";
+import "../tailwind.css"
 
-import { EmailSettings } from "app/types/type";
-
+import type { EmailSettings } from "app/types/type";
+import * as reactColor from "react-color";
+const SketchPicker = reactColor.SketchPicker;
 
 interface EmailDesignEditorProps {
   subject: string;
@@ -28,8 +27,7 @@ interface EmailDesignEditorProps {
   setEmailSettings: React.Dispatch<React.SetStateAction<EmailSettings>>;
   activePopover: string | null;
   togglePopover: (id: string) => void;
-  handleColorChange: (color: any, field: keyof EmailSettings) => void;
-  handleRangeSliderChange: (value: number) => void;
+  // handleRangeSliderChange: (value: number) => void;
   handleEmailSettingsChange: (field: keyof EmailSettings, value: string | boolean) => void;
   options: { label: string; value: string }[];
 }
@@ -41,24 +39,32 @@ export default function EmailDesignEditor({
   setEmailSettings,
   activePopover,
   togglePopover,
-  handleColorChange,
-  handleRangeSliderChange,
+  // handleRangeSliderChange,
   handleEmailSettingsChange,
   options,
 }: EmailDesignEditorProps) {
+
+   const handleColorChange = (colorResult: any, field: keyof EmailSettings) => {
+      const hex = colorResult.hex;
+      setEmailSettings((prev) => ({
+        ...prev,
+        [field]: hex,
+      }));
+    };
     return (
-          <div
-        style={{
-          display: "flex",
-          gap: 20,
-          alignItems: "flex-start",
-          marginBottom: 50,
-        }}
+      <div
+        // style={{
+        //   display: "flex",
+        //   gap: 20,
+        //   alignItems: "flex-start",
+        //   marginBottom: 50,
+        // }}
+        className=" gap-20 m-5 md:flex md:gap-10 md:items-start md:mb-50"
       >
         {/* left */}
         <div style={{ flex: 1 }}>
           <BlockStack gap="300">
-            <Card padding="800">
+            <Card>
               <BlockStack gap="300">
                 <div>
                   <Text as="h3" variant="bodyMd" fontWeight="medium">
@@ -66,9 +72,12 @@ export default function EmailDesignEditor({
                   </Text>
                   <TextField
                     label="Email subject"
-                    value={subject}
-                    onChange={setSubject}
+                    value={emailSettings.subject}
+                    onChange={(value) =>setEmailSettings({ ...emailSettings, subject: value })}
                     autoComplete="off"
+                    error ={
+                      subject === "" ? "Subject is required" : ""
+                    }
                   />
                   <Text as="p" variant="bodySm" tone="subdued">
                     Use {"{order}"} for order number
@@ -76,15 +85,18 @@ export default function EmailDesignEditor({
                 </div>
 
                 {/* Email info */}
-                <div>
+                {/* <div>
                   <Text as="p" variant="bodySm">
                     Emails are sent from info@essentialpreorder.com.
                   </Text>
                   <Link url="/app/settings/email">Customise sender email</Link>
-                </div>
+                </div> */}
               </BlockStack>
             </Card>
-            <Card padding="800">
+            <Card>
+              <Text as="h3" variant="bodyMd" fontWeight="medium">
+                Select a font for template
+              </Text>
               <Select
                 label="Font"
                 options={options}
@@ -95,7 +107,7 @@ export default function EmailDesignEditor({
               />
             </Card>
             <Card>
-              <BlockStack gap="300">
+              <BlockStack gap="400">
                 <TextField
                   label="Store name"
                   value={emailSettings.storeName}
@@ -104,31 +116,53 @@ export default function EmailDesignEditor({
                   }
                   autoComplete="off"
                 />
-                <InlineStack gap="200" wrap={false} align="center">
-                  <Button
-                    pressed={emailSettings.storeNameBold}
-                    onClick={() => {
-                      handleEmailSettingsChange(
-                        "storeNameBold",
-                        !emailSettings.storeNameBold,
-                      );
-                    }}
-                  >
-                    B
-                  </Button>
+                <InlineStack
+                  gap="200"
+                  wrap={false}
+                  align="end"
+                  blockAlign="start"
+                >
+                  <div style={{ flexShrink: 0 }}>
+                    <Button
+                      pressed={emailSettings.storeNameBold}
+                      onClick={() => {
+                        handleEmailSettingsChange(
+                          "storeNameBold",
+                          !emailSettings.storeNameBold,
+                        );
+                      }}
+                    >
+                      B
+                    </Button>
+                  </div>
                   <TextField
                     label="Store name"
                     labelHidden
                     value={emailSettings.storeNameFontSize}
-                    onChange={(value) =>
-                      handleEmailSettingsChange("storeNameFontSize", value)
-                    }
+                    onChange={(value) => {
+                      if (isNaN(Number(value))) return;
+                      handleEmailSettingsChange("storeNameFontSize", value);
+                    }}
                     autoComplete="off"
                     suffix={"px"}
+                    error={
+                      emailSettings.storeNameFontSize === ""
+                        ? "This field is required"
+                        : Number(emailSettings.storeNameFontSize) <= 0
+                          ? "Font size must be greater than 0px"
+                          : Number(emailSettings.storeNameFontSize) > 50
+                            ? "Font size must be less than 50px"
+                            : ""
+                    }
                   />
                   {/* colour picker to change the text colour */}
                   <div
-                    style={{ display: "flex", alignItems: "center", gap: 3 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 3,
+                      flexShrink: 0,
+                    }}
                   >
                     <Popover
                       active={activePopover === "storeNameColor"}
@@ -147,12 +181,16 @@ export default function EmailDesignEditor({
                       autofocusTarget="first-node"
                       onClose={() => togglePopover("storeNameColor")}
                     >
-                      <ColorPicker
-                        onChange={(color) =>
-                          handleColorChange(color, "storeNameColor")
-                        }
-                        color={hexToHsb(emailSettings.storeNameColor)}
-                      />
+                     
+
+                      <div style={{ pointerEvents: "auto" }}>
+                        <SketchPicker
+                          color={emailSettings.storeNameColor}
+                          onChange={(color: any) =>
+                            handleColorChange(color, "storeNameColor")
+                          }
+                        />
+                      </div>
                     </Popover>
                     <TextField
                       labelHidden
@@ -172,28 +210,52 @@ export default function EmailDesignEditor({
                     handleEmailSettingsChange("subheading", value);
                   }}
                   autoComplete="off"
+                  error={
+                    emailSettings.subheading === ""
+                      ? "This field is required"
+                      : emailSettings.subheading?.length > 100
+                        ? "Subheading must be less than 100 characters"
+                        : ""
+                  }
                 />
                 <p>Use for order number</p>
-                <InlineStack gap="200" wrap={false} align="center">
-                  <Button
-                    pressed={emailSettings.subheadingBold}
-                    onClick={() => {
-                      handleEmailSettingsChange(
-                        "subheadingBold",
-                        !emailSettings.subheadingBold,
-                      );
-                    }}
-                  >
-                    B
-                  </Button>
+                <InlineStack
+                  gap="200"
+                  wrap={false}
+                  align="end"
+                  blockAlign="start"
+                >
+                  <div style={{ flexShrink: 0 }}>
+                    <Button
+                      pressed={emailSettings.subheadingBold}
+                      onClick={() => {
+                        handleEmailSettingsChange(
+                          "subheadingBold",
+                          !emailSettings.subheadingBold,
+                        );
+                      }}
+                    >
+                      B
+                    </Button>
+                  </div>
                   <TextField
                     label="Store name"
                     labelHidden
                     value={emailSettings.subheadingFontSize}
                     autoComplete="off"
                     suffix={"px"}
-                    onChange={(value) =>
-                      handleEmailSettingsChange("subheadingFontSize", value)
+                    onChange={(value) => {
+                      if (isNaN(Number(value))) return;
+                      handleEmailSettingsChange("subheadingFontSize", value);
+                    }}
+                    error={
+                      emailSettings.subheadingFontSize === ""
+                        ? "This field is required"
+                        : Number(emailSettings.subheadingFontSize) <= 0
+                          ? "Font size must be greater than 0px"
+                          : Number(emailSettings.subheadingFontSize) > 50
+                            ? "Font size must be less than 50px"
+                            : ""
                     }
                   />
                   {/* colour picker to change the text colour */}
@@ -217,12 +279,20 @@ export default function EmailDesignEditor({
                       autofocusTarget="first-node"
                       onClose={() => togglePopover("subheadingColor")}
                     >
-                      <ColorPicker
+                      {/* <ColorPicker
                         onChange={(color) =>
                           handleColorChange(color, "subheadingColor")
                         }
                         color={hexToHsb(emailSettings.subheadingColor)}
-                      />
+                      /> */}
+                      <div style={{ pointerEvents: "auto" }}>
+                        <SketchPicker
+                          color={emailSettings.subheadingColor}
+                          onChange={(color: any) =>
+                            handleColorChange(color, "subheadingColor")
+                          }
+                        />
+                      </div>
                     </Popover>
                     <TextField
                       labelHidden
@@ -244,29 +314,52 @@ export default function EmailDesignEditor({
                   }}
                   autoComplete="off"
                   multiline={4}
+                  error={
+                    emailSettings.description === ""
+                      ? "This field is required"
+                      : ""
+                  }
+                  helpText={'Use {"{order}"} for order number'}
                 />
-                <p>Use {"{order}"} for order number</p>
-                <InlineStack gap="200" wrap={false} align="center">
-                  <Button
-                    pressed={emailSettings.descriptionBold}
-                    onClick={() => {
-                      handleEmailSettingsChange(
-                        "descriptionBold",
-                        !emailSettings.descriptionBold,
-                      );
-                    }}
-                  >
-                    B
-                  </Button>
+                {/* <p>Use {"{order}"} for order number</p> */}
+                <InlineStack
+                  gap="200"
+                  wrap={false}
+                  align="end"
+                  blockAlign="start"
+                >
+                  <div style={{ flexShrink: 0 }}>
+                    <Button
+                      pressed={emailSettings.descriptionBold}
+                      onClick={() => {
+                        handleEmailSettingsChange(
+                          "descriptionBold",
+                          !emailSettings.descriptionBold,
+                        );
+                      }}
+                    >
+                      B
+                    </Button>
+                  </div>
                   <TextField
                     label="Store name"
                     labelHidden
                     value={emailSettings.descriptionFontSize}
                     onChange={(value) => {
+                      if (isNaN(Number(value))) return;
                       handleEmailSettingsChange("descriptionFontSize", value);
                     }}
                     autoComplete="off"
                     suffix={"px"}
+                    error={
+                      emailSettings.descriptionFontSize === ""
+                        ? "This field is required"
+                        : Number(emailSettings.descriptionFontSize) <= 0
+                          ? "Font size must be greater than 0px"
+                          : Number(emailSettings.descriptionFontSize) > 50
+                            ? "Font size must be less than 50px"
+                            : ""
+                    }
                   />
                   {/* colour picker to change the text colour */}
                   <div
@@ -289,12 +382,22 @@ export default function EmailDesignEditor({
                       autofocusTarget="first-node"
                       onClose={() => togglePopover("descriptionColor")}
                     >
-                      <ColorPicker
+                      {/* <ColorPicker
                         onChange={(color) =>
                           handleColorChange(color, "descriptionColor")
                         }
                         color={hexToHsb(emailSettings.descriptionColor)}
-                      />
+                      /> */}
+
+                      <div style={{ pointerEvents: "auto" }}>
+                        <SketchPicker
+                          color={emailSettings.descriptionColor}
+                          onChange={(color: any) =>
+                            handleColorChange(color, "descriptionColor")
+                          }
+                        />
+                      </div>
+                      
                     </Popover>
                     <TextField
                       labelHidden
@@ -314,18 +417,25 @@ export default function EmailDesignEditor({
                 <Text variant="headingMd" as="h2">
                   Product title style
                 </Text>
-                <InlineStack gap="200" wrap={false} align="center">
-                  <Button
-                    pressed={emailSettings.productTitleBold}
-                    onClick={() => {
-                      handleEmailSettingsChange(
-                        "productTitleBold",
-                        !emailSettings.productTitleBold,
-                      );
-                    }}
-                  >
-                    B
-                  </Button>
+                <InlineStack
+                  gap="200"
+                  wrap={false}
+                  align="end"
+                  blockAlign="start"
+                >
+                  <div style={{ flexShrink: 0 }}>
+                    <Button
+                      pressed={emailSettings.productTitleBold}
+                      onClick={() => {
+                        handleEmailSettingsChange(
+                          "productTitleBold",
+                          !emailSettings.productTitleBold,
+                        );
+                      }}
+                    >
+                      B
+                    </Button>
+                  </div>
                   <TextField
                     label="Store name"
                     labelHidden
@@ -333,8 +443,18 @@ export default function EmailDesignEditor({
                     autoComplete="off"
                     suffix={"px"}
                     onChange={(value) => {
+                      if (isNaN(Number(value))) return;
                       handleEmailSettingsChange("productTitleFontSize", value);
                     }}
+                    error={
+                      emailSettings.productTitleFontSize === ""
+                        ? "This field is required"
+                        : Number(emailSettings.productTitleFontSize) < 0
+                          ? "Font size must be greater than 0px"
+                          : Number(emailSettings.productTitleFontSize) > 50
+                            ? "Font size must be less than 50px"
+                            : ""
+                    }
                   />
                   {/* colour picker to change the text colour */}
                   <div
@@ -357,12 +477,20 @@ export default function EmailDesignEditor({
                       autofocusTarget="first-node"
                       onClose={() => togglePopover("productTitleColor")}
                     >
-                      <ColorPicker
+                      {/* <ColorPicker
                         onChange={(color) =>
                           handleColorChange(color, "productTitleColor")
                         }
                         color={hexToHsb(emailSettings.productTitleColor)}
-                      />
+                      /> */}
+                      <div style={{ pointerEvents: "auto" }}>
+                        <SketchPicker
+                          color={emailSettings.productTitleColor}
+                          onChange={(color: any) =>
+                            handleColorChange(color, "productTitleColor")
+                          }
+                        />
+                      </div>
                     </Popover>
                     <TextField
                       labelHidden
@@ -370,7 +498,7 @@ export default function EmailDesignEditor({
                       autoComplete="off"
                       value={emailSettings.productTitleColor}
                       onChange={(value) => {
-                        handleEmailSettingsChange("productTitleColor",value)
+                        handleEmailSettingsChange("productTitleColor", value);
                       }}
                     />
                   </div>
@@ -379,9 +507,14 @@ export default function EmailDesignEditor({
                   label="Preorder Text"
                   value={emailSettings.preorderText}
                   onChange={(value) => {
-                    handleEmailSettingsChange("preorderText",value)
+                    handleEmailSettingsChange("preorderText", value);
                   }}
                   autoComplete="off"
+                  error={
+                    emailSettings.preorderText === ""
+                      ? "This field is required"
+                      : ""
+                  }
                 />
                 <TextField
                   label="Full payment Text"
@@ -390,6 +523,11 @@ export default function EmailDesignEditor({
                     handleEmailSettingsChange("fullPaymentText", value);
                   }}
                   autoComplete="off"
+                  error={
+                    emailSettings.fullPaymentText === ""
+                      ? "This field is required"
+                      : ""
+                  }
                 />
                 <TextField
                   label="Partial payment Text"
@@ -398,6 +536,11 @@ export default function EmailDesignEditor({
                     handleEmailSettingsChange("partialPaymentText", value);
                   }}
                   autoComplete="off"
+                  error={
+                    emailSettings.partialPaymentText === ""
+                      ? "This field is required"
+                      : ""
+                  }
                 />
               </BlockStack>
             </Card>
@@ -697,7 +840,7 @@ export default function EmailDesignEditor({
                     suffix={"px"}
                   />
                   {/* colour picker to change the text colour */}
-                  {/* <div
+            {/* <div
                     style={{ display: "flex", alignItems: "center", gap: 5 }}
                   >
                     <Popover
@@ -738,7 +881,7 @@ export default function EmailDesignEditor({
                   </div>
                 )}
               </BlockStack>
-            </Card> */} 
+            </Card> */}
           </BlockStack>
         </div>
         {/* right */}
@@ -748,8 +891,10 @@ export default function EmailDesignEditor({
             top: 20,
             flex: 1,
             fontFamily: emailSettings.font,
-            maxWidth:"400px",
+            maxWidth: "400px",
+
           }}
+          className="mt-5 md:mt-0"
         >
           <Card padding="800">
             <BlockStack gap="500">
@@ -815,20 +960,26 @@ export default function EmailDesignEditor({
                 />
               </div>
               <div>
-                <div style={{color: emailSettings.productTitleColor,
-                  fontSize: `${emailSettings.productTitleFontSize}px`,}}>
-                <Text as="h2" 
-                  fontWeight={emailSettings.productTitleBold ? "bold" : "regular"}
-                 
+                <div
+                  style={{
+                    color: emailSettings.productTitleColor,
+                    fontSize: `${emailSettings.productTitleFontSize}px`,
+                  }}
                 >
-                  Baby Pink T-shirt
-                </Text>
+                  <Text
+                    as="h2"
+                    fontWeight={
+                      emailSettings.productTitleBold ? "bold" : "regular"
+                    }
+                  >
+                    Baby Pink T-shirt
+                  </Text>
                 </div>
                 <Text as="p">{emailSettings.preorderText}</Text>
                 <Text as="p">{emailSettings.fullPaymentText}</Text>
               </div>
             </div>
-            {emailSettings.showCancelButton  && (<div
+            {/* {emailSettings.showCancelButton  && (<div
               style={{
                 marginTop: 20,
                 display: "flex",
@@ -857,9 +1008,9 @@ export default function EmailDesignEditor({
                 </div>
               </div>
             </div>
-            )}
+            )} */}
           </Card>
         </div>
       </div>
-    )
+    );
 }

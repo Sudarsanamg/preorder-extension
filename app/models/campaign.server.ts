@@ -298,6 +298,7 @@ export async function getCampaignById(id: string) {
 }
 
 export async function deleteCampaign(id: string, shopId: string) {
+
   return prisma.preorderCampaign.delete({
     where: { 
       id, 
@@ -520,6 +521,17 @@ export async function updateConfrimOrderEmailSettings(
   });
 }
 
+export async function updateShippingEmailSettings( shopId: string,
+  settings: any) {
+  return prisma.store.update({
+    where: { shopId: shopId },
+    data: {
+       ShippingEmailSettings: settings, 
+       updatedAt: BigInt(Date.now())
+      },
+  })
+}
+
 export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
   return prisma.store.update({
     where: { shopId: shopId },
@@ -732,4 +744,12 @@ export async function getAllVariants(storeID: string) {
   });
 
   return variants;
+}
+
+
+export async function getShippingEmailSettings(shopId: string) {
+  const settings = await prisma.store.findUnique({
+    where: { shopId: shopId },
+  });
+  return settings?.ShippingEmailSettings ?? {};
 }

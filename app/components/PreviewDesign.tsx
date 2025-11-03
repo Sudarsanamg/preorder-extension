@@ -5,7 +5,6 @@ import {
   Button,
   ButtonGroup,
   Card,
-  ColorPicker,
   Divider,
   Popover,
   RadioButton,
@@ -14,9 +13,7 @@ import {
   TextField,
   RangeSlider,
 } from "@shopify/polaris";
-import { hsbToHex, hexToHsb } from "../utils/color";
 import * as reactColor from "react-color";
-import { error } from "console";
 const SketchPicker = reactColor.SketchPicker;
 
 interface PreviewDesignProps {
@@ -540,14 +537,14 @@ export default function PreviewDesign({
       </Card>
       {/* )} */}
 
-      <div className="hidden md:flex justify-between">
-        <div className="flex justify-start">
-          <Button onClick={() => setTabSelected(0)} variant="primary">
+      <div className="hidden md:flex justify-end ">
+        <div className=" justify-end mr-3">
+          <Button onClick={() => setTabSelected(0)} variant="secondary">
             Back
           </Button>
         </div>
 
-        <div className="flex justify-end">
+        <div className=" justify-end">
           <Button onClick={() => setTabSelected(2)} variant="primary">
             Next
           </Button>

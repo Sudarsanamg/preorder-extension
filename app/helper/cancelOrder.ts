@@ -1,4 +1,5 @@
 import prisma from "app/db.server";
+import { decrypt } from "app/utils/crypto.server";
 
 const CANCEL_ORDER = `
   mutation cancelOrder(
@@ -45,7 +46,8 @@ export async function cancelPendingOrder({
     select: { offlineToken: true },
   })
 
-  const token = accessToken?.offlineToken;
+  const token = accessToken?.offlineToken as string;
+  const decryptedToken = token && decrypt(token);
   if (!token) {
     throw new Error(`Missing offline token for shop ${shop}`);
   }
@@ -53,7 +55,7 @@ export async function cancelPendingOrder({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": token,
+      "X-Shopify-Access-Token": decryptedToken,
     },
     body: JSON.stringify({
       query: CANCEL_ORDER,

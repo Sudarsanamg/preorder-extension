@@ -1,4 +1,5 @@
 import prisma from "app/db.server";
+import { decrypt } from "app/utils/crypto.server";
 
 export async function incrementUnitsSold(store: string, id: string) {
   console.log("incrementUnitsSold", store, id);
@@ -10,7 +11,8 @@ export async function incrementUnitsSold(store: string, id: string) {
 
   if (!accessToken?.offlineToken) throw new Error("No access token for store");
 
-  const token = accessToken.offlineToken;
+  let token = accessToken.offlineToken;
+  token = token && decrypt(token);
   const shopDomain = store; 
   const endpoint = `https://${shopDomain}/admin/api/2023-10/graphql.json`;
 

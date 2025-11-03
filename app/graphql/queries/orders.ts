@@ -1,4 +1,5 @@
 import prisma from "app/db.server";
+import { decrypt } from "app/utils/crypto.server";
 
 export const getOrdersFulfillmentStatus = `
 query getOrdersFulfillmentStatus($ids: [ID!]!) {
@@ -109,6 +110,7 @@ export async function getOrderWithProducts(orderId: string, shopDomain: string) 
   }
 
   let accessToken = store.offlineToken;
+  accessToken = decrypt(accessToken);
 
   try {
     const response = await fetch(`https://${shopDomain}/admin/api/2023-01/graphql.json`, {

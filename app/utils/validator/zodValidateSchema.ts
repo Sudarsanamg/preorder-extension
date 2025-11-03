@@ -287,3 +287,57 @@ export const DesignSchema = z.object({
     .string()
     .regex(/^#([A-Fa-f0-9]{6})$/, "Invalid button text color"),
 });
+
+
+
+export const EmailSettingsSchema = z.object({
+  subject: z.string().min(1, "Subject is required"),
+  font: z.string().min(1, "Font is required"),
+
+  storeName: z.string().min(1, "Store name is required"),
+  storeNameBold: z.boolean(),
+  storeNameColor: z.string().min(1, "Store name color is required"),
+  storeNameFontSize: z
+    .string()
+    .min(1, "Store name font size is required")
+    .refine((val) => !isNaN(Number(val)), "Font size must be a number")
+    .refine((val) => Number(val) > 0 && Number(val) < 50, "Font size must be between 1 and 50"),
+
+  subheading: z.string().min(1, "Subheading is required"),
+  subheadingFontSize: z
+    .string()
+    .min(1, "Subheading font size is required")
+    .refine((val) => !isNaN(Number(val)), "Font size must be a number")
+    .refine((val) => Number(val) > 0 && Number(val) < 50, "Font size must be between 1 and 50"),
+  subheadingColor: z.string().min(1, "Subheading color is required"),
+  subheadingBold: z.boolean(),
+
+  description: z.string().min(1, "Description is required"),
+  descriptionFontSize: z
+    .string()
+    .min(1, "Description font size is required")
+    .refine((val) => !isNaN(Number(val)), "Font size must be a number")
+    .refine((val) => Number(val) > 0 && Number(val) < 50, "Font size must be between 1 and 50"),
+  descriptionColor: z.string().min(1, "Description color is required"),
+  descriptionBold: z.boolean(),
+
+  productTitleFontSize: z
+    .string()
+    .min(1, "Product title font size is required")
+    .refine((val) => !isNaN(Number(val)), "Font size must be a number")
+    .refine((val) => Number(val) > 0 && Number(val) < 50, "Font size must be between 1 and 50"),
+  productTitleColor: z.string().min(1, "Product title color is required"),
+  productTitleBold: z.boolean(),
+
+  preorderText: z.string().min(1, "Preorder text is required"),
+  fullPaymentText: z.string().min(1, "Full payment text is required"),
+  partialPaymentText: z.string().min(1, "Partial payment text is required"),
+
+  paymentTextFontSize: z
+    .string()
+    .min(1, "Payment text font size is required")
+    .refine((val) => !isNaN(Number(val)), "Font size must be a number")
+    .refine((val) => Number(val) > 0 && Number(val) < 50, "Font size must be between 1 and 50"),
+  paymentTextColor: z.string().min(1, "Payment text color is required"),
+  paymentTextBold: z.boolean(),
+});

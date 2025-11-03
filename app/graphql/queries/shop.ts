@@ -1,4 +1,5 @@
 import prisma from "app/db.server";
+import { decrypt } from "app/utils/crypto.server";
 
 export const GET_SHOP = `#graphql
   {
@@ -81,8 +82,10 @@ export async function isShopifyPaymentsEnabled(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
+  const encryptedToken = accessToken?.offlineToken as string;
+  const decryptedToken =  decrypt(encryptedToken);
   if (typeof accessToken?.offlineToken === "string") {
-    headers["X-Shopify-Access-Token"] = accessToken.offlineToken;
+    headers["X-Shopify-Access-Token"] = decryptedToken;
   }
 
   const response = await fetch(

@@ -32,6 +32,7 @@ import {
   useLoaderData,
   // useNavigation,
   useActionData,
+  useNavigation,
 } from "@remix-run/react";
 import { DeleteIcon } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
@@ -1345,6 +1346,8 @@ console.log(productFetched)
 const [warningPopoverActive, setWarningPopoverActive] = useState(false);
  const [noProductWarning, setNoProductWarning] = useState(false);
 const [errors, setErrors] = useState<string[]>([]);
+const navigation = useNavigation();
+const isSaving = navigation.state === "submitting";
 
 
   const handleCampaignDataChange = <K extends keyof CampaignFields>(
@@ -1659,8 +1662,8 @@ const [errors, setErrors] = useState<string[]>([]);
         await handleSubmit();
       }
 
-      shopify.saveBar.hide("my-save-bar");
-      setSaveBarActive(false);
+      // shopify.saveBar.hide("my-save-bar");
+      // setSaveBarActive(false);
     } catch (error) {
       console.error("Save error:", error);
     }
@@ -1751,14 +1754,17 @@ const [errors, setErrors] = useState<string[]>([]);
       shopify.saveBar.hide("my-save-bar");
       setSaveBarActive(false);
       return
-    };
+    }
+    else{
     shopify.saveBar.show("my-save-bar");
     setSaveBarActive(true);
+    }
   }, [designFields, selectedProducts, campaignData, removedVarients,selectedDates]);
 
   useEffect(() => {
     setSaveBarActive(false);
   }, []);
+  
 
   const handleButtonClick = useCallback(
     (index: number) => {
@@ -1938,6 +1944,7 @@ const [errors, setErrors] = useState<string[]>([]);
     setErrors([]);
     return true;
   };
+  
 
     
 
@@ -1989,23 +1996,26 @@ const [errors, setErrors] = useState<string[]>([]);
             onAction: () => shopify.modal.show("delete-modal"),
             loading: buttonLoading.delete,
           },
-          ...(campaign.status !== "DRAFT"
-            ? [
-                {
-                  content: "Save as Draft",
-                  onAction: () => {
-                    handleSaveAsDraft(String(campaign?.id));
-                  },
-                  loading: buttonLoading.saveAsDraft,
-                },
-              ]
-            : []),
+          // ...(campaign.status !== "DRAFT"
+          //   ? [
+          //       {
+          //         content: "Save as Draft",
+          //         onAction: () => {
+          //           handleSaveAsDraft(String(campaign?.id));
+          //         },
+          //         loading: buttonLoading.saveAsDraft,
+          //       },
+          //     ]
+          //   : []),
         ]}
       >
         <SaveBar id="my-save-bar">
-          <button variant="primary" onClick={handleSave}></button>
+          <button variant="primary" onClick={handleSave} 
+        loading={isSaving === true ? "" : false}
+          ></button>
           <button onClick={handleDiscard}></button>
         </SaveBar>
+        
         {errors.length > 0 && (
                   <Banner
                     title="Please fix the following errors"

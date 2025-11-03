@@ -60,6 +60,7 @@ import { handleCampaignStatusChange } from "app/helper/campaignHelper";
 import { checkAppEmbedEnabled } from "app/helper/checkBlockEnable";
 import { AppEmbedBanner } from "app/components/AppEmbedBanner";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
+import { encrypt } from "app/utils/crypto.server";
 
 // ---------------- Loader ----------------
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -87,7 +88,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     try {
       await createStore({
         shopId: shopId,
-        offlineToken: accessToken,
+        offlineToken: encrypt(accessToken),
         webhookRegistered: true,
         metaobjectsCreated: true,
         metaFieldsCreated: true,
@@ -246,22 +247,28 @@ export default function Index() {
   const isNavigating = navigation.state !== "idle";
   const targetPath = navigation.location?.pathname;
   const ITEMS = [
-    {
-      id: 0,
-      title: "Create a Preorder Campaign",
-      description:
-        "Choose which products you want to sell as preorders. You can decide: when to show the “Preorder” button and if customers pay now, later, or in parts",
+   {
+    id: 0,
+    title: "Create a Preorder Campaign",
+    description:
+      "Choose which products you want to sell as preorders. You can decide: when to show the “Preorder” button and if customers pay now, later, or in parts",
 
-      complete: campaigns.length > 0,
-      primaryButton: {
-        content: "Create a campaign",
-        props: {
-          url: "/app/campaign/new",
-          external: true,
+    complete: campaigns.length > 0,
+    primaryButton: {
+      content: "Create a campaign",
+      props: {
+        loading: loading.create, 
+        onClick: () => {
+          setLoading((prev) => ({ ...prev, create: true }));
+          setTimeout(() => {
+            setLoading((prev) => ({ ...prev, create: false }));
+          }, 3000);
         },
-        
+        url: "/app/campaign/new",
+        external: true,
       },
     },
+  },
     {
       id: 1,
       title: "Activate app embed in Shopify",
@@ -398,6 +405,7 @@ export default function Index() {
        handleRefresh={handleRefresh}
        isRefreshing={isRefreshing}
        />}
+       <div style={{ margin: 10 }}>
 
       {/* Header */}
       <div
@@ -843,6 +851,7 @@ export default function Index() {
             </BlockStack>
           </Card>
         </Card>
+      </div>
       </div>
     </Page>
   );

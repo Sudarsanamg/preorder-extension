@@ -20,7 +20,6 @@ import {
   Banner,
   InlineStack,
   
-  Spinner,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -573,10 +572,10 @@ export default function Newcampaign() {
   const initialCampaignData = useRef<CampaignFields>(campaignData);
   const designFieldsRef = useRef<DesignFields>(designFields);
   
-  const [activeButtonIndex, setActiveButtonIndex] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasCollectionFetched, setHasCollectionFetched] = useState(false);
-  const [noProductWarning, setNoProductWarning] = useState(false);
+  const [activeButtonIndex, setActiveButtonIndex] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [hasCollectionFetched, setHasCollectionFetched] = useState<boolean>(false);
+  const [noProductWarning, setNoProductWarning] = useState<boolean>(false);
     const [errors, setErrors] = useState<string[]>([]);
 
 
@@ -762,7 +761,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
 
   
   const handleSubmit = () => {
-    validateForm();
+  const { valid } = validateForm();
+  if (!valid) return;
     if(errors.length > 0) return;
 
 
@@ -771,6 +771,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
       return;
     }
   handleClick("publish")
+  setNoProductWarning(false);
   shopify.saveBar.hide("my-save-bar");
   setIsSubmitting(true);
   setSaveBarVisible(false);
@@ -919,7 +920,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   }
 }, [prod,hasCollectionFetched]);
 
-const validateForm = () => {
+const validateForm = (): { valid: boolean; messages: string[] } => {
   const campaignResult: any = CampaignSchema.safeParse(campaignData);
   const designResult: any = DesignSchema.safeParse(designFields);
 
@@ -948,24 +949,26 @@ const validateForm = () => {
     errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
   }
 
-  if (errorMessages.length > 0) {
-    setErrors(errorMessages);
-    return;
-  }
+  setErrors(errorMessages); 
+  return { valid: errorMessages.length === 0, messages: errorMessages };
+};
 
-  setErrors([]);
-}
 
   const handleSave = () => {
-  // setLoading(true);
-  validateForm();
-   if(errors.length > 0) {
-    return;
-  }
+  SetButtonLoading((prev)=> ({...prev, save: true}));
+  const { valid } = validateForm();
+  if (!valid) return;
+  
   if(selectedProducts.length == 0) {
+    setNoProductWarning(true);
     return;
   }
   handleClick("draft");
+  setNoProductWarning(false);
+  shopify.saveBar.hide("my-save-bar");
+  setIsSubmitting(true);
+  setSaveBarVisible(false);
+
  
 
   const formData = new FormData();
@@ -1023,8 +1026,7 @@ const validateForm = () => {
 
   submit(formData, { method: "post" });
 
-  shopify.saveBar.hide("my-save-bar");
-  setSaveBarVisible(false);
+  
 };
 
   const handleDiscard = () => {
@@ -1034,6 +1036,7 @@ const validateForm = () => {
     setDesignFields({...designFieldsRef.current});
     setSelectedProducts([]);
     setSelectedDates({...initialDates.current});
+    setErrors([]);
     
     setSaveBarVisible(false);
   };
@@ -1086,6 +1089,7 @@ const validateForm = () => {
           content: "Publish",
           onAction: handleSubmit,
           loading: buttonLoading.publish,
+          disabled: isSubmitting,
         }}
         secondaryActions={[
           {
@@ -1094,11 +1098,14 @@ const validateForm = () => {
               handleSave();
             },
             loading: buttonLoading.draft,
+            disabled: isSubmitting,
           },
         ]}
       >
         <SaveBar id="my-save-bar">
-          <button variant="primary" onClick={handleSave}></button>
+          <button variant="primary" onClick={handleSave}
+          
+          ></button>
           <button onClick={handleDiscard}></button>
         </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
@@ -1452,12 +1459,12 @@ const validateForm = () => {
           <div className="flex md:hidden justify-end mt-3">
 
           {selected === 1 && <div className=" flex md:hidden justify-start mt-5 mb-5 mr-3">
-            <Button onClick={() => setSelected(selected - 1)} variant="primary">
+            <Button onClick={() => setSelected(selected - 1)} variant="secondary">
               Back
             </Button>
           </div>}
 
-          <div className=" flex md:hidden justify-end mt-5 mb-5">
+          { (selected === 0 || selected === 1 )&& <div className=" flex md:hidden justify-end mt-5 mb-5">
             <Button onClick={() =>{ setSelected(selected + 1)
               window.scrollTo({ top: 0, behavior: "smooth" });
             }
@@ -1465,7 +1472,7 @@ const validateForm = () => {
           } variant="primary">
               Next
             </Button>
-          </div>
+          </div>}
           </div>
         </form>
 
