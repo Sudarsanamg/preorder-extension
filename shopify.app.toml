@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://settled-first-county-desktop.trycloudflare.com"
+application_url = "https://oclc-plugin-roger-reaches.trycloudflare.com/"
 embedded = true
 handle = "preorder-extension"
 
@@ -14,15 +14,15 @@ api_version = "2025-07"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
-  uri = "https://ruth-mazda-publicly-cycle.trycloudflare.com/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "https://ruth-mazda-publicly-cycle.trycloudflare.com/webhooks/app/scopes_update"
+  uri = "https://oclc-plugin-roger-reaches.trycloudflare.com/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/create" ]
-  uri = "https://ruth-mazda-publicly-cycle.trycloudflare.com/webhooks/custom"
+  uri = "https://oclc-plugin-roger-reaches.trycloudflare.com/webhooks/custom"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "https://oclc-plugin-roger-reaches.trycloudflare.com/webhooks/app/scopes_update"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -32,13 +32,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://settled-first-county-desktop.trycloudflare.com/auth/callback",
-  "https://settled-first-county-desktop.trycloudflare.com/auth/shopify/callback",
-  "https://settled-first-county-desktop.trycloudflare.com/api/auth/callback"
+  "https://oclc-plugin-roger-reaches.trycloudflare.com/auth/callback",
+  "https://oclc-plugin-roger-reaches.trycloudflare.com/auth/shopify/callback",
+  "https://oclc-plugin-roger-reaches.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://ruth-mazda-publicly-cycle.trycloudflare.com/apps/cancel-order"
+url = "https://oclc-plugin-roger-reaches.trycloudflare.com//apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

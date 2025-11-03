@@ -28,22 +28,27 @@ const CANCEL_ORDER = `
 
 
 export async function cancelPendingOrder({
-  shop,
   orderId,
+  storeId,
   refund = false,
   restock = false,
   reason = "DECLINED",
 }: {
-  shop: string;
   orderId: string;
+  storeId: string;
   refund?: boolean;
   restock?: boolean;
   reason?: "CUSTOMER" | "DECLINED" | "FRAUD" | "INVENTORY" | "OTHER";
 }) {
 
   const accessToken = await prisma.store.findUnique({
-    where: { shopifyDomain: shop },
+    where: { id: storeId },
     select: { offlineToken: true },
+  })
+
+  const shop = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { shopifyDomain: true },
   })
 
   const token = accessToken?.offlineToken as string;

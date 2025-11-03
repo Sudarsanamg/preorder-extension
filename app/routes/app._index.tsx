@@ -84,6 +84,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         data: { appInstalled: true },
       });
     }
+    await prisma.store.update({
+      where: { id: storeData.id },
+      data: { offlineToken: encrypt(accessToken) },
+    })
   } else {
     try {
       await createStore({

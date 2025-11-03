@@ -605,7 +605,6 @@ export async function createDuePayment(
       mandateId,
       dueDate,
       paymentStatus,
-      storeDomain,
       storeId: (await getStoreID(storeDomain))?.id ?? "",
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),

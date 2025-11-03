@@ -16,7 +16,6 @@ export const loader = async () => {
   for (const payment of duePayments) {
     try {
       await runPayment({
-        shop: payment.storeDomain?? "",
         storeId: payment.storeId,
         orderId: payment.orderId,
         mandateId: payment.mandateId,

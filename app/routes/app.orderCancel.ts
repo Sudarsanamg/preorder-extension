@@ -13,8 +13,8 @@ export const loader = async () => {
   for (const payment of orders) {
     try {
       await cancelPendingOrder({
-        shop: payment.storeDomain,
         orderId: payment.orderId,
+        storeId: payment.storeId,
         refund: false,
         restock: false,
         reason: "DECLINED",

@@ -80,7 +80,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
   activeButtonIndex,
   handleButtonClick,
   shopifyPaymentsEnabled
-}) => {
+}) => 
+  {
   return (
     <div style={{ flex: 1 }} className="left">
       <Card>

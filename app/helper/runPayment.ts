@@ -1,16 +1,15 @@
 import prisma from "app/db.server";
+import { decrypt } from "app/utils/crypto.server";
 
 const CREATE_ORDER_PAYMENT = `
   mutation orderPayment(
     $id: ID!,
     $idempotencyKey: String!,
-    $amount: MoneyInput!,
     $mandateId: ID!
   ) {
     orderCreateMandatePayment(
       id: $id
       idempotencyKey: $idempotencyKey
-      amount: $amount
       mandateId: $mandateId
     ) {
       userErrors {
@@ -22,14 +21,12 @@ const CREATE_ORDER_PAYMENT = `
 `;
 
 export async function runPayment({
-  shop,
   storeId,
   orderId,
   mandateId,
   amount,
   currency,
 }: {
-  shop: string;
   storeId: string;
   orderId: string;
   mandateId: string;
@@ -55,6 +52,8 @@ export async function runPayment({
   }
 
   const token = store.offlineToken;
+  const shop = store.shopifyDomain;
+  const decryptedToken = decrypt(token as string);
 
   if (!token) {
     throw new Error(`Missing offline token for shop ${shop}`);
@@ -64,17 +63,13 @@ export async function runPayment({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": token,
+      "X-Shopify-Access-Token": decryptedToken,
     },
     body: JSON.stringify({
       query: CREATE_ORDER_PAYMENT,
       variables: {
         id: orderId, 
         idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-        amount: {
-          amount: amount.toString(),
-          currencyCode: currency,
-        },
         mandateId,
       },
     }),

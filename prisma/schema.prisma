@@ -52,7 +52,6 @@ model Store {
 model VaultedPayment {
   id             String        @id @default(uuid())
   orderId        String        @unique
-  storeDomain    String        
   storeId        String     
   idempotencyKey String
   amount         Decimal
