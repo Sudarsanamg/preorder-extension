@@ -1,5 +1,5 @@
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
-import { Banner, Page, } from "@shopify/polaris";
+import { Badge, Banner, InlineStack, Page,  } from "@shopify/polaris";
 import type { EmailSettings } from "app/types/type";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -284,11 +284,17 @@ export default function EmailPreorderConfirmationSettings() {
     <Page
       title="Preorder confirmation email"
       titleMetadata={
-        <Knob
-          selected={template ?? false}
-          ariaLabel="Example knob"
-          onClick={() => setTemplate(!template)}
-        />
+        <InlineStack gap={"100"}>
+          <Badge tone={template === false ? "warning" : "success"}>
+            {template === false ? "Disabled" : "Enabled"}
+          </Badge>
+
+          <Knob
+            selected={template ?? false}
+            ariaLabel="Example knob"
+            onClick={() => setTemplate(!template)}
+          />
+        </InlineStack>
       }
       backAction={{
         content: "Back",

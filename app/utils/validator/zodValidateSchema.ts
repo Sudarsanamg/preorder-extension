@@ -293,7 +293,6 @@ export const DesignSchema = z.object({
 export const EmailSettingsSchema = z.object({
   subject: z.string().min(1, "Subject is required"),
   font: z.string().min(1, "Font is required"),
-
   storeName: z.string().min(1, "Store name is required"),
   storeNameBold: z.boolean(),
   storeNameColor: z.string().min(1, "Store name color is required"),

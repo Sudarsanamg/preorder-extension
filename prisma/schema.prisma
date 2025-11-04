@@ -26,23 +26,23 @@ model Session {
 }
 
 model Store {
-  id                        String   @id @default(uuid())
-  shopId                    String   @unique
+  id                        String                    @id @default(uuid())
+  shopId                    String                    @unique
   currencyCode              String
   offlineToken              String?
-  webhookRegistered         Boolean  @default(false)
-  metaobjectsCreated        Boolean  @default(false)
-  metaFieldsCreated         Boolean  @default(false)
-  shopifyDomain             String   @unique
-  sendCustomEmail           Boolean  @default(false)
-  appInstalled              Boolean  @default(true)
+  webhookRegistered         Boolean                   @default(false)
+  metaobjectsCreated        Boolean                   @default(false)
+  metaFieldsCreated         Boolean                   @default(false)
+  shopifyDomain             String                    @unique
+  sendCustomEmail           Boolean                   @default(false)
+  appInstalled              Boolean                   @default(true)
   ConfrimOrderEmailSettings Json?
   ShippingEmailSettings     Json?
   GeneralSettings           Json?
   EmailConfig               Json?
-  SetupCompleted            Boolean  @default(false)
-  createdAt                 BigInt 
-  updatedAt                 BigInt 
+  SetupCompleted            Boolean                   @default(false)
+  createdAt                 BigInt
+  updatedAt                 BigInt
   vaultedPayment            VaultedPayment[]
   preorderCampaign          PreorderCampaign[]
   campaignOrders            CampaignOrders[]
@@ -52,7 +52,7 @@ model Store {
 model VaultedPayment {
   id             String        @id @default(uuid())
   orderId        String        @unique
-  storeId        String     
+  storeId        String
   idempotencyKey String
   amount         Decimal
   currencyCode   String
@@ -62,14 +62,19 @@ model VaultedPayment {
   createdAt      BigInt
   updatedAt      BigInt
   store          Store         @relation(fields: [storeId], references: [id])
+
+// PreorderCampaign Primary ID
+// CampaignOrders ID
+
+  @@unique([orderId, storeId])
 }
 
 model PreorderCampaign {
   id                      String                    @id @default(uuid())
-  storeId                 String                   
+  storeId                 String
   name                    String
   campaignType            Int                       @default(2)
-  paymentType             PaymentMode?              
+  paymentType             PaymentMode?
   depositPercent          Int?
   balanceDueDate          DateTime?
   refundDeadlineDays      Int?
@@ -87,13 +92,11 @@ model PreorderCampaign {
   scheduledFulfilmentType scheduledFulfilmentType?
   fulfilmentDaysAfter     Int?
   fulfilmentExactDate     DateTime?
-  createdAt               BigInt                 
-  updatedAt               BigInt                
+  createdAt               BigInt
+  updatedAt               BigInt
   products                PreorderCampaignProduct[]
-  store                   Store    @relation(fields: [storeId] , references: [id])
+  store                   Store                     @relation(fields: [storeId], references: [id])
 }
-
-
 
 model PreorderCampaignProduct {
   id           String           @id @default(uuid())
@@ -106,28 +109,36 @@ model PreorderCampaignProduct {
   imageUrl     String?
   maxQuantity  Int?
   soldQuantity Int              @default(0)
-  createdAt    BigInt         
-  updatedAt    BigInt        
+  createdAt    BigInt
+  updatedAt    BigInt
   campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  store        Store            @relation(fields: [storeId],references: [id])
+  store        Store            @relation(fields: [storeId], references: [id])
 }
 
 model CampaignOrders {
-  id             String        @id @default(uuid())
-  storeId        String
-  order_number   Int         
-  order_id       String        @unique
-  draft_order_id String?       @unique
-  customerEmail  String        @default("")
-  dueDate        DateTime?
-  totalAmount    Decimal?
-  balanceAmount  Decimal?
-  currency       String?
-  paymentStatus  PaymentStatus
-  store          Store         @relation(fields: [storeId] ,references: [id])
-  createdAt      BigInt
-  updatedAt      BigInt
+  id               String             @id @default(uuid())
+  storeId          String
+  order_number     Int
+  order_id         String             @unique
+  draft_order_id   String?            @unique
+  customerEmail    String             @default("")
+  dueDate          DateTime?
+  totalAmount      Decimal?
+  balanceAmount    Decimal?
+  currency         String?
+  paymentStatus    PaymentStatus
+  fulfilmentStatus FulfillmentStatus?
+  store            Store              @relation(fields: [storeId], references: [id])
+  createdAt        BigInt
+  updatedAt        BigInt
+
+
+// PreorderCampaign ID
+  @@unique([storeId, order_id])
+@@unique([storeId, draft_order_id])
 }
+
+// fulfilemtStatus FulfilementStatus
 
 enum PaymentStatus {
   PENDING
@@ -162,4 +173,10 @@ enum scheduledFulfilmentType {
 enum PaymentMode {
   FULLPAYMENT
   PARTIALPAYMENT
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  ON_HOLD
+  FULFILLED
 }

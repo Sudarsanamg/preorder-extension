@@ -4,7 +4,7 @@ import type {
   ActionFunctionArgs} from "@remix-run/node";
 import {
   json,
-  redirect,
+  // redirect,
 } from "@remix-run/node";
 import {
   AppProvider,
@@ -29,6 +29,7 @@ import {
   useActionData,
   useLoaderData,
   useNavigation,
+  // useNavigation,
 } from "@remix-run/react";
 import {
   DeleteIcon,
@@ -441,7 +442,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           shopId
         );
 
-        return redirect("/app");
+        // return redirect("/app");
+
+        return json({ success: true, campaignId: campaign.id });
       }
 
       case "productsWithPreorder": {
@@ -486,7 +489,9 @@ export default function Newcampaign() {
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
-  const navigation = useNavigation();
+
+  const actionData = useActionData<typeof action>();
+  // const navigation = useNavigation();
   // const [collectionProducts, setCollectionProducts] = useState(prod);
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -577,6 +582,8 @@ export default function Newcampaign() {
   const [hasCollectionFetched, setHasCollectionFetched] = useState<boolean>(false);
   const [noProductWarning, setNoProductWarning] = useState<boolean>(false);
     const [errors, setErrors] = useState<string[]>([]);
+    const navigation = useNavigation();
+    const isSaving = navigation.state === "submitting";
 
 
   
@@ -600,6 +607,18 @@ export default function Newcampaign() {
       "{date}",
       formatDate(selectedDates.duePaymentDate.toLocaleDateString()),
     );
+
+   useEffect(() => {
+    if(actionData?.success){
+      shopify.saveBar.hide("my-save-bar");
+      shopify.toast.show("Saved successfully");
+       SetButtonLoading((prev):any =>
+        Object.fromEntries(Object.keys(prev).map((key) => [key, false]))
+      );
+      setIsSubmitting(false);
+      navigate("/app");
+    }
+  },[actionData])
 
   const handleClick = async (action: string) => {
     SetButtonLoading((prev: any) => ({ ...prev, [action]: !prev[action] }));
@@ -768,13 +787,16 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
 
     if(selectedProducts.length === 0){
       setNoProductWarning(true);
+      setTimeout(() => {
+        setNoProductWarning(false);
+      },5000);
       return;
     }
   handleClick("publish")
   setNoProductWarning(false);
-  shopify.saveBar.hide("my-save-bar");
+  // shopify.saveBar.hide("my-save-bar");
   setIsSubmitting(true);
-  setSaveBarVisible(false);
+  // setSaveBarVisible(false);
 
   const formData = new FormData();
   formData.append("intent", "create-campaign");
@@ -961,13 +983,16 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
   
   if(selectedProducts.length == 0) {
     setNoProductWarning(true);
+    setTimeout(() => {
+      setNoProductWarning(false);
+    },5000)
     return;
   }
   handleClick("draft");
   setNoProductWarning(false);
-  shopify.saveBar.hide("my-save-bar");
+  // shopify.saveBar.hide("my-save-bar");
   setIsSubmitting(true);
-  setSaveBarVisible(false);
+  // setSaveBarVisible(false);
 
  
 
@@ -1104,9 +1129,12 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
       >
         <SaveBar id="my-save-bar">
           <button variant="primary" onClick={handleSave}
-          
+          loading={buttonLoading.draft ? "" : false}
+          disabled={isSaving}
           ></button>
-          <button onClick={handleDiscard}></button>
+          <button onClick={handleDiscard}
+          disabled={isSaving}
+          ></button>
         </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
         {errors.length > 0 && (

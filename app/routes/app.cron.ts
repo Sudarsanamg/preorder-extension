@@ -19,8 +19,6 @@ export const loader = async () => {
         storeId: payment.storeId,
         orderId: payment.orderId,
         mandateId: payment.mandateId,
-        amount: Number(payment.amount),
-        currency: payment.currencyCode,
       });
 
       await prisma.vaultedPayment.update({

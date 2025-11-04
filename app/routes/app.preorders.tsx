@@ -342,7 +342,7 @@ export default function AdditionalPage() {
               Pending
             </Badge>
           )}
-          {paymentStatus === "unknown" && <Badge>Unknown</Badge>}
+          {paymentStatus === "cancelled" && <Badge tone="critical">Cancelled</Badge>}
         </IndexTable.Cell>
         <IndexTable.Cell>
           {fulfillmentStatus === "fulfilled" && (
@@ -356,7 +356,7 @@ export default function AdditionalPage() {
             </Badge>
           )}
           {fulfillmentStatus === "unfulfilled" && (
-            <Badge progress="incomplete" tone="critical">
+            <Badge progress="incomplete" tone="warning">
               Unfulfilled
             </Badge>
           )}

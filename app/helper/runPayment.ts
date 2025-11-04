@@ -24,14 +24,10 @@ export async function runPayment({
   storeId,
   orderId,
   mandateId,
-  amount,
-  currency,
 }: {
   storeId: string;
   orderId: string;
   mandateId: string;
-  amount: number | string;
-  currency: string;
 }) {
 
   const store = await prisma.store.findUnique({

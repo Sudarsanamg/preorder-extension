@@ -205,7 +205,7 @@ export default function Index() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showGuide, setShowGuide] = useState(!setupGuide);
-  const fetcher = useFetcher();
+  const fetcher :any = useFetcher();
   const [loading, setLoading] = useState({
     create: false,
     widget: false,
@@ -545,7 +545,7 @@ export default function Index() {
                       ? "success"
                       : currentStatus === "DRAFT"
                         ? "info"
-                        : "critical";
+                        : "warning";
 
                   const statusLabel =
                     currentStatus === "PUBLISHED"
@@ -647,7 +647,8 @@ export default function Index() {
                         display: "flex",
                         justifyContent: "flex-end",
                         width: "100%",
-                        paddingRight: "1rem",
+                        // paddingRight: "1rem",
+                        flexShrink: 0,
                       }}
                     >
                       <ButtonGroup>
@@ -774,6 +775,7 @@ export default function Index() {
                         navigate("/app/settings/email-preorder-confirmation");
                       }}
                       loading={loading.orderEmail}
+                      // icon={EditIcon}
                     >
                       Customize
                     </Button>
@@ -813,6 +815,7 @@ export default function Index() {
                         );
                       }}
                       loading={loading.shippingEmail}
+                      // icon={EditIcon}
                     >
                       Customize
                     </Button>

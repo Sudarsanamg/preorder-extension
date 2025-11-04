@@ -115,6 +115,11 @@ export default function EmailDesignEditor({
                     handleEmailSettingsChange("storeName", value)
                   }
                   autoComplete="off"
+                  error={
+                    emailSettings.storeName === ""
+                      ? "This field is required"
+                      : ""
+                  }
                 />
                 <InlineStack
                   gap="200"

@@ -18,6 +18,7 @@ import {
 import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import { draftOrderInvoiceSendMutation } from "app/graphql/mutation/orders";
 import { Decimal } from "@prisma/client/runtime/library";
+import { FulfillmentStatus } from "@prisma/client";
 
 export const action = async ({ request }: { request: Request }) => {
   const { topic, shop, payload, admin } = await authenticate.webhook(request);
@@ -28,7 +29,6 @@ export const action = async ({ request }: { request: Request }) => {
         console.log(products);
         const line_items = payload.line_items || [];
         const variantIds = line_items.map((item: any) => item.variant_id);
-
 
         const formattedVariantIds = variantIds.map((id: number) => {
           return `gid://shopify/ProductVariant/${id}`;
@@ -50,7 +50,7 @@ export const action = async ({ request }: { request: Request }) => {
             campaignIds.push(node.metafield.value);
           }
         }
-        if(campaignIds.length === 0) {
+        if (campaignIds.length === 0) {
           return Response.json({ error: "No preorder found" }, { status: 200 });
         }
 
@@ -130,8 +130,7 @@ export const action = async ({ request }: { request: Request }) => {
           const shop = data?.data.shop;
           const shopId = shop.id;
           const storeDomain = shop.primaryDomain?.host;
-          console.log(secondSchedule,'secondSchedule')
-
+          console.log(secondSchedule, "secondSchedule");
 
           // getDueByValt is true
           // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
@@ -165,16 +164,39 @@ export const action = async ({ request }: { request: Request }) => {
             },
           });
 
-         await createOrder({
+         const fulfillmentStatus = payload.fulfillment_status || "unfulfilled";
+        const fulfillments = payload.fulfillments || [];
+
+        console.log("📦 Fulfillment Status:", fulfillmentStatus);
+        if (fulfillments.length > 0) {
+          console.log(
+            "🔗 Fulfillments details:",
+            JSON.stringify(fulfillments, null, 2),
+          );
+        }
+
+        const mapFulfillmentStatus = (status: string | null): FulfillmentStatus => {
+              switch (status) {
+                case "fulfilled":
+                  return "FULFILLED";
+                case "on_hold":
+                  return "ON_HOLD";
+                default:
+                  return "UNFULFILLED";
+              }
+            };
+
+          await createOrder({
             order_number,
             order_id: orderId,
-             ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
-            balanceAmount: remaining?? 0,
+            ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
+            balanceAmount: remaining ?? 0,
             paymentStatus: remaining > 0 ? "PENDING" : "PAID",
             storeId: shopId,
             customerEmail: customerEmail,
-            totalAmount:new Decimal(payload.total_price),
-            currency: payload.currency        
+            totalAmount: new Decimal(payload.total_price),
+            currency: payload.currency,
+            fulfilmentStatus : mapFulfillmentStatus(fulfillmentStatus)
           });
 
           //send update email
@@ -182,7 +204,7 @@ export const action = async ({ request }: { request: Request }) => {
             orderId,
             storeDomain,
           );
-          
+
           try {
             if (emailConsent?.sendCustomEmail) {
               const emailTemplate = generateEmailTemplate(
@@ -219,22 +241,17 @@ export const action = async ({ request }: { request: Request }) => {
             console.error("❌ Email error:", error);
           }
 
-
-
           // // Draft order mutation
           // the only way to match og order with draft order is note key
           if (remaining > 0 && vaultPayment === false) {
-
             await prisma.campaignOrders.update({
               where: {
                 order_id: orderId,
-              }
-              ,
+              },
               data: {
                 draft_order_id: uuid,
               },
-            })
-
+            });
 
             const variables = {
               input: {
@@ -303,16 +320,15 @@ export const action = async ({ request }: { request: Request }) => {
               variables: { id: orderId },
             });
 
-            const { data } : any = await response?.json();
+            const { data }: any = await response?.json();
             const methods =
               data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
             const mandateId = methods?.[0]?.id;
 
-
             const duePaymentCreation = await createDuePayment(
               orderId,
               crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-               remaining.toString(),
+              remaining.toString(),
               secondSchedule.currency,
               mandateId,
               secondSchedule.due_at,

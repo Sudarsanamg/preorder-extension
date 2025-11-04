@@ -2,8 +2,9 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 // import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType,  } from "@prisma/client";
+import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, FulfilementStatus,  } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
+import { decrypt } from "app/utils/crypto.server";
 
 export async function createStore(data: {
   shopId: string;
@@ -97,7 +98,6 @@ export async function createPreorderCampaign(data: {
     data: {
       name: data.name,
       storeId: (await getStoreIdByShopId(data.shopId ?? ""))?.id ?? "",
-      shopId: data.shopId ?? "",
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -140,7 +140,7 @@ export async function updateCampaign(data: {
   discountPercent?: number;
   discountFixed?: number;
   campaignType?: number;
-  shopId?: string;
+  shopId: string;
   getDueByValt: boolean;
   fulfilmentmode?: Fulfilmentmode;
   scheduledFulfilmentType?: scheduledFulfilmentType;
@@ -148,12 +148,13 @@ export async function updateCampaign(data: {
   fulfilmentExactDate: Date;
   paymentType?: string;
 }) {
+  const store = await getStoreIdByShopId(data.shopId)
+  if (!store) throw new Error("Store not valid")
+
   return prisma.preorderCampaign.update({
     where: {
       id: data.id,
-      store:{
-        id: (await getStoreIdByShopId(data.shopId ?? ""))?.id
-      }
+      storeId: store?.id
     },
     data: {
       name: data.name,
@@ -304,12 +305,12 @@ export async function getCampaignById(id: string) {
 
 export async function deleteCampaign(id: string, shopId: string) {
 
+  const store = await getStoreIdByShopId(shopId as string);
+
   return prisma.preorderCampaign.delete({
     where: { 
       id, 
-      store :{
-        id : (await getStoreIdByShopId(shopId ?? ""))?.id
-      }
+      storeId : store?.id
     },
   });
 }
@@ -338,7 +339,8 @@ export async function getOrders(shopId: string) {
       balanceAmount: true,
       paymentStatus: true,
       storeId: true,
-      customerEmail: true
+      customerEmail: true,
+      fulfilmentStatus: true
     },
     orderBy: {
       order_number: "desc",
@@ -376,7 +378,8 @@ export async function createOrder({
   storeId,
   customerEmail,
   totalAmount,
-  currency
+  currency,
+  fulfilmentStatus
 
 }: {
   order_number: number;
@@ -388,14 +391,14 @@ export async function createOrder({
   storeId: string;
   customerEmail: string;
   totalAmount: string,
-  currency?: string
+  currency?: string,
+  fulfilmentStatus ?: FulfilementStatus
 }) {
   try {
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
         storeId : ( await getStoreIdByShopId(storeId))?.id ?? "",
-        shopId : storeId,
         order_id,
         draft_order_id,
         dueDate,
@@ -405,7 +408,8 @@ export async function createOrder({
         createdAt: BigInt(Date.now()),
         updatedAt: BigInt(Date.now()),
         totalAmount :totalAmount ?? new Decimal(totalAmount),
-        currency
+        currency,
+        fulfilmentStatus
       },
     });
 
@@ -586,6 +590,9 @@ export async function getStoreID(storeDomain: string) {
 }
 
 export async function getStoreIdByShopId(shopId: string) {
+  if (!shopId) {
+    return null;
+  }
   return prisma.store.findUnique({
     where: { shopId },
     select: {
@@ -686,12 +693,13 @@ export async function getAllVariants(storeID: string) {
   }
 
   const endpoint = `https://${store?.shopifyDomain}/admin/api/2023-10/graphql.json`;
+  const decryptedToken = decrypt(store.offlineToken);
 
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": store.offlineToken,
+      "X-Shopify-Access-Token": decryptedToken,
     },
     body: JSON.stringify({
       query: `

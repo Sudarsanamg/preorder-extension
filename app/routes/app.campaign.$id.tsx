@@ -81,6 +81,7 @@ import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import { formatCurrency } from "app/helper/currencyFormatter";
 import { CampaignSchema, DesignSchema } from "app/utils/validator/zodValidateSchema";
+import "../tailwind.css";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -581,7 +582,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
       }
 
-      return redirect(`/app/`);
+      // return redirect(`/app/`);
+      return Response.json({ success: true, error: null }, { status: 200 });
     } catch (err) {
       console.error("Update Campaign Exception:", err);
       throw err;
@@ -762,7 +764,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     }
 
     await updateCampaignStatus(params.id!, "PUBLISHED",shopId);
-    return redirect(`/app/`);
+    // return redirect(`/app/`);
+    return Response.json({ success: true, error: null }, { status: 200 });
   }
 
   if (intent === "unpublish-campaign") {
@@ -1182,7 +1185,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           );
         }
 
-        return redirect("/app");
+        // return redirect("/app");
+        return Response.json({ success: true, error: null }, { status: 200 });
+
       }
 
       if (secondaryIntent === "save-as-draft") {
@@ -1191,7 +1196,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         return redirect("/app");
       }
 
-      return redirect(`/app`);
+      return Response.json({ success: true, error: null }, { status: 200 });
     } catch (error) {
       console.log(error);
     }
@@ -1219,6 +1224,9 @@ export default function CampaignDetail() {
    const { productsWithPreorder } = useActionData<typeof action>() ?? {
       productsWithPreorder: [],
     };
+  const actionData = useActionData<typeof action>();
+
+
   console.log(productsWithPreorder);
   const [buttonLoading, setButtonLoading] = useState({
     publish: false,
@@ -1674,6 +1682,8 @@ const isSaving = navigation.state === "submitting";
   const handleDiscard = () => {
     // console.log("Discarding");
     discarding.current = true;
+    shopify.saveBar.hide("my-save-bar");
+    setSaveBarActive(false);
     setCampaignData({ ...initialCampaignRef.current });
     setDesignFields({ ...initialDesignRef.current });
     setSelectedProducts([...initialProducts.current]);
@@ -1741,32 +1751,65 @@ const isSaving = navigation.state === "submitting";
     submit(formData, { method: "post" });
   }
 
-  useEffect(() => {
-     if (discarding.current) {
-    discarding.current = false;
-    return; 
-  }
-    if(
-      JSON.stringify(designFields) === JSON.stringify(initialDesignRef.current) &&   
-      JSON.stringify(campaignData) === JSON.stringify(initialCampaignRef.current)   &&
-      JSON.stringify(selectedProducts) === JSON.stringify(initialProducts.current)  &&
+ useEffect(() => {
+    if (discarding.current) {
+      discarding.current = false;
+      return;
+    }
+
+    const noChanges =
+      JSON.stringify(designFields) ===
+        JSON.stringify(initialDesignRef.current) &&
+      JSON.stringify(campaignData) ===
+        JSON.stringify(initialCampaignRef.current) &&
+      JSON.stringify(selectedProducts) ===
+        JSON.stringify(initialProducts.current) &&
       removedVarients.length === 0 &&
-      JSON.stringify(selectedDates) === JSON.stringify(initialDates.current)
-    ){ 
+      JSON.stringify(selectedDates) ===
+        JSON.stringify(initialDates.current);
+
+    if (noChanges) {
+      if (saveBarActive) {
+        shopify.saveBar.hide("my-save-bar");
+        setSaveBarActive(false);
+      }
+    } else {
+      if (!saveBarActive) {
+        shopify.saveBar.show("my-save-bar");
+        setSaveBarActive(true);
+      }
+    }
+  }, [
+    designFields,
+    selectedProducts,
+    campaignData,
+    removedVarients,
+    selectedDates,
+    saveBarActive,
+  ]);
+
+
+useEffect(() => {
+    if (navigation.state === "idle" && actionData?.success) {
+      // ✅ Hide save bar only when save succeeded
       shopify.saveBar.hide("my-save-bar");
       setSaveBarActive(false);
-      return
-    }
-    else{
-    shopify.saveBar.show("my-save-bar");
-    setSaveBarActive(true);
-    }
-  }, [designFields, selectedProducts, campaignData, removedVarients,selectedDates]);
+      shopify.toast.show("Saved successfully");
 
-  useEffect(() => {
-    setSaveBarActive(false);
-  }, []);
-  
+      // reset your loading buttons
+      setButtonLoading((prev):any =>
+        Object.fromEntries(Object.keys(prev).map((key) => [key, false]))
+      );
+
+      // also reset your initial refs so future changes track correctly
+      initialDesignRef.current = designFields;
+      initialCampaignRef.current = campaignData;
+      initialProducts.current = selectedProducts;
+      initialDates.current = selectedDates;
+      navigate("/app");
+    }
+  }, [navigation.state, actionData]);
+
 
   const handleButtonClick = useCallback(
     (index: number) => {
@@ -1986,6 +2029,7 @@ const isSaving = navigation.state === "submitting";
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
           loading: buttonLoading.publish,
+          disabled: isSaving || buttonLoading.delete,
           onAction: () =>
             campaign?.status === "PUBLISHED"
               ? handleUnpublish(String(campaign?.id))
@@ -1997,6 +2041,7 @@ const isSaving = navigation.state === "submitting";
             destructive: true,
             onAction: () => shopify.modal.show("delete-modal"),
             loading: buttonLoading.delete,
+            disabled: isSaving || buttonLoading.publish,
           },
           // ...(campaign.status !== "DRAFT"
           //   ? [
@@ -2012,33 +2057,32 @@ const isSaving = navigation.state === "submitting";
         ]}
       >
         <SaveBar id="my-save-bar">
-          <button variant="primary" onClick={handleSave} 
-        loading={isSaving === true ? "" : false}
+          <button
+            variant="primary"
+            onClick={handleSave}
+            loading={isSaving === true ? "" : false}
           ></button>
-          <button onClick={handleDiscard}></button>
+          <button onClick={handleDiscard} disabled={isSaving}></button>
         </SaveBar>
-        
+
         {errors.length > 0 && (
-                  <Banner
-                    title="Please fix the following errors"
-                    tone="critical"
-                  >
-                    <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
-                      {errors.map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                  </Banner>
-                )}
-                {(noProductWarning && errors.length === 0) &&
-                   <Banner
-                  title="Cannot save campaign"
-                  tone="warning"
-                  onDismiss={() => setNoProductWarning(false)}
-                >
-                  You must select at least one product before saving your campaign.
-                </Banner>
-              }
+          <Banner title="Please fix the following errors" tone="critical">
+            <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+              {errors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </Banner>
+        )}
+        {noProductWarning && errors.length === 0 && (
+          <Banner
+            title="Cannot save campaign"
+            tone="warning"
+            onDismiss={() => setNoProductWarning(false)}
+          >
+            You must select at least one product before saving your campaign.
+          </Banner>
+        )}
         <Modal id="delete-modal">
           <p style={{ padding: "10px" }}>
             Delete "{campaign?.name}" This will also remove the campaign from
@@ -2099,12 +2143,13 @@ const isSaving = navigation.state === "submitting";
           />
 
           <div
-            style={{
-              display: "flex",
-              position: "relative",
-              paddingBottom: 20,
-              paddingTop: 20,
-            }}
+            // style={{
+            //   display: "flex",
+            //   position: "relative",
+            //   paddingBottom: 20,
+            //   paddingTop: 20,
+            // }}
+            className="form-parent  gap-10 md:flex  m-3"
           >
             {/* left */}
             {selected === 0 && (
@@ -2148,14 +2193,12 @@ const isSaving = navigation.state === "submitting";
 
             {/* right */}
             {(selected === 0 || selected === 1) && (
-              <div style={{ flex: 1, marginLeft: 20 }}>
+              <div
+                style={{ flex: 1, marginLeft: 20 }}
+                className="right mt-10 md:mt-0"
+              >
                 {/* preview */}
-                <div style={{ position: "sticky", top: 20  ,
-                  maxWidth: '400px',
-                  
-                }} 
-
-                >
+                <div style={{ position: "sticky", top: 20, maxWidth: "400px" }}>
                   <Card>
                     <div style={{ display: "flex", justifyContent: "center" }}>
                       <Text as="h4" variant="headingSm">
@@ -2353,6 +2396,32 @@ const isSaving = navigation.state === "submitting";
                     </Card>
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+          <div className="flex md:hidden justify-end mt-3">
+            {selected === 1 && (
+              <div className=" flex md:hidden justify-start mt-5 mb-5 mr-3">
+                <Button
+                  onClick={() => setSelected(selected - 1)}
+                  variant="secondary"
+                >
+                  Back
+                </Button>
+              </div>
+            )}
+
+            {(selected === 0 || selected === 1) && (
+              <div className=" flex md:hidden justify-end mt-5 mb-5">
+                <Button
+                  onClick={() => {
+                    setSelected(selected + 1);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  variant="primary"
+                >
+                  Next
+                </Button>
               </div>
             )}
           </div>
