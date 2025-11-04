@@ -2,6 +2,7 @@ import {
   deleteCampaign,
   getCampaignById,
   getCampaignStatus,
+  getStoreIdByShopId,
   replaceProductsInCampaign,
   updateCampaign,
   updateCampaignStatus,
@@ -175,10 +176,11 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       const shopId = shopResponseData.data.shop.id;
    
     const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
+    const storeId = await getStoreIdByShopId(shopId as string);
     const getDueByValtResponse = await prisma.preorderCampaign.findUnique({
       where: {
         id: params.id!,
-        shopId: shopId,
+        storeId: storeId?.id,
       },
       select: {
         getDueByValt: true,
@@ -1805,16 +1807,16 @@ const isSaving = navigation.state === "submitting";
     }
   }, [selectedProducts, campaignData, criticalChange]);
 
-  function handleSaveAsDraft(id: string) {
-    setButtonLoading((prev) => ({ ...prev, saveAsDraft: true }));
-    const formData = new FormData();
-    formData.append("intent", "unpublish-campaign");
-    formData.append("secondaryIntent", "save-as-draft");
-    formData.append("products", JSON.stringify(selectedProducts));
-    formData.append("id", id);
+  // function handleSaveAsDraft(id: string) {
+  //   setButtonLoading((prev) => ({ ...prev, saveAsDraft: true }));
+  //   const formData = new FormData();
+  //   formData.append("intent", "unpublish-campaign");
+  //   formData.append("secondaryIntent", "save-as-draft");
+  //   formData.append("products", JSON.stringify(selectedProducts));
+  //   formData.append("id", id);
 
-    submit(formData, { method: "post" });
-  }
+  //   submit(formData, { method: "post" });
+  // }
 
     const selectAllProducts = async () => {
       setButtonLoading(() => ({ ...buttonLoading, addAll: true }));

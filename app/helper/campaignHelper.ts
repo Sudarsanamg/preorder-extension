@@ -5,7 +5,7 @@ import { unpublishMutation } from "app/graphql/mutation/metaobject";
 import { allowOutOfStockForVariants, DELETE_SELLING_PLAN_GROUP } from "app/graphql/mutation/sellingPlan";
 import { publishMutation } from "app/graphql/queries/metaobject";
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
-import { deleteCampaign, updateCampaignStatus } from "app/models/campaign.server";
+import { deleteCampaign, getStoreIdByShopId, updateCampaignStatus } from "app/models/campaign.server";
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { removeDiscountFromVariants } from "./removeDiscountFromVariants";
 import { applyDiscountToVariants } from "./applyDiscountToVariants";
@@ -22,8 +22,12 @@ export const unPublishCampaign = async (admin: any, id: string , shopId?: string
       },
     });
 
+    const store = await getStoreIdByShopId(shopId as string);
     const productsResponse = await prisma.preorderCampaign.findMany({
-      where: { id: campaignId },
+      where: {
+         id: campaignId,
+         storeId: store?.id
+         },
       select: {
         products: true,
       },
@@ -132,8 +136,12 @@ export const publishCampaign = async (admin: any, id: string, shopId: string) =>
         console.log(error);
       }
 
+      const store = await getStoreIdByShopId(shopId);
       const campaignRecords = await prisma.preorderCampaign.findMany({
-        where: { id: campaignId },
+        where: { 
+          id: campaignId,
+          storeId: store?.id
+        },
         select: {
           products: true,
         },
@@ -142,7 +150,10 @@ export const publishCampaign = async (admin: any, id: string, shopId: string) =>
       const products = campaignRecords?.[0]?.products || [];
     
       const campaignData = await prisma.preorderCampaign.findUnique({
-        where: { id: campaignId },
+        where: { 
+          id: campaignId,
+          storeId: store?.id
+         },
       });
 
       const metafields = products.flatMap((product: any) => [
@@ -325,10 +336,15 @@ export const handleCampaignStatusChange = async (
   newStatus: string,
   shopId: string
 )=>{
+  const store = await getStoreIdByShopId(shopId as string);
+
   if(newStatus === "DRAFT"){
     await unPublishCampaign(admin,campaignId, shopId);
     await prisma.preorderCampaign.update({
-      where: { id: campaignId },
+      where: { 
+        id: campaignId,
+        storeId: store?.id
+       },
       data: {
         status: "DRAFT",
       },

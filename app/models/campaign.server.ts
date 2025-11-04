@@ -49,9 +49,12 @@ export async function getAccessToken(shopifyDomain: string) {
 }
 
 export async function getAllCampaign(shopId?: string) {
+
+  const store = await getStoreIdByShopId(shopId as string);
+  console.log(store?.id, "store");
   return prisma.preorderCampaign.findMany({
     where: {
-      shopId: shopId,
+      storeId: store?.id,
     },
   });
 }
@@ -214,7 +217,8 @@ export async function replaceProductsInCampaign(
     // 1. Delete all existing products for this campaign
 
     prisma.preorderCampaignProduct.deleteMany({
-      where: { campaignId: campaignId },
+      where: { 
+        campaignId: campaignId },
     }),
 
     // 2. Insert the new products
@@ -279,9 +283,10 @@ export async function getAllProducts(request: Request) {
 
 // Fetch all campaigns
 export async function getCampaigns(storeId: string) {
+  const store = await getStoreIdByShopId(storeId as string);
   return prisma.preorderCampaign.findMany({
     where: {
-      shopId: storeId,
+      storeId: store?.id,
     },
     include: { products: true },
   });
@@ -310,10 +315,11 @@ export async function deleteCampaign(id: string, shopId: string) {
 }
 
 export async function updateCampaignStatus(id: string, status: CampaignStatus,shopId: string) {
+  const store = await getStoreIdByShopId(shopId as string);
   return prisma.preorderCampaign.update({
     where: {
        id,
-       shopId
+       storeId: store?.id
        },
     data: { status },
   });
