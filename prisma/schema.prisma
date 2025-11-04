@@ -114,7 +114,6 @@ model PreorderCampaignProduct {
 
 model CampaignOrders {
   id             String        @id @default(uuid())
-  shopId         String
   storeId        String
   order_number   Int         
   order_id       String        @unique

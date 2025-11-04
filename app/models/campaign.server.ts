@@ -326,9 +326,10 @@ export async function updateCampaignStatus(id: string, status: CampaignStatus,sh
 }
 
 export async function getOrders(shopId: string) {
+  const store = await getStoreIdByShopId(shopId as string);
   return prisma.campaignOrders.findMany({
     where: {
-      shopId: shopId,
+      storeId: store?.id,
     },
     select: {
       order_id: true,
@@ -347,9 +348,10 @@ export async function getOrders(shopId: string) {
 }
 
 export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfilmentmode) {
+  const store = await getStoreIdByShopId(shopId as string);
   return prisma.campaignOrders.findMany({
     where: {
-      shopId: shopId,
+      storeId: store?.id,
       
     },
     select: {
