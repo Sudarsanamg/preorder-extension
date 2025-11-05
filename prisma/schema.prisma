@@ -50,21 +50,22 @@ model Store {
 }
 
 model VaultedPayment {
-  id             String        @id @default(uuid())
-  orderId        String        @unique
-  storeId        String
-  idempotencyKey String
-  amount         Decimal
-  currencyCode   String
-  mandateId      String
-  dueDate        DateTime
-  paymentStatus  PaymentStatus
-  createdAt      BigInt
-  updatedAt      BigInt
-  store          Store         @relation(fields: [storeId], references: [id])
-
-// PreorderCampaign Primary ID
-// CampaignOrders ID
+  id              String           @id @default(uuid())
+  orderId         String           @unique
+  storeId         String
+  campaignId      String                       
+  campaignOrderId String           
+  idempotencyKey  String
+  amount          Decimal
+  currencyCode    String
+  mandateId       String
+  dueDate         DateTime
+  paymentStatus   PaymentStatus
+  createdAt       BigInt
+  updatedAt       BigInt
+  store           Store            @relation(fields: [storeId], references: [id])
+  campaign        PreorderCampaign @relation(fields: [campaignId], references: [id])
+  campaignOrder   CampaignOrders   @relation(fields: [campaignOrderId], references: [id])
 
   @@unique([orderId, storeId])
 }
@@ -96,6 +97,9 @@ model PreorderCampaign {
   updatedAt               BigInt
   products                PreorderCampaignProduct[]
   store                   Store                     @relation(fields: [storeId], references: [id])
+  vaultedPayment          VaultedPayment[]
+  campaignOrders          CampaignOrders[]
+  isDeleted               Boolean                   @default(false)
 }
 
 model PreorderCampaignProduct {
@@ -118,6 +122,7 @@ model PreorderCampaignProduct {
 model CampaignOrders {
   id               String             @id @default(uuid())
   storeId          String
+  campaignId       String            
   order_number     Int
   order_id         String             @unique
   draft_order_id   String?            @unique
@@ -131,14 +136,12 @@ model CampaignOrders {
   store            Store              @relation(fields: [storeId], references: [id])
   createdAt        BigInt
   updatedAt        BigInt
+  vaultedPayment   VaultedPayment[]
+  campaign         PreorderCampaign   @relation(fields: [campaignId], references: [id])
 
-
-// PreorderCampaign ID
   @@unique([storeId, order_id])
-@@unique([storeId, draft_order_id])
+  @@unique([storeId, draft_order_id])
 }
-
-// fulfilemtStatus FulfilementStatus
 
 enum PaymentStatus {
   PENDING

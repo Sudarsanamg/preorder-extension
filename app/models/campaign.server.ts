@@ -2,7 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 // import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, FulfilementStatus,  } from "@prisma/client";
+import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, FulfillmentStatus,  } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { decrypt } from "app/utils/crypto.server";
 
@@ -56,6 +56,7 @@ export async function getAllCampaign(shopId?: string) {
   return prisma.preorderCampaign.findMany({
     where: {
       storeId: store?.id,
+      isDeleted: false
     },
   });
 }
@@ -94,10 +95,13 @@ export async function createPreorderCampaign(data: {
   fulfilmentExactDate: Date;
   paymentType: string;
 }) {
+  const store = await getStoreIdByShopId(data.shopId ?? "");
+  if(!store) throw new Error("Store not valid");
+
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
-      storeId: (await getStoreIdByShopId(data.shopId ?? ""))?.id ?? "",
+      storeId: store.id,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -307,10 +311,13 @@ export async function deleteCampaign(id: string, shopId: string) {
 
   const store = await getStoreIdByShopId(shopId as string);
 
-  return prisma.preorderCampaign.delete({
+  return prisma.preorderCampaign.update({
     where: { 
       id, 
       storeId : store?.id
+    },
+    data: {
+      isDeleted: true,
     },
   });
 }
@@ -379,8 +386,8 @@ export async function createOrder({
   customerEmail,
   totalAmount,
   currency,
-  fulfilmentStatus
-
+  fulfilmentStatus,
+  campaignId
 }: {
   order_number: number;
   order_id: string;
@@ -392,13 +399,18 @@ export async function createOrder({
   customerEmail: string;
   totalAmount: string,
   currency?: string,
-  fulfilmentStatus ?: FulfilementStatus
+  fulfilmentStatus ?: FulfillmentStatus,
+  campaignId : string
 }) {
   try {
+    const store = await getStoreIdByShopId(storeId);
+    if(!store){
+      throw new Error("Store not found");
+    }
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
-        storeId : ( await getStoreIdByShopId(storeId))?.id ?? "",
+        storeId : store?.id,
         order_id,
         draft_order_id,
         dueDate,
@@ -409,7 +421,8 @@ export async function createOrder({
         updatedAt: BigInt(Date.now()),
         totalAmount :totalAmount ?? new Decimal(totalAmount),
         currency,
-        fulfilmentStatus
+        fulfilmentStatus,
+        campaignId,
       },
     });
 
@@ -609,8 +622,14 @@ export async function createDuePayment(
   mandateId: string,
   dueDate: Date,
   paymentStatus: PaymentStatus,
-  storeDomain: string
+  storeDomain: string,
+  campaignId: string,
+  campaignOrderId : string
 ) {
+  const store = await getStoreID(storeDomain);
+  if(!store){
+    throw new Error("Store not found");
+  }
   return prisma.vaultedPayment.create({
     data: {
       orderId,
@@ -620,9 +639,11 @@ export async function createDuePayment(
       mandateId,
       dueDate,
       paymentStatus,
-      storeId: (await getStoreID(storeDomain))?.id ?? "",
+      storeId: store.id,
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
+      campaignId,
+      campaignOrderId
     },
   });
 }

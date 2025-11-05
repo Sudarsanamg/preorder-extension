@@ -272,7 +272,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         fulfilmentDaysAfter: Number(formData.get("fulfilmentDaysAfter")),
         fulfilmentExactDate: new Date(
           formData.get("fulfilmentExactDate") as string,
+        
         ),
+        shopId:shopId
       });
       const updatedProducts = JSON.parse(
         (formData.get("products") as string) || "[]",
@@ -2149,7 +2151,7 @@ useEffect(() => {
             //   paddingBottom: 20,
             //   paddingTop: 20,
             // }}
-            className="form-parent  gap-10 md:flex  m-3"
+            className="form-parent  gap-5 md:flex  m-3"
           >
             {/* left */}
             {selected === 0 && (
@@ -2354,7 +2356,7 @@ useEffect(() => {
                     </div>
                     {campaignData.paymentMode === "partial" && (
                       <div
-                        style={{ display: "flex", justifyContent: "center" }}
+                        style={{ display: "flex", justifyContent: "center" , textAlign:'center' }}
                       >
                         <Text as="h1" variant="headingMd">
                           Pay $3.92 now and $35.28 will be charged on{" "}
@@ -2647,7 +2649,7 @@ useEffect(() => {
                             >
                               {product.variantInventory
                                 ? product.variantInventory
-                                : product.inventory}
+                                : product.inventory ?? "0"}
                             </td>
                             {campaignData.campaignType !== 3 && (
                               <td

@@ -81,8 +81,8 @@ export const CampaignSchema = z.object({
   preOrderNoteKey: z.string().min(1, "Note key is required").max(30),
   preOrderNoteValue: z.string().min(1, "Note value is required").max(30),
 
-  buttonText: z.string().min(1).max(30),
-  shippingMessage: z.string().min(1).max(30),
+  buttonText: z.string().min(1, "Button text is required").max(15, "Button text must be under 15 characters"),
+  shippingMessage: z.string().min(1, "Shipping message is required").max(50, "Shipping message must be under 50 characters"),
 
   partialPaymentPercentage: z.coerce
     .number()

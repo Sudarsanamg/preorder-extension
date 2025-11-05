@@ -1,10 +1,4 @@
-{% comment %}
-  Snippet: product-card-price.liquid
-  Usage: Include in your home/collection/featured product cards
-  Example: {% include 'product-card-price', variant: product.variants.first %}
-{% endcomment %}
-
-{% assign variant = variant or product.variants.first %}
+{% comment %} {% assign variant = variant or product.variants.first %} {% endcomment %}
 {% assign allocation = variant.selling_plan_allocations.first %}
 
 <div class="product-price">

@@ -23,7 +23,7 @@ import { Link, useActionData, useLoaderData, useSubmit } from "@remix-run/react"
 import { useCallback, useEffect, useState } from "react";
 import type { IndexFiltersProps, TabProps } from "@shopify/polaris";
 import {
-  getOrdersFulfillmentStatus,
+  // getOrdersfulfilmentStatus,
   getOrderWithProducts,
 } from "app/graphql/queries/orders";
 import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
@@ -31,6 +31,7 @@ import prisma from "app/db.server";
 import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
 import nodemailer from "nodemailer";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
+import { formatDate } from "app/utils/formatDate";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const adminSession = await authenticate.admin(request);
@@ -54,25 +55,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopId = data.data.shop.id;
 
   const orders = await getOrders(shopId);
-  const ordersId = orders.map((order: any) => order.order_id);
+  // console.log(orders, "orders");
+  // const ordersId = orders.map((order: any) => order.order_id);
 
-  // Fetch fulfillment status from Shopify
-  const fullFillmentResponse = await admin.graphql(getOrdersFulfillmentStatus, {
-    variables: { ids: ordersId },
-  });
-  const fullFillmentResponsedata = await fullFillmentResponse.json();
-  const fulfillmentStatusNodes = fullFillmentResponsedata.data.nodes;
+  // // Fetch fulfillment status from Shopify
+  // const fullFillmentResponse = await admin.graphql(getOrdersfulfilmentStatus, {
+  //   variables: { ids: ordersId },
+  // });
+  // const fullFillmentResponsedata = await fullFillmentResponse.json();
+  // const fulfilmentStatusNodes = fullFillmentResponsedata.data.nodes;
 
-  const fulfillmentStatusMap: Record<string, string> = {};
-  fulfillmentStatusNodes.forEach((node: any) => {
-    if (node) fulfillmentStatusMap[node.id] = node.displayFulfillmentStatus;
-  });
+  // const fulfilmentStatusMap: Record<string, string> = {};
+  // fulfilmentStatusNodes.forEach((node: any) => {
+  //   if (node) fulfilmentStatusMap[node.id] = node.displayfulfilmentStatus;
+  // });
 
   const enrichedOrders = orders.map((order: any) => ({
     ...order,
-    fulfillmentStatus: (
-      fulfillmentStatusMap[order.order_id] || "unknown"
-    ).toLowerCase(),
+   
     paymentStatus: (order.paymentStatus || "unknown").toLowerCase(),
   }));
 
@@ -197,7 +197,7 @@ export default function AdditionalPage() {
     dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
     balanceAmount: `$${order.balanceAmount ?? 0}`,
     paymentStatus: order.paymentStatus,
-    fulfillmentStatus: order.fulfillmentStatus.toLowerCase(),
+    fulfilmentStatus: order.fulfilmentStatus ?order.fulfilmentStatus :"UNFULFILLED",
     customerEmail: order.customerEmail,
   }));
 
@@ -239,11 +239,11 @@ export default function AdditionalPage() {
 
     const matchesTab =
       selectedTab === 1
-        ? order.fulfillmentStatus === "unfulfilled"
+        ? order.fulfilmentStatus === "UNFULFILLED"
         : selectedTab === 2
-          ? order.fulfillmentStatus === "fulfilled"
+          ? order.fulfilmentStatus === "FULFILLED"
           : selectedTab === 3
-            ? order.fulfillmentStatus === "on_hold"
+            ? order.fulfilmentStatus === "ON_HOLD"
             : true;
 
     const matchesPaymentStatus =
@@ -292,14 +292,14 @@ export default function AdditionalPage() {
         dueDate,
         balanceAmount,
         paymentStatus,
-        fulfillmentStatus,
+        fulfilmentStatus,
       }: {
         id: string;
         orderNumber: string;
         dueDate: string;
         balanceAmount: string;
         paymentStatus?: string;
-        fulfillmentStatus: string;
+        fulfilmentStatus: string;
       },
       index: number,
     ) => (
@@ -325,7 +325,7 @@ export default function AdditionalPage() {
             </Text>
           </Link>
         </IndexTable.Cell>
-        <IndexTable.Cell>{dueDate}</IndexTable.Cell>
+        <IndexTable.Cell>{formatDate(dueDate)}</IndexTable.Cell>
         <IndexTable.Cell>
           <Text as="span" alignment="end" numeric>
             {balanceAmount}
@@ -345,22 +345,22 @@ export default function AdditionalPage() {
           {paymentStatus === "cancelled" && <Badge tone="critical">Cancelled</Badge>}
         </IndexTable.Cell>
         <IndexTable.Cell>
-          {fulfillmentStatus === "fulfilled" && (
+          {fulfilmentStatus === "FULFILLED" && (
             <Badge progress="complete" tone="success">
               Fulfilled
             </Badge>
           )}
-          {fulfillmentStatus === "on_hold" && (
+          {fulfilmentStatus === "ON_HOLD" && (
             <Badge progress="partiallyComplete" tone="attention">
               On Hold
             </Badge>
           )}
-          {fulfillmentStatus === "unfulfilled" && (
+          {fulfilmentStatus === "UNFULFILLED" && (
             <Badge progress="incomplete" tone="warning">
               Unfulfilled
             </Badge>
           )}
-          {fulfillmentStatus === "unknown" && <Badge>Unknown</Badge>}
+          {fulfilmentStatus === "unknown" && <Badge>Unknown</Badge>}
         </IndexTable.Cell>
       </IndexTable.Row>
     ),
@@ -388,7 +388,7 @@ export default function AdditionalPage() {
         dueDate: selectedOrder?.dueDate,
         balanceAmount: selectedOrder?.balanceAmount,
         paymentStatus: selectedOrder?.paymentStatus,
-        fulfillmentStatus: selectedOrder?.fulfillmentStatus,
+        fulfilmentStatus: selectedOrder?.fulfilmentStatus,
       };
     });
 

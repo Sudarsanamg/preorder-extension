@@ -186,7 +186,7 @@ export const action = async ({ request }: { request: Request }) => {
               }
             };
 
-          await createOrder({
+       const campaignOrder =   await createOrder({
             order_number,
             order_id: orderId,
             ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
@@ -196,7 +196,8 @@ export const action = async ({ request }: { request: Request }) => {
             customerEmail: customerEmail,
             totalAmount: new Decimal(payload.total_price),
             currency: payload.currency,
-            fulfilmentStatus : mapFulfillmentStatus(fulfillmentStatus)
+            fulfilmentStatus : mapFulfillmentStatus(fulfillmentStatus),
+            campaignId : campaignIds[0]
           });
 
           //send update email
@@ -334,6 +335,8 @@ export const action = async ({ request }: { request: Request }) => {
               secondSchedule.due_at,
               "PENDING",
               storeDomain,
+              campaignIds[0],
+              campaignOrder.id
             );
 
             console.log("Due payment created:", duePaymentCreation);

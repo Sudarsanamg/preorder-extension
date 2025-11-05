@@ -28,7 +28,7 @@ import {
   useNavigate,
   useActionData,
   useLoaderData,
-  useNavigation,
+  // useNavigation,
   // useNavigation,
 } from "@remix-run/react";
 import {
@@ -582,8 +582,8 @@ export default function Newcampaign() {
   const [hasCollectionFetched, setHasCollectionFetched] = useState<boolean>(false);
   const [noProductWarning, setNoProductWarning] = useState<boolean>(false);
     const [errors, setErrors] = useState<string[]>([]);
-    const navigation = useNavigation();
-    const isSaving = navigation.state === "submitting";
+    // const navigation = useNavigation();
+    // const isSaving = navigation.state === "submitting";
 
 
   
@@ -782,8 +782,6 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   const handleSubmit = () => {
   const { valid } = validateForm();
   if (!valid) return;
-    if(errors.length > 0) return;
-
 
     if(selectedProducts.length === 0){
       setNoProductWarning(true);
@@ -977,7 +975,6 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
 
 
   const handleSave = () => {
-  SetButtonLoading((prev)=> ({...prev, save: true}));
   const { valid } = validateForm();
   if (!valid) return;
   
@@ -992,6 +989,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
   setNoProductWarning(false);
   // shopify.saveBar.hide("my-save-bar");
   setIsSubmitting(true);
+  SetButtonLoading((prev)=> ({...prev, draft: true}));
   // setSaveBarVisible(false);
 
  
@@ -1129,11 +1127,11 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
       >
         <SaveBar id="my-save-bar">
           <button variant="primary" onClick={handleSave}
-          loading={buttonLoading.draft ? "" : false}
-          disabled={isSaving}
+          loading={buttonLoading.draft ? "" :  buttonLoading.publish ? "" : false}
+          disabled={isSubmitting}
           ></button>
           <button onClick={handleDiscard}
-          disabled={isSaving}
+          disabled={isSubmitting}
           ></button>
         </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
@@ -1161,7 +1159,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
         
 
         <form method="post" onSubmit={handleSubmit}>
-          <input type="hidden" name="intent" value="create-campaign" />
+          {/* <input type="hidden" name="intent" value="create-campaign" />
           <input
             type="hidden"
             name="products"
@@ -1184,7 +1182,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
             name="campaignEndDate"
             value={campaignData.campaignEndDate.toISOString()}
           /> */}
-          <input
+          {/* <input
             type="hidden"
             name="designFields"
             value={JSON.stringify(designFields)}
@@ -1193,7 +1191,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
             type="hidden"
             name="campaignType"
             value={JSON.stringify(campaignData.campaignType)}
-          />
+          /> */} 
 
           <div
             style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
@@ -1221,7 +1219,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
             //   paddingBottom: 20,
             //   paddingTop: 20,
             // }}
-            className="form-parent  gap-10 md:flex  m-3"
+            className="form-parent  gap-5 md:flex  m-3"
           >
             {/* left */}
             {selected === 0 && (
@@ -1449,7 +1447,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                   </Card>
                   <div style={{ marginTop: 10 }}>
                     <Card>
-                      <div style={{ padding: 3, textAlign: "center" }}>
+                      <div style={{ padding: 3, textAlign: "center" ,marginBottom:5}}>
                         <Text as="p" variant="headingSm">
                           CART, CHECKOUT, EMAIL PREVIEW
                         </Text>
@@ -1722,7 +1720,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                             >
                               {product.variantInventory
                                 ? product.variantInventory
-                                : product.inventory}
+                                : product.inventory ?? '0'} 
                             </td>
                             {campaignData.campaignType !== 3 && (
                               <td
