@@ -23,3 +23,35 @@ export const GetVariantCampaignIdsQuery = `
     }
   }
 `;
+
+export const THEME_LIST = `query ThemeList($roles: [ThemeRole!], $filenames: [String!]!) {
+        themes(first: 10, roles: $roles) {
+          edges {
+            node {
+              id
+              role
+              files(filenames: $filenames) {
+                nodes {
+                  body {
+                    ... on OnlineStoreThemeFileBodyBase64 {
+                      contentBase64
+                    }
+                    ... on OnlineStoreThemeFileBodyText {
+                      content
+                    }
+                    ... on OnlineStoreThemeFileBodyUrl {
+                      url
+                    }
+                  }
+                  filename
+                }
+              }
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+          }
+        }
+      }`;

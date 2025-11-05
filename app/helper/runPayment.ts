@@ -1,16 +1,15 @@
 import prisma from "app/db.server";
+import { decrypt } from "app/utils/crypto.server";
 
 const CREATE_ORDER_PAYMENT = `
   mutation orderPayment(
     $id: ID!,
     $idempotencyKey: String!,
-    $amount: MoneyInput!,
     $mandateId: ID!
   ) {
     orderCreateMandatePayment(
       id: $id
       idempotencyKey: $idempotencyKey
-      amount: $amount
       mandateId: $mandateId
     ) {
       userErrors {
@@ -22,25 +21,36 @@ const CREATE_ORDER_PAYMENT = `
 `;
 
 export async function runPayment({
-  shop,
+  storeId,
   orderId,
   mandateId,
-  amount,
-  currency,
 }: {
-  shop: string;
+  storeId: string;
   orderId: string;
   mandateId: string;
-  amount: number | string;
-  currency: string;
 }) {
 
-  const accessToken = await prisma.store.findUnique({
-    where: { shopifyDomain: shop },
-    select: { offlineToken: true },
-  })
+  const store = await prisma.store.findUnique({
+    where: {
+      id: storeId,
+    },
+    include: {
+      campaignOrders: {
+        where: {
+          order_id: orderId,
+        },
+      },
+    },
+  });
 
-  const token = accessToken?.offlineToken;
+  if(!store?.campaignOrders.length ) {
+    throw new Error(`Something went wrong`);
+  }
+
+  const token = store.offlineToken;
+  const shop = store.shopifyDomain;
+  const decryptedToken = decrypt(token as string);
+
   if (!token) {
     throw new Error(`Missing offline token for shop ${shop}`);
   }
@@ -49,17 +59,13 @@ export async function runPayment({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": token,
+      "X-Shopify-Access-Token": decryptedToken,
     },
     body: JSON.stringify({
       query: CREATE_ORDER_PAYMENT,
       variables: {
         id: orderId, 
         idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-        amount: {
-          amount: amount.toString(),
-          currencyCode: currency,
-        },
         mandateId,
       },
     }),

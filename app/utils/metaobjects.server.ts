@@ -1,6 +1,6 @@
 import { authenticate } from "../shopify.server";
 
-export async function updatePreorderMetafields(request, products) {
+export async function updatePreorderMetafields(request :any, products:any) {
 
   const { admin } = await authenticate.admin(request);
 
@@ -23,7 +23,7 @@ export async function updatePreorderMetafields(request, products) {
     }
   `;
 
-  const metafields = products.map((product) => ({
+  const metafields = products.map((product:any) => ({
     ownerId: product.id,       
     namespace: "custom",      
     key: "preorder",          

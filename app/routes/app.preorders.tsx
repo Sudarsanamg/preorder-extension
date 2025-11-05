@@ -17,23 +17,30 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "app/shopify.server";
-import { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { getOrders } from "app/models/campaign.server";
-import { Link, useActionData, useLoaderData, useNavigate, useSubmit } from "@remix-run/react";
+import { Link, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
 import { useCallback, useEffect, useState } from "react";
 import type { IndexFiltersProps, TabProps } from "@shopify/polaris";
 import {
-  getOrdersFulfillmentStatus,
+  // getOrdersfulfilmentStatus,
   getOrderWithProducts,
 } from "app/graphql/queries/orders";
 import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import prisma from "app/db.server";
 import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
 import nodemailer from "nodemailer";
+import { isStoreRegistered } from "app/helper/isStoreRegistered";
+import { formatDate } from "app/utils/formatDate";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const adminSession = await authenticate.admin(request);
-  const { admin } = await authenticate.admin(request);
+  const { admin , session } = await authenticate.admin(request);
+  const shop = session.shop;
+    const isStoreExist = await isStoreRegistered(shop);
+    if(!isStoreExist){
+      return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+    }
 
   const shopQuery = `{
     shop {
@@ -48,25 +55,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopId = data.data.shop.id;
 
   const orders = await getOrders(shopId);
-  const ordersId = orders.map((order: any) => order.order_id);
+  // console.log(orders, "orders");
+  // const ordersId = orders.map((order: any) => order.order_id);
 
-  // Fetch fulfillment status from Shopify
-  const fullFillmentResponse = await admin.graphql(getOrdersFulfillmentStatus, {
-    variables: { ids: ordersId },
-  });
-  const fullFillmentResponsedata = await fullFillmentResponse.json();
-  const fulfillmentStatusNodes = fullFillmentResponsedata.data.nodes;
+  // // Fetch fulfillment status from Shopify
+  // const fullFillmentResponse = await admin.graphql(getOrdersfulfilmentStatus, {
+  //   variables: { ids: ordersId },
+  // });
+  // const fullFillmentResponsedata = await fullFillmentResponse.json();
+  // const fulfilmentStatusNodes = fullFillmentResponsedata.data.nodes;
 
-  const fulfillmentStatusMap: Record<string, string> = {};
-  fulfillmentStatusNodes.forEach((node: any) => {
-    if (node) fulfillmentStatusMap[node.id] = node.displayFulfillmentStatus;
-  });
+  // const fulfilmentStatusMap: Record<string, string> = {};
+  // fulfilmentStatusNodes.forEach((node: any) => {
+  //   if (node) fulfilmentStatusMap[node.id] = node.displayfulfilmentStatus;
+  // });
 
   const enrichedOrders = orders.map((order: any) => ({
     ...order,
-    fulfillmentStatus: (
-      fulfillmentStatusMap[order.order_id] || "unknown"
-    ).toLowerCase(),
+   
     paymentStatus: (order.paymentStatus || "unknown").toLowerCase(),
   }));
 
@@ -90,7 +96,6 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
   if (intent === "shipping-notification") {
     const subject = formData.get("subject");
     const message = formData.get("message");
-    const orderIds = formData.get("orderIds");
 
     // Fetch shop data
     const response = await admin.graphql(GET_SHOP_WITH_PLAN);
@@ -106,7 +111,7 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
       },
     });
 
-    let template = emailSettings?.ShippingEmailSettings;
+    let template : any = emailSettings?.ShippingEmailSettings;
     if (template) {
       template.subject = subject;
       template.description = message;
@@ -119,7 +124,6 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
       const getOrderWithProductsResponse = await getOrderWithProducts(
         order.orderId,
         session.shop,
-        session.accessToken,
       );
 
       const emailTemplate = generateEmailTemplate(
@@ -176,6 +180,7 @@ export default function AdditionalPage() {
   const { mode, setMode } = useSetIndexFiltersMode();
 
   const tabs: TabProps[] = [
+    { content: "All", id: "all-tab" },
     { content: "Unfulfilled", id: "unfulfilled-tab" },
     { content: "Fulfilled", id: "fulfilled-tab" },
     { content: "On Hold", id: "onhold-tab" },
@@ -192,7 +197,7 @@ export default function AdditionalPage() {
     dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
     balanceAmount: `$${order.balanceAmount ?? 0}`,
     paymentStatus: order.paymentStatus,
-    fulfillmentStatus: order.fulfillmentStatus.toLowerCase(),
+    fulfilmentStatus: order.fulfilmentStatus ?order.fulfilmentStatus :"UNFULFILLED",
     customerEmail: order.customerEmail,
   }));
 
@@ -206,6 +211,7 @@ export default function AdditionalPage() {
           label="Payment Status"
           labelHidden
           options={[
+            { label: "All", value: "" },
             { label: "Paid", value: "paid" },
             { label: "Partially paid", value: "pending" },
           ]}
@@ -226,18 +232,18 @@ export default function AdditionalPage() {
   }
 
   // Filtering logic
-  const filteredOrders = allOrders.filter((order) => {
+  const filteredOrders = allOrders.filter((order:any) => {
     const matchesQuery =
       queryValue === "" ||
       order.orderNumber.toLowerCase().includes(queryValue.toLowerCase());
 
     const matchesTab =
-      selectedTab === 0
-        ? order.fulfillmentStatus === "unfulfilled"
-        : selectedTab === 1
-          ? order.fulfillmentStatus === "fulfilled"
-          : selectedTab === 2
-            ? order.fulfillmentStatus === "on_hold"
+      selectedTab === 1
+        ? order.fulfilmentStatus === "UNFULFILLED"
+        : selectedTab === 2
+          ? order.fulfilmentStatus === "FULFILLED"
+          : selectedTab === 3
+            ? order.fulfilmentStatus === "ON_HOLD"
             : true;
 
     const matchesPaymentStatus =
@@ -286,9 +292,16 @@ export default function AdditionalPage() {
         dueDate,
         balanceAmount,
         paymentStatus,
-        fulfillmentStatus,
+        fulfilmentStatus,
+      }: {
+        id: string;
+        orderNumber: string;
+        dueDate: string;
+        balanceAmount: string;
+        paymentStatus?: string;
+        fulfilmentStatus: string;
       },
-      index,
+      index: number,
     ) => (
       <IndexTable.Row
         id={id}
@@ -305,13 +318,14 @@ export default function AdditionalPage() {
                 "_blank",
               );
             }}
+            to=""
           >
             <Text variant="bodyMd" fontWeight="bold" as="span">
               {orderNumber}
             </Text>
           </Link>
         </IndexTable.Cell>
-        <IndexTable.Cell>{dueDate}</IndexTable.Cell>
+        <IndexTable.Cell>{formatDate(dueDate)}</IndexTable.Cell>
         <IndexTable.Cell>
           <Text as="span" alignment="end" numeric>
             {balanceAmount}
@@ -328,25 +342,25 @@ export default function AdditionalPage() {
               Pending
             </Badge>
           )}
-          {paymentStatus === "unknown" && <Badge>Unknown</Badge>}
+          {paymentStatus === "cancelled" && <Badge tone="critical">Cancelled</Badge>}
         </IndexTable.Cell>
         <IndexTable.Cell>
-          {fulfillmentStatus === "fulfilled" && (
+          {fulfilmentStatus === "FULFILLED" && (
             <Badge progress="complete" tone="success">
               Fulfilled
             </Badge>
           )}
-          {fulfillmentStatus === "on_hold" && (
+          {fulfilmentStatus === "ON_HOLD" && (
             <Badge progress="partiallyComplete" tone="attention">
               On Hold
             </Badge>
           )}
-          {fulfillmentStatus === "unfulfilled" && (
-            <Badge progress="incomplete" tone="critical">
+          {fulfilmentStatus === "UNFULFILLED" && (
+            <Badge progress="incomplete" tone="warning">
               Unfulfilled
             </Badge>
           )}
-          {fulfillmentStatus === "unknown" && <Badge>Unknown</Badge>}
+          {fulfilmentStatus === "unknown" && <Badge>Unknown</Badge>}
         </IndexTable.Cell>
       </IndexTable.Row>
     ),
@@ -374,7 +388,7 @@ export default function AdditionalPage() {
         dueDate: selectedOrder?.dueDate,
         balanceAmount: selectedOrder?.balanceAmount,
         paymentStatus: selectedOrder?.paymentStatus,
-        fulfillmentStatus: selectedOrder?.fulfillmentStatus,
+        fulfilmentStatus: selectedOrder?.fulfilmentStatus,
       };
     });
 
@@ -413,10 +427,12 @@ export default function AdditionalPage() {
               </Text>
             </Banner>
             <Box>
-              <Text as="label" variant="bodyMd" fontWeight="semibold">
+              <Text as="h5" variant="bodyMd" fontWeight="semibold">
                 Subject
               </Text>
               <TextField
+                label="Subject"
+                labelHidden
                 value={subject}
                 onChange={setSubject}
                 autoComplete="off"
@@ -425,10 +441,12 @@ export default function AdditionalPage() {
               />
             </Box>
             <Box>
-              <Text as="label" variant="bodyMd" fontWeight="semibold">
+              <Text as="h5" variant="bodyMd" fontWeight="semibold">
                 Email text
               </Text>
               <TextField
+                label="Email text"
+                labelHidden
                 value={emailText}
                 onChange={setEmailText}
                 multiline={4}
@@ -440,6 +458,7 @@ export default function AdditionalPage() {
           </BlockStack>
         </Modal.Section>
       </Modal>
+      <div style={{ margin:20}}>
       <Card>
         <IndexFilters
           queryValue={queryValue}
@@ -479,10 +498,15 @@ export default function AdditionalPage() {
             { title: "Payment status" },
             { title: "Fulfillment status" },
           ]}
+        //    pagination={{
+        //   hasNext: true,
+        //   onNext: () => {},
+        // }}
         >
           {rowMarkup}
         </IndexTable>
       </Card>
+      </div>
     </Page>
   );
 }

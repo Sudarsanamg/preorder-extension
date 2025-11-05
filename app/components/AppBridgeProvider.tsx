@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { useNavigate, useLocation } from "@remix-run/react";
+import { useNavigate,  } from "@remix-run/react";
 import createApp from "@shopify/app-bridge";
 
 interface AppBridgeContextType {
@@ -19,7 +19,6 @@ export function useAppBridge() {
 export function AppBridgeProvider({ children }: { children: React.ReactNode }) {
   const [appBridge, setAppBridge] = useState<any | null>(null);
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -55,7 +54,7 @@ export function AppBridgeProvider({ children }: { children: React.ReactNode }) {
         console.warn('Missing API key or host parameter for App Bridge');
       }
     }
-  }, []); // Removed dependencies to prevent re-initialization
+  }, []); 
 
   return (
     <AppBridgeContext.Provider value={{ appBridge }}>

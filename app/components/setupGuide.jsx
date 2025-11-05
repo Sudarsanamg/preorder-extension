@@ -216,7 +216,7 @@ const SetupItem = ({
                     {primaryButton || secondaryButton ? (
                       <ButtonGroup gap='loose'>
                         {primaryButton ? (
-                          <Button variant='primary' {...primaryButton.props}>
+                          <Button variant='primary' {...primaryButton.props} >
                             {primaryButton.content}
                           </Button>
                         ) : null}

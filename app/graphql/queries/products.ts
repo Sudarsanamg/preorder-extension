@@ -45,3 +45,17 @@ query getVariantsByIds($ids: [ID!]!) {
   }
 }
 `;
+
+export const GET_PRODUCTS_WITH_PREORDER_WITH_ID = `#graphql
+  query getProductsMetafields($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on ProductVariant {
+        id
+        title
+        metafield(namespace: "custom", key: "campaign_id") {
+          value
+        }
+      }
+    }
+  }
+`;

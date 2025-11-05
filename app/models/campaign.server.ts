@@ -2,7 +2,9 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 // import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType } from "@prisma/client";
+import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, FulfillmentStatus,  } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
+import { decrypt } from "app/utils/crypto.server";
 
 export async function createStore(data: {
   shopId: string;
@@ -48,9 +50,13 @@ export async function getAccessToken(shopifyDomain: string) {
 }
 
 export async function getAllCampaign(shopId?: string) {
+
+  const store = await getStoreIdByShopId(shopId as string);
+  console.log(store?.id, "store");
   return prisma.preorderCampaign.findMany({
     where: {
-      shopId: shopId,
+      storeId: store?.id,
+      isDeleted: false
     },
   });
 }
@@ -87,12 +93,15 @@ export async function createPreorderCampaign(data: {
   scheduledFulfilmentType? :scheduledFulfilmentType;
   fulfilmentDaysAfter: number;
   fulfilmentExactDate: Date;
+  paymentType: string;
 }) {
+  const store = await getStoreIdByShopId(data.shopId ?? "");
+  if(!store) throw new Error("Store not valid");
+
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
-      storeId: (await getStoreIdByShopId(data.shopId ?? ""))?.id ?? "",
-      shopId: data.shopId ?? "",
+      storeId: store.id,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
       refundDeadlineDays: data.refundDeadlineDays,
@@ -113,6 +122,7 @@ export async function createPreorderCampaign(data: {
       scheduledFulfilmentType: data.scheduledFulfilmentType,
       fulfilmentDaysAfter: data.fulfilmentDaysAfter,
       fulfilmentExactDate: data.fulfilmentExactDate,
+      paymentType:data.paymentType === 'partial' ? "PARTIALPAYMENT" : "FULLPAYMENT",
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
     },
@@ -128,13 +138,27 @@ export async function updateCampaign(data: {
   releaseDate?: Date;
   status?: CampaignStatus;
   campaignEndDate?: Date;
-  campaignType: number;
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
+  discountType: DiscountType;
+  discountPercent?: number;
+  discountFixed?: number;
+  campaignType?: number;
+  shopId: string;
+  getDueByValt: boolean;
+  fulfilmentmode?: Fulfilmentmode;
+  scheduledFulfilmentType?: scheduledFulfilmentType;
+  fulfilmentDaysAfter: number;
+  fulfilmentExactDate: Date;
+  paymentType?: string;
 }) {
+  const store = await getStoreIdByShopId(data.shopId)
+  if (!store) throw new Error("Store not valid")
+
   return prisma.preorderCampaign.update({
     where: {
       id: data.id,
+      storeId: store?.id
     },
     data: {
       name: data.name,
@@ -143,18 +167,26 @@ export async function updateCampaign(data: {
       refundDeadlineDays: data.refundDeadlineDays,
       releaseDate: data.releaseDate,
       status: data.status,
-      campaignType: data.campaignType,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
+      discountType: data.discountType,
+      discountPercent: data.discountPercent,
+      discountFixed: data.discountFixed,
+      campaignType: data.campaignType,
+      getDueByValt: data.getDueByValt,
+      fulfilmentmode: data.fulfilmentmode,
+      scheduledFulfilmentType: data.scheduledFulfilmentType,
+      fulfilmentDaysAfter: data.fulfilmentDaysAfter,
+      fulfilmentExactDate: data.fulfilmentExactDate,
+      paymentType:data.paymentType === 'partial' ? "PARTIALPAYMENT" : "FULLPAYMENT",
       updatedAt: BigInt(Date.now()),
     },
   });
 }
 
-// Add product(s) to a campaign
 export async function addProductsToCampaign(
   campaignId: string,
   products: { productId: string; productImage?: string,variantTitle?: string; variantId?: string; variantInventory: number ;variantPrice?: number ;maxUnit?: number}[],
@@ -180,7 +212,7 @@ export async function addProductsToCampaign(
 
 export async function replaceProductsInCampaign(
   campaignId: string,
-  products: { id: string; variantId?: string; totalInventory: number }[],
+  products: { productId: string; variantId?: string; totalInventory: number }[],
 ) {
   const storeId = await prisma.preorderCampaign.findUnique({
     where: { id: campaignId },
@@ -190,14 +222,15 @@ export async function replaceProductsInCampaign(
     // 1. Delete all existing products for this campaign
 
     prisma.preorderCampaignProduct.deleteMany({
-      where: { campaignId: campaignId },
+      where: { 
+        campaignId: campaignId },
     }),
 
     // 2. Insert the new products
     prisma.preorderCampaignProduct.createMany({
       data: products.map((p) => ({
         campaignId,
-        productId: p.id,
+        productId: p.productId,
         variantId: p.variantId,
         maxQuantity: p.totalInventory,
         storeId: storeId?.storeId,
@@ -208,7 +241,6 @@ export async function replaceProductsInCampaign(
   ]);
 }
 
-// utils/products.server.ts
 export async function getAllProducts(request: Request) {
   const { admin } = await authenticate.admin(request);
 
@@ -256,9 +288,10 @@ export async function getAllProducts(request: Request) {
 
 // Fetch all campaigns
 export async function getCampaigns(storeId: string) {
+  const store = await getStoreIdByShopId(storeId as string);
   return prisma.preorderCampaign.findMany({
     where: {
-      shopId: storeId,
+      storeId: store?.id,
     },
     include: { products: true },
   });
@@ -274,23 +307,61 @@ export async function getCampaignById(id: string) {
   });
 }
 
-export async function deleteCampaign(id: string) {
-  return prisma.preorderCampaign.delete({
-    where: { id },
+export async function deleteCampaign(id: string, shopId: string) {
+
+  const store = await getStoreIdByShopId(shopId as string);
+
+  return prisma.preorderCampaign.update({
+    where: { 
+      id, 
+      storeId : store?.id
+    },
+    data: {
+      isDeleted: true,
+    },
   });
 }
 
-export async function updateCampaignStatus(id: string, status: CampaignStatus) {
+export async function updateCampaignStatus(id: string, status: CampaignStatus,shopId: string) {
+  const store = await getStoreIdByShopId(shopId as string);
   return prisma.preorderCampaign.update({
-    where: { id },
+    where: {
+       id,
+       storeId: store?.id
+       },
     data: { status },
   });
 }
 
 export async function getOrders(shopId: string) {
+  const store = await getStoreIdByShopId(shopId as string);
   return prisma.campaignOrders.findMany({
     where: {
-      shopId: shopId,
+      storeId: store?.id,
+    },
+    select: {
+      order_id: true,
+      order_number: true,
+      dueDate: true,
+      balanceAmount: true,
+      paymentStatus: true,
+      storeId: true,
+      customerEmail: true,
+      fulfilmentStatus: true
+    },
+    orderBy: {
+      order_number: "desc",
+    },
+   
+  });
+}
+
+export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfilmentmode) {
+  const store = await getStoreIdByShopId(shopId as string);
+  return prisma.campaignOrders.findMany({
+    where: {
+      storeId: store?.id,
+      
     },
     select: {
       order_id: true,
@@ -312,7 +383,11 @@ export async function createOrder({
   balanceAmount,
   paymentStatus,
   storeId,
-  customerEmail
+  customerEmail,
+  totalAmount,
+  currency,
+  fulfilmentStatus,
+  campaignId
 }: {
   order_number: number;
   order_id: string;
@@ -322,13 +397,20 @@ export async function createOrder({
   paymentStatus: PaymentStatus;
   storeId: string;
   customerEmail: string;
+  totalAmount: string,
+  currency?: string,
+  fulfilmentStatus ?: FulfillmentStatus,
+  campaignId : string
 }) {
   try {
+    const store = await getStoreIdByShopId(storeId);
+    if(!store){
+      throw new Error("Store not found");
+    }
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
-        storeId : ( await getStoreIdByShopId(storeId))?.id ?? "",
-        shopId : storeId,
+        storeId : store?.id,
         order_id,
         draft_order_id,
         dueDate,
@@ -337,6 +419,10 @@ export async function createOrder({
         customerEmail,
         createdAt: BigInt(Date.now()),
         updatedAt: BigInt(Date.now()),
+        totalAmount :totalAmount ?? new Decimal(totalAmount),
+        currency,
+        fulfilmentStatus,
+        campaignId,
       },
     });
 
@@ -460,6 +546,17 @@ export async function updateConfrimOrderEmailSettings(
   });
 }
 
+export async function updateShippingEmailSettings( shopId: string,
+  settings: any) {
+  return prisma.store.update({
+    where: { shopId: shopId },
+    data: {
+       ShippingEmailSettings: settings, 
+       updatedAt: BigInt(Date.now())
+      },
+  })
+}
+
 export async function updateCustomEmailStatus(shopId: string, enable: boolean) {
   return prisma.store.update({
     where: { shopId: shopId },
@@ -506,6 +603,9 @@ export async function getStoreID(storeDomain: string) {
 }
 
 export async function getStoreIdByShopId(shopId: string) {
+  if (!shopId) {
+    return null;
+  }
   return prisma.store.findUnique({
     where: { shopId },
     select: {
@@ -522,8 +622,14 @@ export async function createDuePayment(
   mandateId: string,
   dueDate: Date,
   paymentStatus: PaymentStatus,
-  storeDomain: string
+  storeDomain: string,
+  campaignId: string,
+  campaignOrderId : string
 ) {
+  const store = await getStoreID(storeDomain);
+  if(!store){
+    throw new Error("Store not found");
+  }
   return prisma.vaultedPayment.create({
     data: {
       orderId,
@@ -533,10 +639,11 @@ export async function createDuePayment(
       mandateId,
       dueDate,
       paymentStatus,
-      storeDomain,
-      storeId: (await getStoreID(storeDomain))?.id ?? "",
+      storeId: store.id,
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
+      campaignId,
+      campaignOrderId
     },
   });
 }
@@ -607,12 +714,13 @@ export async function getAllVariants(storeID: string) {
   }
 
   const endpoint = `https://${store?.shopifyDomain}/admin/api/2023-10/graphql.json`;
+  const decryptedToken = decrypt(store.offlineToken);
 
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": store.offlineToken,
+      "X-Shopify-Access-Token": decryptedToken,
     },
     body: JSON.stringify({
       query: `
@@ -672,4 +780,12 @@ export async function getAllVariants(storeID: string) {
   });
 
   return variants;
+}
+
+
+export async function getShippingEmailSettings(shopId: string) {
+  const settings = await prisma.store.findUnique({
+    where: { shopId: shopId },
+  });
+  return settings?.ShippingEmailSettings ?? {};
 }

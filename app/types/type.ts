@@ -1,3 +1,5 @@
+import { DiscountType } from "@prisma/client";
+
 export interface DesignFields {
   messageFontSize: string;
   messageColor: string;
@@ -17,6 +19,33 @@ export interface DesignFields {
   borderRadius: string;
   buttonFontSize: string;
   buttonTextColor: string;
+}
+
+export interface CampaignFields {
+    campaignName: string;
+    campaignType: number;
+  productTags: string[];
+  customerTags: string[];
+  preOrderNoteKey: string;
+  preOrderNoteValue: string;
+  buttonText: string;
+  shippingMessage: string;
+  partialPaymentPercentage: string;
+  paymentMode: 'full' | 'partial';
+  partialPaymentType: 'percent' | 'flat';
+  duePaymentType: 1 | 2;
+  campaignEndTime: string;
+  fulfilmentMode: 'UNFULFILED' | 'SCHEDULED' | 'ONHOLD';
+  scheduledFullfillmentType: 1 | 2;
+  scheduledDays: string;
+  paymentAfterDays: string;
+  fullPaymentText: string;
+  partialPaymentText: string;
+  partialPaymentInfoText: string;
+  discountType: DiscountType;
+  discountPercentage: number;
+  flatDiscount: number;
+  getPaymentsViaValtedPayments: boolean;
 }
 
 

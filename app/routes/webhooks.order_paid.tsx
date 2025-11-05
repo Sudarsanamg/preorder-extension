@@ -6,13 +6,20 @@ import { CloseOrderMutation, orderMarkAsPaid } from "app/graphql/mutation/orders
 export const action = async ({ request }: { request: Request }) => {
   console.log("order paid Webhook hitted");
   try {
-    const { topic, shop, payload, admin } = await authenticate.webhook(request);
+    const { topic, payload, admin } = await authenticate.webhook(request);
+
+    if(topic !== "ORDERS_PAID"){
+      return Response.json({ error: "Invalid topic" }, { status: 500 });
+    }
     const note = payload.note;
     const ogOrder = await prisma.campaignOrders.findFirst({
       where: {
          draft_order_id: note
       }
     })
+    if(!ogOrder){
+      return Response.json({ error: "No preorder found" }, { status: 500 });
+    }
     const ogOrderId = ogOrder?.order_id;
 
   const variables = {
@@ -22,8 +29,8 @@ export const action = async ({ request }: { request: Request }) => {
   };
 
   try {
-  const response = await admin.graphql(orderMarkAsPaid, { variables });
-  const data :any= await response.json();
+  const response = await admin?.graphql(orderMarkAsPaid, { variables });
+  const data :any= await response?.json();
 
     if (data.errors) {
       console.error("GraphQL Errors:", data.errors);
@@ -41,14 +48,14 @@ export const action = async ({ request }: { request: Request }) => {
     orderStatusUpdate(note, "PAID");
     const duePaymentOrderId = payload.admin_graphql_api_id;
     // archeive the due payment
-  const archeiveDuePaymentResponse = await admin.graphql(CloseOrderMutation, {
+  const archeiveDuePaymentResponse = await admin?.graphql(CloseOrderMutation, {
     variables: { id: duePaymentOrderId },
   });
 
-  const archeiveDuePaymentData = await archeiveDuePaymentResponse.json();
+  const archeiveDuePaymentData = await archeiveDuePaymentResponse?.json();
   console.log(
     "Archeived due payment:",
-    archeiveDuePaymentData.data.orderClose.order)
+    archeiveDuePaymentData?.data.orderClose.order)
 
     return new Response('Ok');        
   } catch (error) {

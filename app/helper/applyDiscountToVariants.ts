@@ -1,4 +1,4 @@
-import { DiscountType } from "@prisma/client";
+import type { DiscountType } from "@prisma/client";
 export async function applyDiscountToVariants(
   admin: any,
   variantIds: string[],
