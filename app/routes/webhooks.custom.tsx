@@ -18,15 +18,13 @@ import {
 import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import { draftOrderInvoiceSendMutation } from "app/graphql/mutation/orders";
 import { Decimal } from "@prisma/client/runtime/library";
-import { FulfillmentStatus } from "@prisma/client";
+import type { FulfillmentStatus } from "@prisma/client";
 
 export const action = async ({ request }: { request: Request }) => {
   const { topic, shop, payload, admin } = await authenticate.webhook(request);
   const orderPaid = async (payload: any) => {
     if (topic === "ORDERS_CREATE") {
       try {
-        const products = payload.line_items || [];
-        console.log(products);
         const line_items = payload.line_items || [];
         const variantIds = line_items.map((item: any) => item.variant_id);
 
@@ -165,16 +163,6 @@ export const action = async ({ request }: { request: Request }) => {
           });
 
          const fulfillmentStatus = payload.fulfillment_status || "unfulfilled";
-        const fulfillments = payload.fulfillments || [];
-
-        console.log("📦 Fulfillment Status:", fulfillmentStatus);
-        if (fulfillments.length > 0) {
-          console.log(
-            "🔗 Fulfillments details:",
-            JSON.stringify(fulfillments, null, 2),
-          );
-        }
-
         const mapFulfillmentStatus = (status: string | null): FulfillmentStatus => {
               switch (status) {
                 case "fulfilled":
