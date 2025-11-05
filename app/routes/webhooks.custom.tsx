@@ -128,7 +128,7 @@ export const action = async ({ request }: { request: Request }) => {
           const shop = data?.data.shop;
           const shopId = shop.id;
           const storeDomain = shop.primaryDomain?.host;
-          console.log(secondSchedule, "secondSchedule");
+
 
           // getDueByValt is true
           // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
@@ -265,16 +265,15 @@ export const action = async ({ request }: { request: Request }) => {
             if (data?.data.draftOrderCreate.userErrors.length) {
               console.error(
                 "❌ Draft order errors:",
-                data.data.draftOrderCreate.userErrors,
               );
             } else {
               console.log(
                 "✅ Draft order created:",
-                data?.data.draftOrderCreate.draftOrder,
+                
               );
               console.log(
                 "📧 Invoice URL:",
-                data?.data.draftOrderCreate.draftOrder.invoiceUrl,
+                
               );
             }
 
