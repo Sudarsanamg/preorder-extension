@@ -299,8 +299,8 @@ export const publishCampaign = async (admin: any, id: string, shopId: string) =>
            },
          );
          if (
-           campaignData?.campaignType == 1 ||
-           campaignData?.campaignType == 2
+           campaignData?.campaignType == 'OUT_OF_STOCK' ||
+           campaignData?.campaignType == 'ALLWAYS'
          ) {
           // const arr = products.map((product: any) => {
           //   return {

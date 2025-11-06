@@ -42,7 +42,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!badge || !variantData) return;
 
-  const campaignType = campaignData ? parseInt(campaignData.dataset.campaignType, 10) : null;
+ const enumToIntMap = {
+  OUT_OF_STOCK: 1,
+  ALLWAYS: 2,
+  IN_STOCK: 3,
+};
+
+const campaignType =
+  campaignData && campaignData.dataset.campaignType
+    ? enumToIntMap[campaignData.dataset.campaignType]
+    : null;
 
   // Helper: get current selected variant ID
   function getCurrentVariantId() {

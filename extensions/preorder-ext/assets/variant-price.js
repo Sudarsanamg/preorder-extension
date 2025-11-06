@@ -59,7 +59,18 @@
 
 document.addEventListener("DOMContentLoaded", function () {
   const campaignData = document.getElementById("campaign-data");
-  const campaignType = campaignData ? parseInt(campaignData.dataset.campaignType, 10) : null;
+  // const campaignType = campaignData ? parseInt(campaignData.dataset.campaignType, 10) : null;
+  const enumToIntMap = {
+    OUT_OF_STOCK: 1,
+    ALLWAYS: 2,
+    IN_STOCK: 3,
+  };
+
+  const campaignType =
+    campaignData && campaignData.dataset.campaignType
+      ? enumToIntMap[campaignData.dataset.campaignType]
+      : null;
+
 
   function hideAllPrices() {
     document.querySelectorAll(".variant-price").forEach(el => {

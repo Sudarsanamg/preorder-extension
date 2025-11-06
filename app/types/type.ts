@@ -1,4 +1,4 @@
-import { DiscountType } from "@prisma/client";
+import type { DiscountType , CampaignType } from "@prisma/client";
 
 export interface DesignFields {
   messageFontSize: string;
@@ -23,7 +23,7 @@ export interface DesignFields {
 
 export interface CampaignFields {
     campaignName: string;
-    campaignType: number;
+    campaignType: CampaignType;
   productTags: string[];
   customerTags: string[];
   preOrderNoteKey: string;

@@ -41,7 +41,18 @@
 
 document.addEventListener("DOMContentLoaded", function () {
   const campaignData = document.getElementById("campaign-data");
-  const campaignType = parseInt(campaignData?.dataset.campaignType, 10);
+  // const campaignType = parseInt(campaignData?.dataset.campaignType, 10);
+  const enumToIntMap = {
+  OUT_OF_STOCK: 1,
+  ALLWAYS: 2,
+  IN_STOCK: 3,
+};
+
+const campaignType =
+  campaignData && campaignData.dataset.campaignType
+    ? enumToIntMap[campaignData.dataset.campaignType]
+    : null;
+
   const preorderVariants = document.querySelectorAll(".preorder-variant");
 
   if (!preorderVariants.length) return;
