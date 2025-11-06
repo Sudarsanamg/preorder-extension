@@ -50,13 +50,14 @@ export async function getAccessToken(shopifyDomain: string) {
 }
 
 export async function getAllCampaign(shopId?: string) {
-
   const store = await getStoreIdByShopId(shopId as string);
   console.log(store?.id, "store");
   return prisma.preorderCampaign.findMany({
     where: {
       storeId: store?.id,
-      isDeleted: false
+      status: {
+        not: "ARCHIVED",
+      },
     },
   });
 }
@@ -317,7 +318,7 @@ export async function deleteCampaign(id: string, shopId: string) {
       storeId : store?.id
     },
     data: {
-      isDeleted: true,
+      status: "ARCHIVED",
     },
   });
 }
@@ -623,7 +624,6 @@ export async function createDuePayment(
   dueDate: Date,
   paymentStatus: PaymentStatus,
   storeDomain: string,
-  campaignId: string,
   campaignOrderId : string
 ) {
   const store = await getStoreID(storeDomain);
@@ -642,7 +642,6 @@ export async function createDuePayment(
       storeId: store.id,
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
-      campaignId,
       campaignOrderId
     },
   });

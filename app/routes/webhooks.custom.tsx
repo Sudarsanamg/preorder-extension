@@ -322,7 +322,6 @@ export const action = async ({ request }: { request: Request }) => {
               secondSchedule.due_at,
               "PENDING",
               storeDomain,
-              campaignIds[0],
               campaignOrder.id
             );
 

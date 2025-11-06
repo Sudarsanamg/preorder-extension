@@ -16,17 +16,6 @@ export async function incrementUnitsSold(store: string, id: string) {
   const shopDomain = store; 
   const endpoint = `https://${shopDomain}/admin/api/2023-10/graphql.json`;
 
-  // Step 1: Fetch current metafield value
-  // const GET_PRODUCT_METAFIELD = `
-  //   query getProductMetafield($id: ID!) {
-  //     product(id: $id) {
-  //       metafield(namespace: "custom", key: "preorder_units_sold") {
-  //         id
-  //         value
-  //       }
-  //     }
-  //   }
-  // `;
 
   const GET_VARIANT_METAFIELD = `
   query getVariantMetafield($id: ID!) {
