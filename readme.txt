@@ -8,22 +8,29 @@ Participants must choose one of the following app ideas. Each app should be buil
 
 Here’s the numbered list so you can copy the numbers too:
 
-# 1. Enable preorder for selected products or variants via tag or manual switch
-2. Display a preorder badge or label on product listings
-3. Set a release/shipping date per item
-4. Allow full or partial payment (e.g., 30% upfront)
-5. Provide messaging options for preorder status (on product page and cart)
-6. Show a countdown timer for preorder window or expected availability
-7. Capture customer consent before placing preorder
-8. Add notes or tags in Shopify Orders to mark as preorder
-9. Limit the number of preorder units available
-10. Option to auto-cancel if customer fails to complete payment in X days
-11. Handle partial refunds automatically if product release is delayed or canceled
+Here’s your list with numbering added:
+#
+# 1. Enable preorder for selected products or variants via tag or manual switch (Create def via API and delete via API) we need to turn off
+
+# 2. Preorder badge or label display
+# 3. Set release/shipping date per item
+# 5. Messaging options for preorder status (on product page and cart)
+# 6. Countdown timer for preorder window or expected availability
+# 7. Capture customer consent before placing preorder
+# 10. Limit number of preorder units available
+    - set quantities for preorder if exceed need to stop preorder
+
+# 4. Allow full or partial payment (e.g., 30% upfront)
+
+# 8. Add notes or tags in Shopify Orders to mark as preorder
 
 
-9. Send optional email notifications: confirm preorder, notify when item ships, request balance payment
+
+11. Option to auto-cancel if customer fails to complete payment in X days
+12. Handle partial refunds automatically if product release is delayed or canceled
 
 
+# 9. Email notifications (optional): confirm preorder, notify when item ships, request balance payment
 
 Reference App:
 Essential Pre-Order
@@ -52,3 +59,54 @@ Shopify API: Admin API, Storefront API, App Bridge, Checkout UI Extensions, Func
 GitHub repo access
 Working demo 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+2. How it works
+When a customer purchases the product with this selling plan, Shopify will collect 30% at checkout and vault the payment method.
+After 7 days, you (or your app) are responsible for triggering the charge for the remaining 70%. Shopify stores the payment mandate for this purpose.
+3. Charging the Remaining Balance
+To collect the remaining payment after 7 days, use the orderCreateMandatePayment mutation. You will need the order ID and the payment mandate information, which you can retrieve from the order's vaultedPaymentMethods field.
+
+Example (simplified):
+mutation {
+  orderCreateMandatePayment(
+    id: "gid://shopify/Order/ORDER_ID"
+    idempotencyKey: "YOUR_UNIQUE_KEY"
+    amount: {
+      amount: "REMAINING_AMOUNT"
+      currencyCode: USD
+    }
+    paymentMandateId: "gid://shopify/PaymentMandate/MANDATE_ID"
+  ) {
+    payment {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+Replace ORDER_ID, REMAINING_AMOUNT, and MANDATE_ID with the actual values.
+4. Notes and Responsibilities
+Your app is responsible for scheduling and triggering the remaining payment after 7 days.
+Shopify will store the payment method and allow you to charge the remaining balance using the mandate.
+You can check the payment terms and status using the PaymentTerms object and the orderPaymentStatus query.
+References and Further Reading
+How pre-orders and TBYB work
+Related resources
+To learn more about the resources in the generated operation, refer to these related reference pages:
+
+sellingPlanGroupCreate

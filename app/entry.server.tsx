@@ -8,6 +8,11 @@ import {
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
+
 export const streamTimeout = 5000;
 
 export default async function handleRequest(

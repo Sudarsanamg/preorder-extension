@@ -1,0 +1,22 @@
+query CartValidationsGenerateRunInput {
+  cart {
+    lines {
+      id
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          sku
+          preorderMax: metafield(namespace: "custom", key: "preorder_max_units") {
+            value
+          }
+          preorderSold: metafield(namespace: "custom", key: "preorder_units_sold") {
+            value
+          }
+        }
+      }
+    }
+  }
+}
+

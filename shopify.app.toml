@@ -2,31 +2,53 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-handle = "preorder-extension"
-application_url = "https://rf-lose-jesus-cheap.trycloudflare.com"
+application_url = "https://foto-marcus-com-weights.trycloudflare.com"
 embedded = true
+handle = "preorder-extension"
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2025-07"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
+  topics = [ "orders/updated" ]
+  uri = "https://foto-marcus-com-weights.trycloudflare.com/webhooks/order_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/paid" ]
+  uri = "https://foto-marcus-com-weights.trycloudflare.com/webhooks/order_paid"
+
+  [[webhooks.subscriptions]]
+  topics = [ "products/update" ]
+  uri = "https://foto-marcus-com-weights.trycloudflare.com/webhooks/products_update"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
+  uri = "https://foto-marcus-com-weights.trycloudflare.com/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create" ]
+  uri = "https://foto-marcus-com-weights.trycloudflare.com/webhooks/custom"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "read_customers,write_draft_orders,write_metaobject_definitions,read_metaobjects,write_metaobjects,read_orders,write_orders,write_payment_mandate,read_payment_mandate,write_products,write_publications,write_purchase_options,read_shopify_payments_accounts,read_themes,unauthenticated_read_customers"
+optional_scopes = [ ]
+use_legacy_install_flow = false
 
 [auth]
-redirect_urls = ["https://rf-lose-jesus-cheap.trycloudflare.com/auth/callback", "https://rf-lose-jesus-cheap.trycloudflare.com/auth/shopify/callback", "https://rf-lose-jesus-cheap.trycloudflare.com/api/auth/callback"]
+redirect_urls = [
+  "https://foto-marcus-com-weights.trycloudflare.com/auth/callback",
+  "https://foto-marcus-com-weights.trycloudflare.com/auth/shopify/callback",
+  "https://foto-marcus-com-weights.trycloudflare.com/api/auth/callback"
+]
+
+[app_proxy]
+url = "https://foto-marcus-com-weights.trycloudflare.com/apps/cancel-order"
+subpath = "cancel-order"
+prefix = "apps"
 
 [pos]
 embedded = false

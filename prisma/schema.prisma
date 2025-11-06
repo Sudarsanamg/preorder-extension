@@ -1,16 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -29,4 +23,161 @@ model Session {
   locale        String?
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
+}
+
+model Store {
+  id                        String                    @id @default(uuid())
+  shopId                    String                    @unique
+  currencyCode              String
+  offlineToken              String?
+  webhookRegistered         Boolean                   @default(false)
+  metaobjectsCreated        Boolean                   @default(false)
+  metaFieldsCreated         Boolean                   @default(false)
+  shopifyDomain             String                    @unique
+  sendCustomEmail           Boolean                   @default(false)
+  appInstalled              Boolean                   @default(true)
+  ConfrimOrderEmailSettings Json?
+  ShippingEmailSettings     Json?
+  GeneralSettings           Json?
+  EmailConfig               Json?
+  SetupCompleted            Boolean                   @default(false)
+  createdAt                 BigInt
+  updatedAt                 BigInt
+  vaultedPayment            VaultedPayment[]
+  preorderCampaign          PreorderCampaign[]
+  campaignOrders            CampaignOrders[]
+  campaignProducts          PreorderCampaignProduct[]
+}
+
+model VaultedPayment {
+  id              String           @id @default(uuid())
+  orderId         String           @unique
+  storeId         String
+  campaignOrderId String           @unique
+  idempotencyKey  String
+  amount          Decimal
+  currencyCode    String
+  mandateId       String
+  dueDate         DateTime
+  paymentStatus   PaymentStatus
+  createdAt       BigInt
+  updatedAt       BigInt
+  store           Store            @relation(fields: [storeId], references: [id])
+  campaignOrder   CampaignOrders   @relation("OrderVaultedPayment", fields: [campaignOrderId], references: [id])
+
+  @@unique([orderId, storeId])
+}
+
+model PreorderCampaign {
+  id                      String                    @id @default(uuid())
+  storeId                 String
+  name                    String
+  campaignType            Int                       @default(2)
+  paymentType             PaymentMode?
+  depositPercent          Int?
+  balanceDueDate          DateTime?
+  refundDeadlineDays      Int?
+  releaseDate             DateTime?
+  status                  CampaignStatus            @default(DRAFT)
+  campaignEndDate         DateTime
+  totalOrders             Int                       @default(0)
+  orderTags               Json?
+  customerTags            Json?
+  discountType            DiscountType              @default(NONE)
+  discountPercent         Int?
+  discountFixed           Int?
+  getDueByValt            Boolean                   @default(false)
+  fulfilmentmode          Fulfilmentmode?
+  scheduledFulfilmentType scheduledFulfilmentType?
+  fulfilmentDaysAfter     Int?
+  fulfilmentExactDate     DateTime?
+  createdAt               BigInt
+  updatedAt               BigInt
+  products                PreorderCampaignProduct[]
+  store                   Store                     @relation(fields: [storeId], references: [id])
+  campaignOrders          CampaignOrders[]
+}
+
+model PreorderCampaignProduct {
+  id           String           @id @default(uuid())
+  campaignId   String
+  storeId      String           @default("Invalid store")
+  productId    String
+  variantId    String?
+  variantTitle String?
+  price        Decimal?
+  imageUrl     String?
+  maxQuantity  Int?
+  soldQuantity Int              @default(0)
+  createdAt    BigInt
+  updatedAt    BigInt
+  campaign     PreorderCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  store        Store            @relation(fields: [storeId], references: [id])
+}
+
+model CampaignOrders {
+  id               String             @id @default(uuid())
+  storeId          String
+  campaignId       String            
+  order_number     Int
+  order_id         String             @unique
+  draft_order_id   String?            @unique
+  customerEmail    String             @default("")
+  dueDate          DateTime?
+  totalAmount      Decimal?
+  balanceAmount    Decimal?
+  currency         String?
+  paymentStatus    PaymentStatus
+  fulfilmentStatus FulfillmentStatus?
+  store            Store              @relation(fields: [storeId], references: [id])
+  createdAt        BigInt
+  updatedAt        BigInt
+  vaultedPayment   VaultedPayment?    @relation("OrderVaultedPayment")
+  campaign         PreorderCampaign   @relation(fields: [campaignId], references: [id])
+
+  @@unique([storeId, order_id])
+  @@unique([storeId, draft_order_id])
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum DiscountType {
+  NONE
+  FIXED
+  PERCENTAGE
+}
+
+enum CampaignStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISH
+  ARCHIVED
+  DELETED
+}
+
+enum Fulfilmentmode {
+  ONHOLD
+  UNFULFILED
+  SCHEDULED
+}
+
+enum scheduledFulfilmentType {
+  DAYS_AFTER
+  EXACT_DATE
+}
+
+enum PaymentMode {
+  FULLPAYMENT
+  PARTIALPAYMENT
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  ON_HOLD
+  FULFILLED
 }
