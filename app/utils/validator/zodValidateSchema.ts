@@ -73,8 +73,7 @@ export const CampaignSchema = z.object({
     .min(1, "Campaign name is required")
     .max(50, "Campaign name must be under 50 characters"),
 
-  campaignType: z.coerce.number().refine(v => [1, 2, 3].includes(v), "Invalid campaign type"),
-
+  campaignType: z.enum(["OUT_OF_STOCK", "ALLWAYS", "IN_STOCK"], { error: "Campaign type is required" }),
   productTags: z.array(z.string()).nonempty("At least one product tag is required"),
   customerTags: z.array(z.string()).nonempty("At least one customer tag is required"),
 

@@ -2,7 +2,7 @@ import prisma from "app/db.server";
 // routes/api.products.ts
 // import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, FulfillmentStatus,  } from "@prisma/client";
+import type { Prisma ,PaymentStatus ,CampaignStatus, DiscountType ,Fulfilmentmode ,scheduledFulfilmentType, FulfillmentStatus, CampaignType,  } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { decrypt } from "app/utils/crypto.server";
 
@@ -86,7 +86,7 @@ export async function createPreorderCampaign(data: {
   discountType: DiscountType;
   discountPercent?: number;
   discountFixed?: number;
-  campaignType?: number;
+  campaignType?: CampaignType;
   shopId?: string;
   getDueByValt: boolean;
   totalOrders: number;
@@ -144,7 +144,7 @@ export async function updateCampaign(data: {
   discountType: DiscountType;
   discountPercent?: number;
   discountFixed?: number;
-  campaignType?: number;
+  campaignType?: CampaignType;
   shopId: string;
   getDueByValt: boolean;
   fulfilmentmode?: Fulfilmentmode;

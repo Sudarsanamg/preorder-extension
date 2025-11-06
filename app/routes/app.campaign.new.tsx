@@ -59,6 +59,7 @@ import { createSellingPlan } from "app/services/sellingPlan.server";
 import { CREATE_CAMPAIGN } from "../graphql/mutation/metaobject";
 import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
 import type {
+  CampaignType,
   DiscountType,
   Fulfilmentmode,
   scheduledFulfilmentType,
@@ -173,7 +174,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           discountType: formData.get("discountType") as DiscountType,
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
-          campaignType: Number(formData.get("campaignType")),
+          campaignType: formData.get("campaignType") as CampaignType,
           getDueByValt: formData.get("getDueByValt") == "true" ? true : false,
           totalOrders: 0,
           fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
@@ -357,8 +358,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             },
           );
           if (
-            formData.get("campaignType") == "1" ||
-            formData.get("campaignType") == "2"
+            formData.get("campaignType") == "OUT_OF_STOCK" ||
+            formData.get("campaignType") == "ALLWAYS"
           ) {
             allowOutOfStockForVariants(admin, products);
           }
@@ -408,7 +409,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 campaigntags: JSON.parse(
                   (formData.get("orderTags") as string) || "[]",
                 ).join(","),
-                campaigntype: String(formData.get("campaignType") as string),
+                campaigntype: formData.get("campaignType") as CampaignType,
                 fulfillment: {
                   type: formData.get("fulfilmentmode") as Fulfilmentmode,
                   schedule: {
@@ -528,7 +529,7 @@ export default function Newcampaign() {
   });
   const [campaignData,setCampaignData] = useState<CampaignFields>({
     campaignName:"",
-    campaignType:2,
+    campaignType:'ALLWAYS',
     productTags:["Preorder"],
     customerTags:[
     "Preorder-Customer",
@@ -1112,7 +1113,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
           content: "Publish",
           onAction: handleSubmit,
           loading: buttonLoading.publish,
-          disabled: isSubmitting,
+          disabled: buttonLoading.draft || buttonLoading.publish,
         }}
         secondaryActions={[
           {
@@ -1121,7 +1122,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
               handleSave();
             },
             loading: buttonLoading.draft,
-            disabled: isSubmitting,
+            disabled: buttonLoading.draft || buttonLoading.publish ,
           },
         ]}
       >
@@ -1219,7 +1220,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
             //   paddingBottom: 20,
             //   paddingTop: 20,
             // }}
-            className="form-parent  gap-5 md:flex  m-3"
+            className="form-parent  gap-5 md:flex justify-between m-3"
           >
             {/* left */}
             {selected === 0 && (
@@ -1263,7 +1264,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
 
             {/* right */}
             {(selected === 0 || selected === 1) && (
-              <div style={{ flex: 1, marginLeft: 20, gap: 20 }} className="right mt-10 md:mt-0" >
+              <div style={{ flex: 1, marginLeft: 5, gap: 20 , marginRight:0 }} className="right mt-10 md:mt-0" >
                 {/* preview */}
                 <div
                   style={{
@@ -1272,6 +1273,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                     gap: 20,
                     maxWidth: "400px",
                     // maxHeight: "600px",
+                    justifySelf: "flex-end",
                   }}
                 >
                   <Card>
@@ -1645,7 +1647,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                           >
                             Inventory
                           </th>
-                          {campaignData.campaignType !== 3 && (
+                          {campaignData.campaignType !== 'IN_STOCK' && (
                             <th
                               style={{
                                 padding: "8px",
@@ -1722,7 +1724,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                 ? product.variantInventory
                                 : product.inventory ?? '0'} 
                             </td>
-                            {campaignData.campaignType !== 3 && (
+                            {campaignData.campaignType !== 'IN_STOCK' && (
                               <td
                                 style={{
                                   padding: "8px",
@@ -1778,6 +1780,20 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                 </Card>
               </div>
             )}
+            <div style={{margin:10}}>
+            <InlineStack align="end" gap={"100"}>
+              <ButtonGroup>
+                <Button onClick={handleSave} 
+                loading={buttonLoading.draft}
+                disabled={buttonLoading.draft || buttonLoading.publish}
+                >Save as Draft</Button>
+                <Button onClick={handleSubmit} 
+                loading={buttonLoading.publish}
+                disabled={buttonLoading.publish || buttonLoading.draft}
+                variant="primary">Publish</Button>
+              </ButtonGroup>
+            </InlineStack>
+            </div>
             <Modal id="my-modal">
               <div
                 style={{

@@ -41,7 +41,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         // Step 2: If preorder == true, update preorder_max_units
-        if (campaignId !== "" && campaign?.campaignType === 3) {
+        if (campaignId !== "" && campaign?.campaignType === 'IN_STOCK') {
           await admin?.graphql(
             `#graphql
             mutation setMetafield($id: ID!, $value: String!) {

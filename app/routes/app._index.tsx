@@ -215,7 +215,7 @@ export default function Index() {
     page: true,
   });
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);//Delete Model
   const [modalState, setModalState] = useState({
     campaignId: "",
     newStatus: "",
@@ -378,7 +378,9 @@ export default function Index() {
     newStatus: string,
     name: string,
   ) => {
+    if(newStatus !== "DELETE"){ 
     setActivePopoverId(campaignId);
+    }
     setModalState({ campaignId, newStatus, campaignName: name });
     setIsModalOpen(true);
   };
