@@ -117,15 +117,15 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         {/* <LegacyStack vertical> */}
         <RadioButton
           label="Show Preorder when product is out of stock"
-          checked={campaignData.campaignType === 1}
+          checked={campaignData.campaignType === 'OUT_OF_STOCK'}
           id="preorder"
           name="preorder"
           onChange={() => {
             // setSelectedOption(1);
-            handleCampaignDataChange("campaignType", 1);
+            handleCampaignDataChange("campaignType", 'OUT_OF_STOCK');
           }}
         />
-        {campaignData.campaignType === 1 && (
+        {campaignData.campaignType === 'OUT_OF_STOCK' && (
           <ol>
             <li>
               The Preorder button appears when stock reaches 0 and switches to
@@ -139,15 +139,15 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         )}
         <RadioButton
           label="Always show Preorder button"
-          checked={campaignData.campaignType === 2}
+          checked={campaignData.campaignType === 'ALLWAYS'}
           id="always-preorder"
           name="always-preorder"
           onChange={() => {
             // setSelectedOption(2);
-            handleCampaignDataChange("campaignType", 2);
+            handleCampaignDataChange("campaignType", 'ALLWAYS');
           }}
         />
-        {campaignData.campaignType === 2 && (
+        {campaignData.campaignType === 'ALLWAYS' && (
           <ol>
             <li>
               The Preorder button is displayed at all times, regardless of
@@ -161,15 +161,15 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         )}
         <RadioButton
           label="Show Preorder only when product in stock"
-          checked={campaignData.campaignType === 3}
+          checked={campaignData.campaignType === 'IN_STOCK'}
           id="back-in-stock"
           name="back-in-stock"
           onChange={() => {
             // setSelectedOption(3);
-            handleCampaignDataChange("campaignType", 3);
+            handleCampaignDataChange("campaignType", 'IN_STOCK');
           }}
         />
-        {campaignData.campaignType === 3 && (
+        {campaignData.campaignType === 'IN_STOCK' && (
           <ol>
             <li>
               The Preorder button appears when stock is available and disappears

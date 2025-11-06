@@ -35,7 +35,7 @@
   {% assign price = selected_selling_plan_allocation.price %}
   {% assign campaignid = product.metafields.custom.campaign_id %}
   {% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
-  {% assign campaignType = campaignprops.object.value.campaignData.campaigntype %}
+  {% comment %} {% assign campaignType = campaignprops.object.value.campaignData.campaigntype %} {% endcomment %}
   {% assign parsedCampaignData = campaignprops.object.value.campaignData %}
 
 

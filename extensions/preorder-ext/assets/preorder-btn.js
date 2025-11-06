@@ -9,7 +9,18 @@ document.addEventListener("DOMContentLoaded", function () {
   const productData = document.getElementById("product-data");
   const isPreorderProduct = productData?.dataset.preorder === "true";
   const campaignData = document.getElementById("campaign-data");
-  const campaignType = parseInt(campaignData?.dataset.campaignType, 10);
+  const enumToIntMap = {
+  OUT_OF_STOCK: 1,
+  ALLWAYS: 2,
+  IN_STOCK: 3,
+};
+
+const campaignType =
+  campaignData && campaignData.dataset.campaignType
+    ? enumToIntMap[campaignData.dataset.campaignType]
+    : 10;
+
+  // const campaignType = parseInt(campaignData?.dataset.campaignType, 10);
   // Variant selection
   const variantSelect = document.querySelector("[name='id']");
   const preorderButtons = document.querySelectorAll(".preorder-button");
@@ -28,7 +39,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const isPreorder = btn.dataset.preorder == "true";
     const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
     const unitsSold = parseInt(btn.dataset.unitsSold || "0", 10);
-    const inStock = unitsSold < maxUnits;
+    const inStock = Number(unitsSold) < Number(maxUnits);
     // Apply campaign rules
     let showPreorder = false;
     if (campaignType === 1 && !inStock) showPreorder = true;

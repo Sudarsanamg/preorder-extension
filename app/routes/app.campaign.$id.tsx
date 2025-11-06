@@ -70,6 +70,7 @@ import {
 import { GET_PRODUCT_SELLING_PLAN_GROUPS } from "app/graphql/queries/sellingPlan";
 import type {
   CampaignStatus,
+  CampaignType,
   DiscountType,
   Fulfilmentmode,
   scheduledFulfilmentType,
@@ -262,7 +263,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         discountType: formData.get("discountType") as DiscountType,
         discountPercent: Number(formData.get("discountPercentage") || "0"),
         discountFixed: Number(formData.get("flatDiscount") || "0"),
-        campaignType: Number(formData.get("campaignType")),
+        campaignType  : formData.get("campaignType") as CampaignType,
         getDueByValt: (formData.get("getDueByValt") as string) === "true",
         status: campaignCurrentStatus,
         fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
@@ -334,7 +335,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               campaigntags: JSON.parse(
                 (formData.get("orderTags") as string) || "[]",
               ).join(","),
-              campaigntype: String(formData.get("campaignType") as string),
+              campaigntype: formData.get("campaignType") as CampaignType,
               fulfillment: {
                 type: formData.get("fulfilmentmode") as Fulfilmentmode,
                 schedule: {
@@ -759,8 +760,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
     );
     if (
-      formData.get("campaignType") == "1" ||
-      formData.get("campaignType") == "2"
+      formData.get("campaignType") == "OUT_OF_STOCK" ||
+      formData.get("campaignType") == "ALLWAYS"
     ) {
       allowOutOfStockForVariants(admin, products);
     }
@@ -883,7 +884,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           discountType: formData.get("discountType") as DiscountType,
           discountPercent: Number(formData.get("discountPercentage") || "0"),
           discountFixed: Number(formData.get("flatDiscount") || "0"),
-          campaignType: Number(formData.get("campaignType")),
+          campaignType: formData.get("campaignType") as CampaignType,
           shopId: shopId,
           getDueByValt: (formData.get("getDueByValt") as string) === "true",
           status: campaignCurrentStatus,
@@ -906,7 +907,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         if (products.length > 0) {
           await replaceProductsInCampaign(String(params.id!), products);
 
-          const campaignType = Number(formData.get("campaignType"));
+          const campaignType = formData.get("campaignType") as CampaignType;
           //if campaign type === 3 then inventory quantity need to update
           const metafields = products.flatMap((product: any) => [
             {
@@ -961,7 +962,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               key: "preorder_max_units",
               type: "number_integer",
               value:
-                campaignType == 3
+                campaignType == "IN_STOCK"
                   ? String(product.variantInventory)
                   : String(product?.maxUnit || "0"),
             },
@@ -1008,8 +1009,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           },
         );
         if (
-          formData.get("campaignType") == "1" ||
-          formData.get("campaignType") == "2"
+          formData.get("campaignType") == "OUT_OF_STOCK" ||
+          formData.get("campaignType") == "ALLWAYS"
         ) {
           allowOutOfStockForVariants(admin, products);
         }
@@ -1056,7 +1057,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                 campaigntags: JSON.parse(
                   (formData.get("orderTags") as string) || "[]",
                 ).join(","),
-                campaigntype: String(formData.get("campaignType") as string),
+                campaigntype: formData.get("campaignType") as CampaignType,
                 fulfillment: {
                   type: formData.get("fulfilmentmode") as Fulfilmentmode,
                   schedule: {
@@ -1229,7 +1230,7 @@ export default function CampaignDetail() {
   const actionData = useActionData<typeof action>();
 
 
-  console.log(productsWithPreorder);
+  console.log(productsWithPreorder, "productsWithPreorder");
   const [buttonLoading, setButtonLoading] = useState({
     publish: false,
     delete: false,
@@ -1311,7 +1312,7 @@ const discarding = useRef(false);
   });
   const [campaignData, setCampaignData] = useState<CampaignFields>({
     campaignName: campaign?.name,
-    campaignType: Number(parsedCampaignData?.campaigntype),
+    campaignType: parsedCampaignData?.campaigntype,
     productTags: parsedCampaignData?.campaigntags
       ? parsedCampaignData?.campaigntags.split(",")
       : [],
@@ -1359,7 +1360,8 @@ const [warningPopoverActive, setWarningPopoverActive] = useState(false);
  const [noProductWarning, setNoProductWarning] = useState(false);
 const [errors, setErrors] = useState<string[]>([]);
 const navigation = useNavigation();
-const isSaving = navigation.state === "submitting";
+// const isSaving = navigation.state === "submitting";
+const [formHasChanges, setFormHasChanges] = useState(false);
 
 
   const handleCampaignDataChange = <K extends keyof CampaignFields>(
@@ -1753,6 +1755,28 @@ const isSaving = navigation.state === "submitting";
     submit(formData, { method: "post" });
   }
 
+  useEffect(() => {
+    const noChanges =
+      JSON.stringify(designFields) ===
+        JSON.stringify(initialDesignRef.current) &&
+      JSON.stringify(campaignData) ===
+        JSON.stringify(initialCampaignRef.current) &&
+      JSON.stringify(selectedProducts) ===
+        JSON.stringify(initialProducts.current) &&
+      removedVarients.length === 0 &&
+      JSON.stringify(selectedDates) ===
+        JSON.stringify(initialDates.current);
+
+    setFormHasChanges(!noChanges);
+    
+  }, [designFields,
+    selectedProducts,
+    campaignData,
+    removedVarients,
+    selectedDates,
+    saveBarActive]);
+
+
  useEffect(() => {
     if (discarding.current) {
       discarding.current = false;
@@ -1796,7 +1820,7 @@ useEffect(() => {
       // ✅ Hide save bar only when save succeeded
       shopify.saveBar.hide("my-save-bar");
       setSaveBarActive(false);
-      shopify.toast.show("Saved successfully");
+      shopify.toast.show("Action Completed Successfully");
 
       // reset your loading buttons
       setButtonLoading((prev):any =>
@@ -2030,8 +2054,9 @@ useEffect(() => {
         }}
         primaryAction={{
           content: campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish",
-          loading: buttonLoading.publish,
-          disabled: isSaving || buttonLoading.delete,
+          loading: buttonLoading.publish || buttonLoading.save,
+          disabled:
+            buttonLoading.publish || buttonLoading.delete || buttonLoading.save,
           onAction: () =>
             campaign?.status === "PUBLISHED"
               ? handleUnpublish(String(campaign?.id))
@@ -2043,7 +2068,10 @@ useEffect(() => {
             destructive: true,
             onAction: () => shopify.modal.show("delete-modal"),
             loading: buttonLoading.delete,
-            disabled: isSaving || buttonLoading.publish,
+            disabled:
+              buttonLoading.publish ||
+              buttonLoading.delete ||
+              buttonLoading.save,
           },
           // ...(campaign.status !== "DRAFT"
           //   ? [
@@ -2062,32 +2090,45 @@ useEffect(() => {
           <button
             variant="primary"
             onClick={handleSave}
-            loading={isSaving === true ? "" : false}
+            loading={
+              (buttonLoading.publish ||
+                buttonLoading.save ||
+                buttonLoading.delete) === true
+                ? ""
+                : false
+            }
+            disabled={buttonLoading.publish || buttonLoading.save}
           ></button>
-          <button onClick={handleDiscard} disabled={isSaving}></button>
+          <button
+            onClick={handleDiscard}
+            disabled={
+              buttonLoading.publish ||
+              buttonLoading.save ||
+              buttonLoading.delete
+            }
+          ></button>
         </SaveBar>
 
         {errors.length > 0 && (
-          <div style={{padding:10}}>
-          <Banner title="Please fix the following errors" tone="critical">
-            <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
-              {errors.map((err, i) => (
-                <li key={i}>{err}</li>
-              ))}
-            </ul>
-          </Banner>
+          <div style={{ padding: 10 }}>
+            <Banner title="Please fix the following errors" tone="critical">
+              <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                {errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </Banner>
           </div>
         )}
         {noProductWarning && errors.length === 0 && (
-          <div style={{padding:10}}>
-          <Banner
-            title="Cannot save campaign"
-            tone="warning"
-            onDismiss={() => setNoProductWarning(false)}
-            
-          >
-            You must select at least one product before saving your campaign.
-          </Banner>
+          <div style={{ padding: 10 }}>
+            <Banner
+              title="Cannot save campaign"
+              tone="warning"
+              onDismiss={() => setNoProductWarning(false)}
+            >
+              You must select at least one product before saving your campaign.
+            </Banner>
           </div>
         )}
         <Modal id="delete-modal">
@@ -2205,7 +2246,14 @@ useEffect(() => {
                 className="right mt-10 md:mt-0"
               >
                 {/* preview */}
-                <div style={{ position: "sticky", top: 20, maxWidth: "400px" }}>
+                <div
+                  style={{
+                    position: "sticky",
+                    top: 20,
+                    maxWidth: "400px",
+                    justifySelf: "flex-end",
+                  }}
+                >
                   <Card>
                     <div style={{ display: "flex", justifyContent: "center" }}>
                       <Text as="h4" variant="headingSm">
@@ -2361,7 +2409,11 @@ useEffect(() => {
                     </div>
                     {campaignData.paymentMode === "partial" && (
                       <div
-                        style={{ display: "flex", justifyContent: "center" , textAlign:'center' }}
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          textAlign: "center",
+                        }}
                       >
                         <Text as="h1" variant="headingMd">
                           Pay $3.92 now and $35.28 will be charged on{" "}
@@ -2495,7 +2547,7 @@ useEffect(() => {
                 </div>
               </div>
             )}
-            {selectedProducts.length > 0 &&(
+            {selectedProducts.length > 0 && (
               <div>
                 {warningPopoverActive && (
                   <div style={{ padding: "8px" }}>
@@ -2579,7 +2631,7 @@ useEffect(() => {
                           >
                             Inventory
                           </th>
-                          {campaignData.campaignType !== 3 && (
+                          {campaignData.campaignType !== "IN_STOCK" && (
                             <th
                               style={{
                                 padding: "8px",
@@ -2654,9 +2706,9 @@ useEffect(() => {
                             >
                               {product.variantInventory
                                 ? product.variantInventory
-                                : product.inventory ?? "0"}
+                                : (product.inventory ?? "0")}
                             </td>
-                            {campaignData.campaignType !== 3 && (
+                            {campaignData.campaignType !== "IN_STOCK" && (
                               <td
                                 style={{
                                   padding: "8px",
@@ -2672,7 +2724,8 @@ useEffect(() => {
                                   labelHidden
                                   autoComplete="off"
                                   value={
-                                    campaignData.campaignType === 3
+                                    campaignData.campaignType ===
+                                    ("IN_STOCK" as CampaignType)
                                       ? product.variantInventory
                                         ? product.variantInventory
                                         : product.inventory
@@ -2719,6 +2772,33 @@ useEffect(() => {
                 </Card>
               </div>
             )}
+            <div style={{ margin: 10 }}>
+              <InlineStack align="end" gap={"100"}>
+                <ButtonGroup>
+                  <Button
+                    onClick={handleSave}
+                    loading={buttonLoading.save}
+                    disabled={buttonLoading.save || buttonLoading.publish || formHasChanges===false }
+                  >
+                   Save
+                  </Button>
+                  <Button
+                    onClick={()=>{
+                      if (campaign?.status === "PUBLISHED") {
+                        handleUnpublish(String(campaign?.id));
+                      } else {
+                        handlePublish(String(campaign?.id));
+                      }
+                    }}
+                    loading={buttonLoading.publish}
+                    disabled={buttonLoading.publish || buttonLoading.save}
+                    variant="primary"
+                  >
+                    {campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish"}
+                  </Button>
+                </ButtonGroup>
+              </InlineStack>
+            </div>
             <Modal id="my-modal">
               <div
                 style={{
