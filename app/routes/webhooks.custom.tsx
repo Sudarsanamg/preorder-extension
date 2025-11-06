@@ -18,15 +18,13 @@ import {
 import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import { draftOrderInvoiceSendMutation } from "app/graphql/mutation/orders";
 import { Decimal } from "@prisma/client/runtime/library";
-import { FulfillmentStatus } from "@prisma/client";
+import type { FulfillmentStatus } from "@prisma/client";
 
 export const action = async ({ request }: { request: Request }) => {
   const { topic, shop, payload, admin } = await authenticate.webhook(request);
   const orderPaid = async (payload: any) => {
     if (topic === "ORDERS_CREATE") {
       try {
-        const products = payload.line_items || [];
-        console.log(products);
         const line_items = payload.line_items || [];
         const variantIds = line_items.map((item: any) => item.variant_id);
 
@@ -130,7 +128,7 @@ export const action = async ({ request }: { request: Request }) => {
           const shop = data?.data.shop;
           const shopId = shop.id;
           const storeDomain = shop.primaryDomain?.host;
-          console.log(secondSchedule, "secondSchedule");
+
 
           // getDueByValt is true
           // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
@@ -165,16 +163,6 @@ export const action = async ({ request }: { request: Request }) => {
           });
 
          const fulfillmentStatus = payload.fulfillment_status || "unfulfilled";
-        const fulfillments = payload.fulfillments || [];
-
-        console.log("📦 Fulfillment Status:", fulfillmentStatus);
-        if (fulfillments.length > 0) {
-          console.log(
-            "🔗 Fulfillments details:",
-            JSON.stringify(fulfillments, null, 2),
-          );
-        }
-
         const mapFulfillmentStatus = (status: string | null): FulfillmentStatus => {
               switch (status) {
                 case "fulfilled":
@@ -277,16 +265,15 @@ export const action = async ({ request }: { request: Request }) => {
             if (data?.data.draftOrderCreate.userErrors.length) {
               console.error(
                 "❌ Draft order errors:",
-                data.data.draftOrderCreate.userErrors,
               );
             } else {
               console.log(
                 "✅ Draft order created:",
-                data?.data.draftOrderCreate.draftOrder,
+                
               );
               console.log(
                 "📧 Invoice URL:",
-                data?.data.draftOrderCreate.draftOrder.invoiceUrl,
+                
               );
             }
 
@@ -335,7 +322,6 @@ export const action = async ({ request }: { request: Request }) => {
               secondSchedule.due_at,
               "PENDING",
               storeDomain,
-              campaignIds[0],
               campaignOrder.id
             );
 

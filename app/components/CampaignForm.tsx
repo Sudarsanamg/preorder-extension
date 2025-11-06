@@ -12,13 +12,14 @@ import {
   Checkbox,
   Popover,
   DatePicker,
-  Link,
+  // Link,
 } from "@shopify/polaris";
 import {
   DiscountIcon,
   CashDollarIcon,
   ClockIcon,
   CalendarCheckIcon,
+  // CalendarIcon,
 } from "@shopify/polaris-icons";
 import type { CampaignFields } from "app/types/type";
 import "../tailwind.css"
@@ -733,7 +734,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                   <Text as="h5" variant="bodySm">
                     Automatically change to unfulfiled:
                   </Text>
-                  <InlineStack gap="200">
+                  <InlineStack gap="200" wrap={false}>
+
                     <ButtonGroup variant="segmented">
                       <Button
                         pressed={campaignData.scheduledFullfillmentType === 1}
@@ -758,7 +760,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                         icon={CalendarCheckIcon}
                       ></Button>
                     </ButtonGroup>
-                    <div style={{}}>
+                    <div style={{flexShrink:0, display: 'flex', alignItems: 'center', }}>
                       {campaignData.scheduledFullfillmentType === 1 && (
                         <TextField
                           label="Set to unfulfilled"
@@ -770,6 +772,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           onChange={(value) =>
                             handleCampaignDataChange("scheduledDays", value)
                           }
+                          
+                          
                         />
                       )}
                       {campaignData.scheduledFullfillmentType === 2 && (
@@ -777,7 +781,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           <Popover
                             active={popoverActive.fullfillmentSchedule}
                             activator={
-                              // <div style={{ flex: 1 }}>
+                              <div style={{ flex: 1 }}>
                               <TextField
                                 label="Select date for fullfillment"
                                 value={formatDate(
@@ -791,7 +795,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                                 autoComplete="off"
                                 labelHidden
                               />
-                              // </div>
+                             </div>
                             }
                             onClose={() => {
                               togglePopover("fullfillmentSchedule");

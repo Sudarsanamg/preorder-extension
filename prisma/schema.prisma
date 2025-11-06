@@ -53,8 +53,7 @@ model VaultedPayment {
   id              String           @id @default(uuid())
   orderId         String           @unique
   storeId         String
-  campaignId      String                       
-  campaignOrderId String           
+  campaignOrderId String           @unique
   idempotencyKey  String
   amount          Decimal
   currencyCode    String
@@ -64,8 +63,7 @@ model VaultedPayment {
   createdAt       BigInt
   updatedAt       BigInt
   store           Store            @relation(fields: [storeId], references: [id])
-  campaign        PreorderCampaign @relation(fields: [campaignId], references: [id])
-  campaignOrder   CampaignOrders   @relation(fields: [campaignOrderId], references: [id])
+  campaignOrder   CampaignOrders   @relation("OrderVaultedPayment", fields: [campaignOrderId], references: [id])
 
   @@unique([orderId, storeId])
 }
@@ -97,9 +95,7 @@ model PreorderCampaign {
   updatedAt               BigInt
   products                PreorderCampaignProduct[]
   store                   Store                     @relation(fields: [storeId], references: [id])
-  vaultedPayment          VaultedPayment[]
   campaignOrders          CampaignOrders[]
-  isDeleted               Boolean                   @default(false)
 }
 
 model PreorderCampaignProduct {
@@ -136,7 +132,7 @@ model CampaignOrders {
   store            Store              @relation(fields: [storeId], references: [id])
   createdAt        BigInt
   updatedAt        BigInt
-  vaultedPayment   VaultedPayment[]
+  vaultedPayment   VaultedPayment?    @relation("OrderVaultedPayment")
   campaign         PreorderCampaign   @relation(fields: [campaignId], references: [id])
 
   @@unique([storeId, order_id])
@@ -160,6 +156,8 @@ enum CampaignStatus {
   DRAFT
   PUBLISHED
   UNPUBLISH
+  ARCHIVED
+  DELETED
 }
 
 enum Fulfilmentmode {

@@ -2068,6 +2068,7 @@ useEffect(() => {
         </SaveBar>
 
         {errors.length > 0 && (
+          <div style={{padding:10}}>
           <Banner title="Please fix the following errors" tone="critical">
             <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
               {errors.map((err, i) => (
@@ -2075,15 +2076,19 @@ useEffect(() => {
               ))}
             </ul>
           </Banner>
+          </div>
         )}
         {noProductWarning && errors.length === 0 && (
+          <div style={{padding:10}}>
           <Banner
             title="Cannot save campaign"
             tone="warning"
             onDismiss={() => setNoProductWarning(false)}
+            
           >
             You must select at least one product before saving your campaign.
           </Banner>
+          </div>
         )}
         <Modal id="delete-modal">
           <p style={{ padding: "10px" }}>
@@ -2490,7 +2495,7 @@ useEffect(() => {
                 </div>
               </div>
             )}
-            {selectedProducts.length > 0 && (
+            {selectedProducts.length > 0 &&(
               <div>
                 {warningPopoverActive && (
                   <div style={{ padding: "8px" }}>
