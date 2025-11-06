@@ -1,0 +1,58 @@
+{% assign campaignid   = product.metafields.custom.campaign_id %}
+{% assign campaignprops = shop.metaobjects.preordercampaign[campaignid] %}
+{% assign designprops  = shop.metaobjects.design_settings[campaignid] %}
+{% assign parsedDesignData = designprops.object.value %}
+{% comment %} {% assign campaignType = campaignprops.object.value.campaigntype %} {% endcomment %}
+{% assign variant      = product.selected_or_first_available_variant %}
+{% assign parsedCampaignData = campaignprops.object.value %}
+{% assign campaignTypeString = campaignprops.object.value.campaigntype %}
+
+{% if campaignTypeString == "OUT_OF_STOCK" %}
+  {% assign campaignType = 1 %}
+{% elsif campaignTypeString == "ALLWAYS" %}
+  {% assign campaignType = 2 %}
+{% elsif campaignTypeString == "IN_STOCK" %}
+  {% assign campaignType = 3 %}
+{% else %}
+  {% assign campaignType = 0 %}
+{% endif %}
+
+
+{% if product.metafields.custom.preorder == true %}
+  {% if campaignType == 1 %}
+    {% unless variant.available %}
+      <p style="
+        color: {{ designprops.preordermessagecolor }};
+        text-align: center;
+      ">
+        {{ parsedCampaignData.shipping_message }}
+      </p>
+    {% endunless %}
+
+  {% elsif campaignType == 3 %}
+    {% if variant.available %}
+      <p style="
+        color: {{ designprops.preordermessagecolor }};
+        text-align: center;
+      ">
+        {{ parsedCampaignData.shipping_message }}
+      </p>
+    {% endif %}
+
+  {% else %}
+    <p style="
+      color: {{ parsedDesignData.preorderMessageColor }};
+      text-align: center;
+    ">
+      {{ parsedCampaignData.shipping_message }}
+    </p>
+  {% endif %}
+{% endif %}
+
+{% schema %}
+{
+  "name": "release block",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

@@ -1,17 +1,19 @@
-.badge-preorder {
+.preorder-badge {
   display: inline-block;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.8rem;
+  padding: 1rem 0.9rem; 
+  font-size: medium;
   font-weight: 600;
   color: #fff;
-  background-color: #f97316; /* Orange */
-  border-radius: 9999px; /* Pill shape */
-  text-transform: uppercase;
+  background-color: #f97316; 
+  border-radius: 9999px;     
   letter-spacing: 0.05em;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-  animation: pulse 1.5s infinite;
-  font-size: larger;
+  animation: pulse 1.8s infinite ease-in-out;
+  line-height: 1.2;
+  vertical-align: middle;
+
 }
+
 
 @keyframes pulse {
   0%   { transform: scale(1); opacity: 1; }

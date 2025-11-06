@@ -1,0 +1,17 @@
+{
+  "cart": {
+    "lines": [
+      {
+        "id": "gid://shopify/CartLine/1",
+        "quantity": 3,
+        "merchandise": {
+          "__typename": "ProductVariant",
+          "id": "gid://shopify/ProductVariant/44621545013439",
+          "sku": "TEST-SKU",
+          "preorderMax": { "value": "5" },
+          "preorderSold": { "value": "2" }
+        }
+      }
+    ]
+  }
+}

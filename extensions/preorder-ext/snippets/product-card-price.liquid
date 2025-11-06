@@ -1,0 +1,27 @@
+{% comment %} {% assign variant = variant or product.variants.first %} {% endcomment %}
+{% assign allocation = variant.selling_plan_allocations.first %}
+
+<div class="product-price">
+  {% if allocation %}
+    <!-- Selling plan price -->
+    <span class="price selling-plan-price">
+      {{ allocation.price | money }}
+    </span>
+    
+    {% if variant.compare_at_price > allocation.price %}
+      <span class="compare-at-price" style="text-decoration: line-through; color: #888;">
+        {{ variant.compare_at_price | money }}
+      </span>
+    {% endif %}
+    
+  {% else %}
+    <!-- Regular price -->
+    <span class="price regular-price">{{ variant.price | money }}</span>
+    
+    {% if variant.compare_at_price > variant.price %}
+      <span class="compare-at-price" style="text-decoration: line-through; color: #888;">
+        {{ variant.compare_at_price | money }}
+      </span>
+    {% endif %}
+  {% endif %}
+</div>
