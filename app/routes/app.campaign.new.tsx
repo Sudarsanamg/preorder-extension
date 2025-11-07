@@ -194,7 +194,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          await addProductsToCampaign(campaign.id, products ,formData.get("shopId") as string);
+          await addProductsToCampaign(
+            campaign.id,
+            products,
+            formData.get("shopId") as string,
+          );
 
           // -------------------------------
           // PREORDER METAFIELDS UPDATE
@@ -312,13 +316,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           ]);
           // if (intent !== "SAVE") {
           try {
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields },
-            });
+            for (let i = 0; i < metafields.length; i += 20) {
+              const batch = metafields.slice(i, i + 20);
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields:batch },
+              });
+            }
 
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields: productMetafields },
-            });
+            for (let i = 0; i < productMetafields.length; i += 20) {
+              const batch = productMetafields.slice(i, i + 20);
+
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields: batch },
+              });
+            }
           } catch (err) {
             console.error("GraphQL mutation failed:", err);
             throw err;
@@ -408,6 +419,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 discountfixed: (formData.get("flatDiscount") as string) || "0",
                 campaigntags: JSON.parse(
                   (formData.get("orderTags") as string) || "[]",
+                ).join(","),
+                customerTags: JSON.parse(
+                  (formData.get("customerTags") as string) || "[]",
                 ).join(","),
                 campaigntype: formData.get("campaignType") as CampaignType,
                 fulfillment: {
@@ -582,15 +596,8 @@ export default function Newcampaign() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [hasCollectionFetched, setHasCollectionFetched] = useState<boolean>(false);
   const [noProductWarning, setNoProductWarning] = useState<boolean>(false);
-    const [errors, setErrors] = useState<string[]>([]);
-    // const navigation = useNavigation();
-    // const isSaving = navigation.state === "submitting";
+  const [errors, setErrors] = useState<string[]>([]);
 
-
-  
-  
-  const payment = 3.92;
-  const remaining = 35.28;
   const [buttonLoading, SetButtonLoading] = useState({
     add: false,
     remove: false,
@@ -602,8 +609,8 @@ export default function Newcampaign() {
   const [saveBarVisible, setSaveBarVisible] = useState(false);
 
   const formattedText = campaignData.partialPaymentInfoText
-    .replace("{payment}", `$${payment}`)
-    .replace("{remaining}", `$${remaining}`)
+    .replace("{payment}", `$3.92`)
+    .replace("{remaining}", `$35.28`)
     .replace(
       "{date}",
       formatDate(selectedDates.duePaymentDate.toLocaleDateString()),

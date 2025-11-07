@@ -32,22 +32,6 @@ const productMetafieldDefinitions = [
     ownerType: "PRODUCT",
   },
   {
-    name: "payment_type",
-    namespace: "custom",
-    key: "payment_type",
-    type: "single_line_text_field",
-    description: "Type of payment",
-    ownerType: "PRODUCT",
-  },
-  {
-    name: "release_date",
-    namespace: "custom",
-    key: "release_date",
-    type: "date",
-    description: "Product release date",
-    ownerType: "PRODUCT",
-  },
-  {
     name: "preorder_end_date",
     namespace: "custom",
     key: "preorder_end_date",
@@ -109,22 +93,7 @@ export const variantMetafieldDefinitions = [
     description: "Date when remaining balance is due (per variant)",
     ownerType: "PRODUCTVARIANT",
   },
-  {
-    name: "payment_type",
-    namespace: "custom",
-    key: "payment_type",
-    type: "single_line_text_field",
-    description: "Type of payment (per variant)",
-    ownerType: "PRODUCTVARIANT",
-  },
-  {
-    name: "release_date",
-    namespace: "custom",
-    key: "release_date",
-    type: "date",
-    description: "Product release date (per variant)",
-    ownerType: "PRODUCTVARIANT",
-  },
+
   {
     name: "preorder_end_date",
     namespace: "custom",

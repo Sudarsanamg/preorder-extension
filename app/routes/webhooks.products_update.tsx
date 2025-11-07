@@ -13,7 +13,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const variantId = `gid://shopify/ProductVariant/${variant.id}`;
         const available = variant.inventory_quantity;
 
-        // Step 1: Fetch variant metafield preorder
         const res = await admin?.graphql(
           `#graphql
           query getMetafield($id: ID!) {

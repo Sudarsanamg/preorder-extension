@@ -335,6 +335,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               campaigntags: JSON.parse(
                 (formData.get("orderTags") as string) || "[]",
               ).join(","),
+              customerTags: JSON.parse(
+                (formData.get("customerTags") as string) || "[]",
+              ).join(","),
               campaigntype: formData.get("campaignType") as CampaignType,
               fulfillment: {
                 type: formData.get("fulfilmentmode") as Fulfilmentmode,
@@ -500,13 +503,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       ]);
 
       try {
-        await admin.graphql(SET_PREORDER_METAFIELDS, {
-          variables: { metafields },
-        });
+          for (let i = 0; i < metafields.length; i += 20) {
+            const batch = metafields.slice(i, i + 20);
+            await admin.graphql(SET_PREORDER_METAFIELDS, {
+              variables: { metafields: batch },
+            });
+          }
 
-        await admin.graphql(SET_PREORDER_METAFIELDS, {
-          variables: { metafields: productMetafields },
-        });
+          for(let i = 0; i < productMetafields.length; i += 20) {
+            const batch = productMetafields.slice(i, i + 20);
+            await admin.graphql(SET_PREORDER_METAFIELDS, {
+              variables: { metafields: batch },
+            });
+          }
       } catch (err) {
         console.error("GraphQL mutation failed:", err);
         throw err;
@@ -572,10 +581,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         ]);
 
         try {
-          await admin.graphql(removeMetaFieldMutation, {
-            variables: { metafields },
-          });
-        } catch (err) {
+          for (let i = 0; i < metafields.length; i += 20) {
+            const batch = metafields.slice(i, i + 20);
+            await admin.graphql(removeMetaFieldMutation, {
+              variables: { metafields: batch },
+            });
+          }
+        } 
+        catch (err) {
           console.error("GraphQL mutation failed:", err);
           throw err;
         }
@@ -783,7 +796,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       const products = JSON.parse((formData.get("products") as string) || "[]");
 
-      const metafields = products.flatMap((product: any) => [
+    let metafields;
+
+    if (secondaryIntent === "delete-campaign") {
+      metafields = products.flatMap((product: any) => [
         {
           ownerId: product.variantId,
           namespace: "custom",
@@ -795,10 +811,20 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           ownerId: product.variantId,
           namespace: "custom",
           key: "preorder",
+          value: "false",
+        },
+      ]);
+    } else {
+      metafields = products.flatMap((product: any) => [
+        {
+          ownerId: product.variantId,
+          namespace: "custom",
+          key: "preorder",
           type: "boolean",
           value: "false",
         },
       ]);
+    }
 
       try {
         const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
@@ -1056,6 +1082,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                 discountfixed: (formData.get("flatDiscount") as string) || "0",
                 campaigntags: JSON.parse(
                   (formData.get("orderTags") as string) || "[]",
+                ).join(","),
+                customerTags: JSON.parse(
+                  (formData.get("customerTags") as string) || "[]",
                 ).join(","),
                 campaigntype: formData.get("campaignType") as CampaignType,
                 fulfillment: {
@@ -1316,7 +1345,9 @@ const discarding = useRef(false);
     productTags: parsedCampaignData?.campaigntags
       ? parsedCampaignData?.campaigntags.split(",")
       : [],
-    customerTags: ["Preorder-Customer"],
+    customerTags: parsedCampaignData?.customerTags
+      ? parsedCampaignData?.customerTags.split(",")
+      : [],
     preOrderNoteKey: "Note",
     preOrderNoteValue: "Preorder",
     buttonText: parsedCampaignData?.button_text,
@@ -1577,7 +1608,6 @@ const [formHasChanges, setFormHasChanges] = useState(false);
   async function handleUnpublish(id: string): Promise<void> {
 
     const valid= await validateForm();
-    console.log(valid,'?????????????????')
     if(!valid){
       return
     }
@@ -1937,49 +1967,11 @@ useEffect(() => {
   }
 
 
-  // const validateForm = async() => {
-  //   const campaignResult: any = CampaignSchema.safeParse(campaignData);
-  //   const designResult: any = DesignSchema.safeParse(designFields);
-  
-  //   const collectErrors = (obj: any) => {
-  //     let messages: string[] = [];
-  //     for (const key in obj) {
-  //       if (Array.isArray(obj[key]?._errors)) {
-  //         messages.push(...obj[key]._errors);
-  //       }
-  //       if (typeof obj[key] === "object" && obj[key] !== null) {
-  //         messages.push(...collectErrors(obj[key]));
-  //       }
-  //     }
-  //     return messages;
-  //   };
-  
-  //   let errorMessages: string[] = [];
-  
-  //   if (!campaignResult.success) {
-  //     const formatted = campaignResult.error.format();
-  //     errorMessages = [...errorMessages, ...collectErrors(formatted)];
-  //   }
-  
-  //   if (!designResult.success) {
-  //     const formattedDesign = designResult.error.format();
-  //     errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
-  //   }
-  
-  //   if (errorMessages.length > 0) {
-  //     setErrors(errorMessages);
-  //     return;
-  //   }
-  
-  //   setErrors([]);
-  // }
 
 
     const validateForm = async () => {
     const campaignResult: any = CampaignSchema.safeParse(campaignData);
     const designResult: any = DesignSchema.safeParse(designFields);
-    console.log(campaignResult);
-    console.log(designResult);
 
     const collectErrors = (obj: any) => {
       let messages: string[] = [];
@@ -2392,6 +2384,7 @@ useEffect(() => {
                           style={{
                             display: "flex",
                             justifyContent: "center",
+                            textAlign: "center",
                             fontFamily:
                               designFields.fontFamily !== ""
                                 ? designFields.fontFamily
@@ -2401,7 +2394,7 @@ useEffect(() => {
                                 ? designFields.messageFontSize + "px"
                                 : "16px",
                             color: designFields.preorderMessageColor,
-                          }}
+                          }}              
                         >
                           {campaignData.shippingMessage}
                         </h3>
@@ -2791,7 +2784,7 @@ useEffect(() => {
                       }
                     }}
                     loading={buttonLoading.publish}
-                    disabled={buttonLoading.publish || buttonLoading.save}
+                    disabled={buttonLoading.publish || buttonLoading.save || buttonLoading.delete}
                     variant="primary"
                   >
                     {campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish"}

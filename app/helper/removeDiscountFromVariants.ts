@@ -31,7 +31,7 @@ export async function removeDiscountFromVariants(
       if (!variant) throw new Error(`Variant not found: ${variantId}`);
 
       const productId = variant.product.id;
-      const { price, compareAtPrice } = variant;
+      const {  compareAtPrice } = variant;
 
       // 2. Only reset if compareAtPrice exists
       if (!compareAtPrice) {

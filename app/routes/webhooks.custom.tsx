@@ -21,149 +21,160 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { FulfillmentStatus } from "@prisma/client";
 
 export const action = async ({ request }: { request: Request }) => {
-  const { topic, shop, payload, admin } = await authenticate.webhook(request);
-  const orderPaid = async (payload: any) => {
-    if (topic === "ORDERS_CREATE") {
-      try {
-        const line_items = payload.line_items || [];
-        const variantIds = line_items.map((item: any) => item.variant_id);
+  try {
+    const { topic, shop, payload, admin } = await authenticate.webhook(request);
 
-        const formattedVariantIds = variantIds.map((id: number) => {
-          return `gid://shopify/ProductVariant/${id}`;
-        });
+    const orderCreate = async (payload: any) => {
+      if (topic === "ORDERS_CREATE") {
+        try {
+          const line_items = payload.line_items || [];
+          const variantIds = line_items.map((item: any) => item.variant_id);
 
-        const GetCampaignIdsQueryResponse = await admin?.graphql(
-          GetVariantCampaignIdsQuery,
-          {
-            variables: { ids: formattedVariantIds },
-          },
-        );
-
-        const GetCampaignIdsQueryResponseBody =
-          await GetCampaignIdsQueryResponse?.json();
-
-        let campaignIds: string[] = [];
-        for (const node of GetCampaignIdsQueryResponseBody?.data.nodes) {
-          if (node?.metafield?.value) {
-            campaignIds.push(node.metafield.value);
-          }
-        }
-        if (campaignIds.length === 0) {
-          return Response.json({ error: "No preorder found" }, { status: 200 });
-        }
-
-        // find unique campaign ids
-        campaignIds = [...new Set(campaignIds)];
-
-        let orderContainsPreorderItem = campaignIds.length > 0;
-
-        // //update preorder_units_sold
-        for (const variantId of formattedVariantIds) {
-          try {
-            await incrementUnitsSold(shop, variantId);
-          } catch (error) {
-            console.log(error);
-          }
-        }
-        //update no of orders for campaign
-        for (const campaignId of campaignIds) {
-          await prisma.preorderCampaign.update({
-            where: { id: campaignId },
-            data: {
-              totalOrders: {
-                increment: 1,
-              },
-            },
-          });
-        }
-
-        // get Tags from campaign ids
-        let orderTags: string[] = [];
-        let customerTags: string[] = [];
-
-        if (campaignIds.length > 0) {
-          const campaigns = await prisma.preorderCampaign.findMany({
-            where: {
-              id: {
-                in: campaignIds,
-              },
-            },
+          const formattedVariantIds = variantIds.map((id: number) => {
+            return `gid://shopify/ProductVariant/${id}`;
           });
 
-          for (const campaign of campaigns) {
-            if (campaign.orderTags) {
-              orderTags.push(String(campaign.orderTags));
-            }
-            if (campaign.customerTags) {
-              customerTags.push(String(campaign.customerTags));
+          const GetCampaignIdsQueryResponse = await admin?.graphql(
+            GetVariantCampaignIdsQuery,
+            {
+              variables: { ids: formattedVariantIds },
+            },
+          );
+
+          const GetCampaignIdsQueryResponseBody =
+            await GetCampaignIdsQueryResponse?.json();
+
+          let campaignIds: string[] = [];
+          for (const node of GetCampaignIdsQueryResponseBody?.data.nodes) {
+            if (node?.metafield?.value) {
+              campaignIds.push(node.metafield.value);
             }
           }
-        }
-        if (orderTags.length > 0 && orderContainsPreorderItem) {
-          // add tags to order using mutation
-          const uniqueTags = [...new Set(orderTags), ...new Set(customerTags)];
-
-          const orderId = payload.admin_graphql_api_id;
-          // const AddTagsToOrderMutationResponse =
-          await admin?.graphql(AddTagsToOrderMutation, {
-            variables: { id: orderId, tags: uniqueTags },
-          });
-
-          // const AddTagsToOrderMutationResponseBody =
-          //   await AddTagsToOrderMutationResponse.json();
-        }
-
-        if (orderContainsPreorderItem) {
-          const orderId = payload.admin_graphql_api_id;
-          const formattedOrderId = orderId.split("/").pop();
-          const customerId = payload.customer?.admin_graphql_api_id;
-          const order_number = payload.order_number;
-          const schedules = payload?.payment_terms?.payment_schedules || [];
-          const secondSchedule = schedules[1];
-          const customerEmail = payload.email || payload.customer?.email;
-          const remaining = Number(secondSchedule?.amount);
-          const uuid = uuidv4();
-          const response = await admin?.graphql(GET_SHOP_WITH_PLAN);
-          const data = await response?.json();
-          const shop = data?.data.shop;
-          const shopId = shop.id;
-          const storeDomain = shop.primaryDomain?.host;
-
-
-          // getDueByValt is true
-          // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
-          let vaultPayment = false;
-          const campaign = await prisma.preorderCampaign.findFirst({
-            where: {
-              id: campaignIds[0],
-            },
-          });
-
-          if (campaign?.getDueByValt) {
-            vaultPayment = true;
+          if (campaignIds.length === 0) {
+            return Response.json(
+              { error: "No preorder found" },
+              { status: 200 },
+            );
           }
 
-          //find email settings respective to shop
+          // find unique campaign ids
+          campaignIds = [...new Set(campaignIds)];
 
-          // get email template
-          const emailSettings = await prisma.store.findFirst({
-            where: { shopId: shopId },
-            select: {
-              ConfrimOrderEmailSettings: true,
-            },
-          });
+          let orderContainsPreorderItem = campaignIds.length > 0;
 
-          const ParsedemailSettings = emailSettings?.ConfrimOrderEmailSettings;
+          // //update preorder_units_sold
+          for (const variantId of formattedVariantIds) {
+            try {
+              await incrementUnitsSold(shop, variantId);
+            } catch (error) {
+              console.log(error);
+            }
+          }
+          //update no of orders for campaign
+          for (const campaignId of campaignIds) {
+            await prisma.preorderCampaign.update({
+              where: { id: campaignId },
+              data: {
+                totalOrders: {
+                  increment: 1,
+                },
+              },
+            });
+          }
 
-          const emailConsent = await prisma.store.findFirst({
-            where: { shopId: shopId },
-            select: {
-              sendCustomEmail: true,
-            },
-          });
+          // get Tags from campaign ids
+          let orderTags: string[] = [];
+          let customerTags: string[] = [];
 
-         const fulfillmentStatus = payload.fulfillment_status || "unfulfilled";
-        const mapFulfillmentStatus = (status: string | null): FulfillmentStatus => {
+          if (campaignIds.length > 0) {
+            const campaigns = await prisma.preorderCampaign.findMany({
+              where: {
+                id: {
+                  in: campaignIds,
+                },
+              },
+            });
+
+            for (const campaign of campaigns) {
+              if (campaign.orderTags) {
+                orderTags.push(String(campaign.orderTags));
+              }
+              if (campaign.customerTags) {
+                customerTags.push(String(campaign.customerTags));
+              }
+            }
+          }
+          if (orderTags.length > 0 && orderContainsPreorderItem) {
+            // add tags to order using mutation
+            const uniqueTags = [
+              ...new Set(orderTags),
+              ...new Set(customerTags),
+            ];
+
+            const orderId = payload.admin_graphql_api_id;
+            // const AddTagsToOrderMutationResponse =
+            await admin?.graphql(AddTagsToOrderMutation, {
+              variables: { id: orderId, tags: uniqueTags },
+            });
+
+            // const AddTagsToOrderMutationResponseBody =
+            //   await AddTagsToOrderMutationResponse.json();
+          }
+
+          if (orderContainsPreorderItem) {
+            const orderId = payload.admin_graphql_api_id;
+            const formattedOrderId = orderId.split("/").pop();
+            const customerId = payload.customer?.admin_graphql_api_id;
+            const order_number = payload.order_number;
+            const schedules = payload?.payment_terms?.payment_schedules || [];
+            const secondSchedule = schedules[1];
+            const customerEmail = payload.email || payload.customer?.email;
+            const remaining = Number(secondSchedule?.amount);
+            const uuid = uuidv4();
+            const response = await admin?.graphql(GET_SHOP_WITH_PLAN);
+            const data = await response?.json();
+            const shop = data?.data.shop;
+            const shopId = shop.id;
+            const storeDomain = shop.primaryDomain?.host;
+
+            // getDueByValt is true
+            // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
+            let vaultPayment = false;
+            const campaign = await prisma.preorderCampaign.findFirst({
+              where: {
+                id: campaignIds[0],
+              },
+            });
+
+            if (campaign?.getDueByValt) {
+              vaultPayment = true;
+            }
+
+            //find email settings respective to shop
+
+            // get email template
+            const emailSettings = await prisma.store.findFirst({
+              where: { shopId: shopId },
+              select: {
+                ConfrimOrderEmailSettings: true,
+              },
+            });
+
+            const ParsedemailSettings =
+              emailSettings?.ConfrimOrderEmailSettings;
+
+            const emailConsent = await prisma.store.findFirst({
+              where: { shopId: shopId },
+              select: {
+                sendCustomEmail: true,
+              },
+            });
+
+            const fulfillmentStatus =
+              payload.fulfillment_status || "unfulfilled";
+            const mapFulfillmentStatus = (
+              status: string | null,
+            ): FulfillmentStatus => {
               switch (status) {
                 case "fulfilled":
                   return "FULFILLED";
@@ -174,173 +185,168 @@ export const action = async ({ request }: { request: Request }) => {
               }
             };
 
-       const campaignOrder =   await createOrder({
-            order_number,
-            order_id: orderId,
-            ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
-            balanceAmount: remaining ?? 0,
-            paymentStatus: remaining > 0 ? "PENDING" : "PAID",
-            storeId: shopId,
-            customerEmail: customerEmail,
-            totalAmount: new Decimal(payload.total_price),
-            currency: payload.currency,
-            fulfilmentStatus : mapFulfillmentStatus(fulfillmentStatus),
-            campaignId : campaignIds[0]
-          });
+            const campaignOrder = await createOrder({
+              order_number,
+              order_id: orderId,
+              ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
+              balanceAmount: remaining ?? 0,
+              paymentStatus: remaining > 0 ? "PENDING" : "PAID",
+              storeId: shopId,
+              customerEmail: customerEmail,
+              totalAmount: new Decimal(payload.total_price),
+              currency: payload.currency,
+              fulfilmentStatus: mapFulfillmentStatus(fulfillmentStatus),
+              campaignId: campaignIds[0],
+            });
 
-          //send update email
-          const getOrderWithProductsResponse = await getOrderWithProducts(
-            orderId,
-            storeDomain,
-          );
+            //send update email
+            const getOrderWithProductsResponse = await getOrderWithProducts(
+              orderId,
+              storeDomain,
+            );
 
-          try {
-            if (emailConsent?.sendCustomEmail) {
-              const emailTemplate = generateEmailTemplate(
-                ParsedemailSettings,
-                getOrderWithProductsResponse,
-                formattedOrderId,
-              );
+            try {
+              if (emailConsent?.sendCustomEmail) {
+                const emailTemplate = generateEmailTemplate(
+                  ParsedemailSettings,
+                  getOrderWithProductsResponse,
+                  formattedOrderId,
+                );
 
-              const transporter = nodemailer.createTransport({
-                service: "Gmail",
-                auth: {
-                  user: process.env.SMTP_USER,
-                  pass: process.env.SMTP_PASS,
+                const transporter = nodemailer.createTransport({
+                  service: "Gmail",
+                  auth: {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS,
+                  },
+                });
+
+                const emailConfig = {
+                  fromName: "Preorder",
+                  replyName: "Preorder@noreply.com",
+                };
+
+                try {
+                  await transporter.sendMail({
+                    from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
+                    to: customerEmail,
+                    subject: "Your Preorder is Confirmed!",
+                    html: emailTemplate,
+                  });
+                } catch (error) {
+                  console.error("❌ Email send error:", error);
+                }
+              }
+            } catch (error) {
+              console.error("❌ Email error:", error);
+            }
+
+            // // Draft order mutation
+            // the only way to match og order with draft order is note key
+            if (remaining > 0 && vaultPayment === false) {
+              await prisma.campaignOrders.update({
+                where: {
+                  order_id: orderId,
+                },
+                data: {
+                  draft_order_id: uuid,
                 },
               });
 
-              const emailConfig = {
-                fromName: "Preorder",
-                replyName: "Preorder@noreply.com",
+              const variables = {
+                input: {
+                  customerId,
+                  lineItems: [
+                    {
+                      title: `Remaining Balance Payment for order #${order_number}`,
+                      quantity: 1,
+                      originalUnitPrice: remaining,
+                    },
+                  ],
+                  note: uuid,
+                  useCustomerDefaultAddress: true,
+                },
               };
 
-              try {
-                await transporter.sendMail({
-                  from: `"${emailConfig?.fromName}" ${emailConfig?.replyName} <${emailConfig?.replyName}>`,
-                  to: customerEmail,
-                  subject: "Your Preorder is Confirmed!",
-                  html: emailTemplate,
-                });
-              } catch (error) {
-                console.error("❌ Email send error:", error);
+              const response = await admin?.graphql(draftOrderCreate, {
+                variables,
+              });
+              const data = await response?.json();
+
+              if (data?.data.draftOrderCreate.userErrors.length) {
+                console.error("❌ Draft order errors:");
+              } else {
+                console.log("✅ Draft order created:");
+                console.log("📧 Invoice URL:");
               }
-            }
-          } catch (error) {
-            console.error("❌ Email error:", error);
-          }
 
-          // // Draft order mutation
-          // the only way to match og order with draft order is note key
-          if (remaining > 0 && vaultPayment === false) {
-            await prisma.campaignOrders.update({
-              where: {
-                order_id: orderId,
-              },
-              data: {
-                draft_order_id: uuid,
-              },
-            });
+              const draftOrderId = data?.data.draftOrderCreate.draftOrder.id;
 
-            const variables = {
-              input: {
-                customerId,
-                lineItems: [
-                  {
-                    title: `Remaining Balance Payment for order #${order_number}`,
-                    quantity: 1,
-                    originalUnitPrice: remaining,
-                  },
-                ],
-                note: uuid,
-                useCustomerDefaultAddress: true,
-              },
-            };
-
-            const response = await admin?.graphql(draftOrderCreate, {
-              variables,
-            });
-            const data = await response?.json();
-
-            if (data?.data.draftOrderCreate.userErrors.length) {
-              console.error(
-                "❌ Draft order errors:",
-              );
-            } else {
-              console.log(
-                "✅ Draft order created:",
-                
-              );
-              console.log(
-                "📧 Invoice URL:",
-                
-              );
-            }
-
-            const draftOrderId = data?.data.draftOrderCreate.draftOrder.id;
-
-            // Call Shopify Admin API
-            const emailResponse = await admin?.graphql(
-              draftOrderInvoiceSendMutation,
-              {
-                variables: {
-                  id: draftOrderId,
-                  email: {
-                    to: customerEmail,
+              // Call Shopify Admin API
+              const emailResponse = await admin?.graphql(
+                draftOrderInvoiceSendMutation,
+                {
+                  variables: {
+                    id: draftOrderId,
+                    email: {
+                      to: customerEmail,
+                    },
                   },
                 },
-              },
-            );
+              );
 
-            const emailData = await emailResponse?.json();
-            console.log(
-              "📧 Invoice send response:",
-              JSON.stringify(emailData, null, 2),
-            );
+              const emailData = await emailResponse?.json();
+              console.log(
+                "📧 Invoice send response:",
+                JSON.stringify(emailData, null, 2),
+              );
 
+              return new Response("OK", {
+                status: 200,
+              });
+            }
+            //if plus store and getDueByValt is true then create mandate
+            else if (remaining > 0 && vaultPayment) {
+              const response = await admin?.graphql(getOrderVaultedMethods, {
+                variables: { id: orderId },
+              });
+
+              const { data }: any = await response?.json();
+              const methods =
+                data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
+              const mandateId = methods?.[0]?.id;
+
+              const duePaymentCreation = await createDuePayment(
+                orderId,
+                crypto.randomUUID().replace(/-/g, "").slice(0, 32),
+                remaining.toString(),
+                secondSchedule.currency,
+                mandateId,
+                secondSchedule.due_at,
+                "PENDING",
+                storeDomain,
+                campaignOrder.id,
+              );
+
+              console.log("Due payment created:", duePaymentCreation);
+
+              return new Response("OK", {
+                status: 200,
+              });
+            }
             return new Response("OK", {
               status: 200,
             });
           }
-          //if plus store and getDueByValt is true then create mandate
-          else if (remaining > 0 && vaultPayment) {
-            const response = await admin?.graphql(getOrderVaultedMethods, {
-              variables: { id: orderId },
-            });
-
-            const { data }: any = await response?.json();
-            const methods =
-              data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
-            const mandateId = methods?.[0]?.id;
-
-            const duePaymentCreation = await createDuePayment(
-              orderId,
-              crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-              remaining.toString(),
-              secondSchedule.currency,
-              mandateId,
-              secondSchedule.due_at,
-              "PENDING",
-              storeDomain,
-              campaignOrder.id
-            );
-
-            console.log("Due payment created:", duePaymentCreation);
-
-            return new Response("OK", {
-              status: 200,
-            });
-          }
-          return new Response("OK", {
-            status: 200,
-          });
+        } catch (error) {
+          console.error("❌ Webhook error:", error);
         }
-      } catch (error) {
-        console.error("❌ Webhook error:", error);
       }
-    }
-  };
-  orderPaid(payload);
+    };
+    orderCreate(payload);
+  } catch (error) {
+    console.error("❌ Webhook error:", error);
+  }
 
   return new Response("ok");
 };
