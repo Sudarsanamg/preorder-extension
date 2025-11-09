@@ -28,11 +28,14 @@ export const action = async ({ request }: { request: Request }) => {
       if (topic === "ORDERS_CREATE") {
         try {
           const line_items = payload.line_items || [];
-          const variantIds = line_items.map((item: any) => item.variant_id);
+          const variantData  = line_items.map((item: any) => ({
+            id: item.variant_id,
+            quantity: item.quantity,
+          }));
 
-          const formattedVariantIds = variantIds.map((id: number) => {
-            return `gid://shopify/ProductVariant/${id}`;
-          });
+          const formattedVariantIds = variantData.map(
+            (v: any) => `gid://shopify/ProductVariant/${v.id}`,
+          );
 
           const GetCampaignIdsQueryResponse = await admin?.graphql(
             GetVariantCampaignIdsQuery,
@@ -63,9 +66,9 @@ export const action = async ({ request }: { request: Request }) => {
           let orderContainsPreorderItem = campaignIds.length > 0;
 
           // //update preorder_units_sold
-          for (const variantId of formattedVariantIds) {
+          for (const data of variantData) {
             try {
-              await incrementUnitsSold(shop, variantId);
+              await incrementUnitsSold(shop, data);
             } catch (error) {
               console.log(error);
             }
@@ -191,7 +194,7 @@ export const action = async ({ request }: { request: Request }) => {
               ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
               balanceAmount: remaining ?? 0,
               paymentStatus: remaining > 0 ? "PENDING" : "PAID",
-              storeId: shopId,
+              shopId: shopId,
               customerEmail: customerEmail,
               totalAmount: new Decimal(payload.total_price),
               currency: payload.currency,
@@ -274,10 +277,10 @@ export const action = async ({ request }: { request: Request }) => {
               const data = await response?.json();
 
               if (data?.data.draftOrderCreate.userErrors.length) {
-                console.error("❌ Draft order errors:");
+                console.error(" Draft order errors:");
               } else {
-                console.log("✅ Draft order created:");
-                console.log("📧 Invoice URL:");
+                console.log("Draft order created:");
+                console.log(" Invoice URL:");
               }
 
               const draftOrderId = data?.data.draftOrderCreate.draftOrder.id;
@@ -297,7 +300,7 @@ export const action = async ({ request }: { request: Request }) => {
 
               const emailData = await emailResponse?.json();
               console.log(
-                "📧 Invoice send response:",
+                " Invoice send response:",
                 JSON.stringify(emailData, null, 2),
               );
 
@@ -316,9 +319,8 @@ export const action = async ({ request }: { request: Request }) => {
                 data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
               const mandateId = methods?.[0]?.id;
 
-              const duePaymentCreation = await createDuePayment(
+              await createDuePayment(
                 orderId,
-                crypto.randomUUID().replace(/-/g, "").slice(0, 32),
                 remaining.toString(),
                 secondSchedule.currency,
                 mandateId,
@@ -327,8 +329,6 @@ export const action = async ({ request }: { request: Request }) => {
                 storeDomain,
                 campaignOrder.id,
               );
-
-              console.log("Due payment created:", duePaymentCreation);
 
               return new Response("OK", {
                 status: 200,
@@ -339,13 +339,13 @@ export const action = async ({ request }: { request: Request }) => {
             });
           }
         } catch (error) {
-          console.error("❌ Webhook error:", error);
+          console.error(" Webhook error:", error);
         }
       }
     };
     orderCreate(payload);
   } catch (error) {
-    console.error("❌ Webhook error:", error);
+    console.error(" Webhook error:", error);
   }
 
   return new Response("ok");

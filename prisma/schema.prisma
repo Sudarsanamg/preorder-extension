@@ -54,7 +54,6 @@ model VaultedPayment {
   orderId         String           @unique
   storeId         String
   campaignOrderId String           @unique
-  idempotencyKey  String
   amount          Decimal
   currencyCode    String
   mandateId       String

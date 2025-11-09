@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://requested-opera-justice-alive.trycloudflare.com"
+application_url = "https://albuquerque-tumor-nights-venue.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -41,13 +41,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://requested-opera-justice-alive.trycloudflare.com/auth/callback",
-  "https://requested-opera-justice-alive.trycloudflare.com/auth/shopify/callback",
-  "https://requested-opera-justice-alive.trycloudflare.com/api/auth/callback"
+  "https://albuquerque-tumor-nights-venue.trycloudflare.com/auth/callback",
+  "https://albuquerque-tumor-nights-venue.trycloudflare.com/auth/shopify/callback",
+  "https://albuquerque-tumor-nights-venue.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://requested-opera-justice-alive.trycloudflare.com/apps/cancel-order"
+url = "https://albuquerque-tumor-nights-venue.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

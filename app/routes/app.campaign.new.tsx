@@ -712,13 +712,18 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
  
 
   const handleDateChange = (field: string, range: any) => {
-    const localDate = new Date(
+   if (!range?.start) return; 
+
+  const utcDate = new Date(
+    Date.UTC(
       range.start.getFullYear(),
       range.start.getMonth(),
-      range.start.getDate(),
-    );
-    setSelectedDates((prev) => ({ ...prev, [field]: localDate }));
-    setPopoverActive((prev) => ({ ...prev, [field]: false }));
+      range.start.getDate()
+    )
+  );
+
+  setSelectedDates((prev) => ({ ...prev, [field]: utcDate }));
+  setPopoverActive((prev) => ({ ...prev, [field]: false }));
   };
 
   const tabs = [

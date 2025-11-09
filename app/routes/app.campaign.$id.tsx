@@ -49,7 +49,10 @@ import {
 } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { unpublishMutation } from "app/graphql/mutation/metaobject";
-import { GET_PRODUCTS_WITH_PREORDER_WITH_ID, GET_VARIENT_BY_IDS } from "app/graphql/queries/products";
+import {
+  GET_PRODUCTS_WITH_PREORDER_WITH_ID,
+  GET_VARIENT_BY_IDS,
+} from "app/graphql/queries/products";
 import { fetchMetaobject } from "app/services/metaobject.server";
 import {
   allowOutOfStockForVariants,
@@ -81,7 +84,10 @@ import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import { formatCurrency } from "app/helper/currencyFormatter";
-import { CampaignSchema, DesignSchema } from "app/utils/validator/zodValidateSchema";
+import {
+  CampaignSchema,
+  DesignSchema,
+} from "app/utils/validator/zodValidateSchema";
 import "../tailwind.css";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -103,7 +109,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       const response = await admin.graphql(GET_COLLECTION_PRODUCTS, {
         variables: { id: collectionId },
       });
-      const resData: any = ( await response.json)
+      const resData: any = (await response.json)
         ? await response.json()
         : response;
 
@@ -173,10 +179,10 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       productTitle: variant.productTitle,
     }));
     const shopDomain = session.shop;
-     const shopResponse = await admin.graphql(GET_SHOP);
-      const shopResponseData = await shopResponse.json();
-      const shopId = shopResponseData.data.shop.id;
-   
+    const shopResponse = await admin.graphql(GET_SHOP);
+    const shopResponseData = await shopResponse.json();
+    const shopId = shopResponseData.data.shop.id;
+
     const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
     const storeId = await getStoreIdByShopId(shopId as string);
     const getDueByValtResponse = await prisma.preorderCampaign.findUnique({
@@ -201,14 +207,17 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
-  const { admin ,session} = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const response = await admin.graphql(GET_SHOP);
   const data = await response.json();
   const shopId = data.data.shop.id;
   const isStoreExist = await isStoreRegistered(shop);
-  if(!isStoreExist){
-    return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+  if (!isStoreExist) {
+    return Response.json(
+      { success: false, error: "Store not found" },
+      { status: 404 },
+    );
   }
 
   const formData = await request.formData();
@@ -263,7 +272,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         discountType: formData.get("discountType") as DiscountType,
         discountPercent: Number(formData.get("discountPercentage") || "0"),
         discountFixed: Number(formData.get("flatDiscount") || "0"),
-        campaignType  : formData.get("campaignType") as CampaignType,
+        campaignType: formData.get("campaignType") as CampaignType,
         getDueByValt: (formData.get("getDueByValt") as string) === "true",
         status: campaignCurrentStatus,
         fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
@@ -273,9 +282,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         fulfilmentDaysAfter: Number(formData.get("fulfilmentDaysAfter")),
         fulfilmentExactDate: new Date(
           formData.get("fulfilmentExactDate") as string,
-        
         ),
-        shopId:shopId
+        shopId: shopId,
       });
       const updatedProducts = JSON.parse(
         (formData.get("products") as string) || "[]",
@@ -388,6 +396,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }
 
       const products = JSON.parse((formData.get("products") as string) || "[]");
+      const campaignType = formData.get("campaignType") as CampaignType;
 
       const metafields = products.flatMap((product: any) => [
         {
@@ -434,7 +443,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           namespace: "custom",
           key: "preorder_max_units",
           type: "number_integer",
-          value: String(product?.maxUnit || "0"),
+          value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
         },
         {
           ownerId: product.variantId,
@@ -491,7 +502,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           namespace: "custom",
           key: "preorder_max_units",
           type: "number_integer",
-          value: String(product?.maxUnit || "0"),
+          value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
         },
         {
           ownerId: product.productId,
@@ -503,19 +516,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       ]);
 
       try {
-          for (let i = 0; i < metafields.length; i += 20) {
-            const batch = metafields.slice(i, i + 20);
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields: batch },
-            });
-          }
+        for (let i = 0; i < metafields.length; i += 20) {
+          const batch = metafields.slice(i, i + 20);
+          await admin.graphql(SET_PREORDER_METAFIELDS, {
+            variables: { metafields: batch },
+          });
+        }
 
-          for(let i = 0; i < productMetafields.length; i += 20) {
-            const batch = productMetafields.slice(i, i + 20);
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields: batch },
-            });
-          }
+        for (let i = 0; i < productMetafields.length; i += 20) {
+          const batch = productMetafields.slice(i, i + 20);
+          await admin.graphql(SET_PREORDER_METAFIELDS, {
+            variables: { metafields: batch },
+          });
+        }
       } catch (err) {
         console.error("GraphQL mutation failed:", err);
         throw err;
@@ -530,7 +543,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         //need to remove selling group and
         //remove metafields
         for (const variantId of parsedRemovedVarients) {
-          const { data } :any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+          const { data }: any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
             variables: {
               id: variantId,
             },
@@ -587,8 +600,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               variables: { metafields: batch },
             });
           }
-        } 
-        catch (err) {
+        } catch (err) {
           console.error("GraphQL mutation failed:", err);
           throw err;
         }
@@ -620,6 +632,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     }
 
     const products = JSON.parse((formData.get("products") as string) || "[]");
+    const campaignType = formData.get("campaignType") as CampaignType;
     const metafields = products.flatMap((product: any) => [
       {
         ownerId: product.variantId,
@@ -661,7 +674,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         namespace: "custom",
         key: "preorder_max_units",
         type: "number_integer",
-        value: String(product?.maxUnit || "0"),
+        value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
       },
       {
         ownerId: product.variantId,
@@ -714,7 +729,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         namespace: "custom",
         key: "preorder_max_units",
         type: "number_integer",
-        value: String(product?.maxUnit || "0"),
+        value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
       },
       {
         ownerId: product.productId,
@@ -726,18 +743,22 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     ]);
 
     try {
-      const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
-        variables: { metafields },
-      });
-      await admin.graphql(SET_PREORDER_METAFIELDS, {
-        variables: { metafields: productMetafields },
-      });
-
-      const response = await graphqlResponse.json();
-
-      if (response.data?.metafieldsSet?.userErrors?.length) {
-        console.error(response.data.metafieldsSet.userErrors);
+      for (let i = 0; i < metafields.length; i += 20) {
+        const batch = metafields.slice(i, i + 20);
+        await admin.graphql(SET_PREORDER_METAFIELDS, {
+          variables: { metafields : batch },
+        });
       }
+
+     for(let i = 0; i < productMetafields.length; i += 20){
+       const batch = productMetafields.slice(i, i + 20);
+      await admin.graphql(SET_PREORDER_METAFIELDS, {
+        variables: { metafields: batch },
+      });
+    }
+
+
+     
     } catch (err) {
       console.error("❌ GraphQL mutation failed:", err);
       throw err;
@@ -779,7 +800,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       allowOutOfStockForVariants(admin, products);
     }
 
-    await updateCampaignStatus(params.id!, "PUBLISHED",shopId);
+    await updateCampaignStatus(params.id!, "PUBLISHED", shopId);
     // return redirect(`/app/`);
     return Response.json({ success: true, error: null }, { status: 200 });
   }
@@ -796,35 +817,35 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       const products = JSON.parse((formData.get("products") as string) || "[]");
 
-    let metafields;
+      let metafields;
 
-    if (secondaryIntent === "delete-campaign") {
-      metafields = products.flatMap((product: any) => [
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "campaign_id",
-          type: "single_line_text_field",
-          value: "null",
-        },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "preorder",
-          value: "false",
-        },
-      ]);
-    } else {
-      metafields = products.flatMap((product: any) => [
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "preorder",
-          type: "boolean",
-          value: "false",
-        },
-      ]);
-    }
+      if (secondaryIntent === "delete-campaign") {
+        metafields = products.flatMap((product: any) => [
+          {
+            ownerId: product.variantId,
+            namespace: "custom",
+            key: "campaign_id",
+            type: "single_line_text_field",
+            value: "null",
+          },
+          {
+            ownerId: product.variantId,
+            namespace: "custom",
+            key: "preorder",
+            value: "false",
+          },
+        ]);
+      } else {
+        metafields = products.flatMap((product: any) => [
+          {
+            ownerId: product.variantId,
+            namespace: "custom",
+            key: "preorder",
+            type: "boolean",
+            value: "false",
+          },
+        ]);
+      }
 
       try {
         const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
@@ -881,17 +902,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       // const data = await response.json();
       // const shopId = data.data.shop.id;
 
-      await updateCampaignStatus(params.id!, "UNPUBLISH",shopId);
+      await updateCampaignStatus(params.id!, "UNPUBLISH", shopId);
       // if (secondaryIntent === "NONE" || secondaryIntent === "delete-campaign") {
       removeDiscountFromVariants(
         admin,
         products.map((product: any) => product.variantId),
       );
       // }
-      
 
       if (secondaryIntent === "delete-campaign") {
-        await deleteCampaign(params.id!,shopId);
+        await deleteCampaign(params.id!, shopId);
       }
       if (secondaryIntent === "delete-campaign-create-new") {
         const campaign = await updateCampaign({
@@ -929,6 +949,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         const products = JSON.parse(
           (formData.get("products") as string) || "[]",
         );
+
+
+        console.log(products, "products");
 
         if (products.length > 0) {
           await replaceProductsInCampaign(String(params.id!), products);
@@ -995,9 +1018,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           ]);
 
           try {
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields },
-            });
+            for (let i = 0; i < metafields.length; i += 20) {
+              const batch = metafields.slice(i, i + 20);
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields: batch },
+              });
+            }
           } catch (err) {
             console.error("GraphQL mutation failed:", err);
             throw err;
@@ -1138,7 +1164,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         await updateCampaignStatus(
           campaign.id,
           campaignCurrentStatus as CampaignStatus,
-          shopId
+          shopId,
         );
         const removedVarients = formData.get("removedVarients") as string;
         const parsedRemovedVarients = removedVarients
@@ -1149,11 +1175,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           //need to remove selling group and
           //remove metafields
           for (const variantId of parsedRemovedVarients) {
-            const { data } :any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
-              variables: {
-                id: variantId,
+            const { data }: any = await admin.graphql(
+              GET_VARIANT_SELLING_PLANS,
+              {
+                variables: {
+                  id: variantId,
+                },
               },
-            });
+            );
 
             const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
             for (const g of groups) {
@@ -1219,12 +1248,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
         // return redirect("/app");
         return Response.json({ success: true, error: null }, { status: 200 });
-
       }
 
       if (secondaryIntent === "save-as-draft") {
         const campaignId = (formData.get("id") ?? "") as string;
-        await updateCampaignStatus(campaignId, "DRAFT",shopId);
+        await updateCampaignStatus(campaignId, "DRAFT", shopId);
         return redirect("/app");
       }
 
@@ -1253,11 +1281,10 @@ export default function CampaignDetail() {
     shopifyPaymentsEnabled: boolean;
     getDueByValt: boolean;
   };
-   const { productsWithPreorder } = useActionData<typeof action>() ?? {
-      productsWithPreorder: [],
-    };
+  const { productsWithPreorder } = useActionData<typeof action>() ?? {
+    productsWithPreorder: [],
+  };
   const actionData = useActionData<typeof action>();
-
 
   console.log(productsWithPreorder, "productsWithPreorder");
   const [buttonLoading, setButtonLoading] = useState({
@@ -1266,7 +1293,6 @@ export default function CampaignDetail() {
     save: false,
     saveAsDraft: false,
     addAll: false,
-
   });
 
   // const navigation = useNavigation();
@@ -1284,7 +1310,7 @@ export default function CampaignDetail() {
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
   });
-const discarding = useRef(false);
+  const discarding = useRef(false);
 
   const MetaObjectDuePaymentData = parsedCampaignData.payment_schedule;
   const MetaObjectFullfillmentSchedule = parsedCampaignData.fulfillment;
@@ -1383,17 +1409,16 @@ const discarding = useRef(false);
     flatDiscount: parsedCampaignData?.discountfixed,
     getPaymentsViaValtedPayments: getDueByValt,
   });
-const initialCampaignRef = useRef(campaignData);
-const initialDesignRef = useRef(designFields);
-const [productFetched,setProductFetched] = useState(false);
-console.log(productFetched)
-const [warningPopoverActive, setWarningPopoverActive] = useState(false);
- const [noProductWarning, setNoProductWarning] = useState(false);
-const [errors, setErrors] = useState<string[]>([]);
-const navigation = useNavigation();
-// const isSaving = navigation.state === "submitting";
-const [formHasChanges, setFormHasChanges] = useState(false);
-
+  const initialCampaignRef = useRef(campaignData);
+  const initialDesignRef = useRef(designFields);
+  const [productFetched, setProductFetched] = useState(false);
+  console.log(productFetched);
+  const [warningPopoverActive, setWarningPopoverActive] = useState(false);
+  const [noProductWarning, setNoProductWarning] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  const navigation = useNavigation();
+  // const isSaving = navigation.state === "submitting";
+  const [formHasChanges, setFormHasChanges] = useState(false);
 
   const handleCampaignDataChange = <K extends keyof CampaignFields>(
     field: K,
@@ -1571,9 +1596,15 @@ const [formHasChanges, setFormHasChanges] = useState(false);
       "depositPercent",
       String(campaignData.partialPaymentPercentage),
     );
-    formData.append("balanceDueDate", selectedDates.duePaymentDate.toISOString());
+    formData.append(
+      "balanceDueDate",
+      selectedDates.duePaymentDate.toISOString(),
+    );
     formData.append("refundDeadlineDays", "0");
-    formData.append("campaignEndDate", selectedDates.campaignEndDate.toISOString());
+    formData.append(
+      "campaignEndDate",
+      selectedDates.campaignEndDate.toISOString(),
+    );
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("campaignType", String(campaignData.campaignType));
     formData.append("buttonText", String(campaignData.buttonText));
@@ -1606,19 +1637,15 @@ const [formHasChanges, setFormHasChanges] = useState(false);
   }
 
   async function handleUnpublish(id: string): Promise<void> {
-
-    const valid= await validateForm();
-    if(!valid){
-      return
+    const valid = await validateForm();
+    if (!valid) {
+      return;
     }
 
-
-    
-    if(selectedProducts.length === 0){
+    if (selectedProducts.length === 0) {
       setNoProductWarning(true);
-      return
+      return;
     }
-    
 
     setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
@@ -1686,18 +1713,17 @@ const [formHasChanges, setFormHasChanges] = useState(false);
   }
 
   const handleSave = async () => {
-    
-   const valid = await validateForm();
+    const valid = await validateForm();
 
-   if(valid === false){
-    return;
-   }
-
-    if(selectedProducts.length === 0){
-      setNoProductWarning(true);
-      return
+    if (valid === false) {
+      return;
     }
-    
+
+    if (selectedProducts.length === 0) {
+      setNoProductWarning(true);
+      return;
+    }
+
     setButtonLoading((prev) => ({ ...prev, save: true }));
     try {
       if (criticalChange === true) {
@@ -1726,23 +1752,21 @@ const [formHasChanges, setFormHasChanges] = useState(false);
     setSaveBarActive(false);
   };
 
+  async function handlePublish(id: string): Promise<void> {
+    const valid = await validateForm();
 
- async function handlePublish(id: string): Promise<void> {
-
-   const valid = await validateForm();
-
-   if(valid === false){
-    return;
-   }
+    if (valid === false) {
+      return;
+    }
 
     // if(errors.length > 0){
     //   return;
     // }
-    if(selectedProducts.length === 0){
+    if (selectedProducts.length === 0) {
       setNoProductWarning(true);
-      return
+      return;
     }
-    
+
     setButtonLoading((prev) => ({ ...prev, publish: true }));
     const formData = new FormData();
     formData.append("intent", "publish-campaign");
@@ -1794,20 +1818,19 @@ const [formHasChanges, setFormHasChanges] = useState(false);
       JSON.stringify(selectedProducts) ===
         JSON.stringify(initialProducts.current) &&
       removedVarients.length === 0 &&
-      JSON.stringify(selectedDates) ===
-        JSON.stringify(initialDates.current);
+      JSON.stringify(selectedDates) === JSON.stringify(initialDates.current);
 
     setFormHasChanges(!noChanges);
-    
-  }, [designFields,
+  }, [
+    designFields,
     selectedProducts,
     campaignData,
     removedVarients,
     selectedDates,
-    saveBarActive]);
+    saveBarActive,
+  ]);
 
-
- useEffect(() => {
+  useEffect(() => {
     if (discarding.current) {
       discarding.current = false;
       return;
@@ -1821,8 +1844,7 @@ const [formHasChanges, setFormHasChanges] = useState(false);
       JSON.stringify(selectedProducts) ===
         JSON.stringify(initialProducts.current) &&
       removedVarients.length === 0 &&
-      JSON.stringify(selectedDates) ===
-        JSON.stringify(initialDates.current);
+      JSON.stringify(selectedDates) === JSON.stringify(initialDates.current);
 
     if (noChanges) {
       if (saveBarActive) {
@@ -1844,8 +1866,7 @@ const [formHasChanges, setFormHasChanges] = useState(false);
     saveBarActive,
   ]);
 
-
-useEffect(() => {
+  useEffect(() => {
     if (navigation.state === "idle" && actionData?.success) {
       // ✅ Hide save bar only when save succeeded
       shopify.saveBar.hide("my-save-bar");
@@ -1853,8 +1874,8 @@ useEffect(() => {
       shopify.toast.show("Action Completed Successfully");
 
       // reset your loading buttons
-      setButtonLoading((prev):any =>
-        Object.fromEntries(Object.keys(prev).map((key) => [key, false]))
+      setButtonLoading((prev): any =>
+        Object.fromEntries(Object.keys(prev).map((key) => [key, false])),
       );
 
       // also reset your initial refs so future changes track correctly
@@ -1865,7 +1886,6 @@ useEffect(() => {
       navigate("/app");
     }
   }, [navigation.state, actionData]);
-
 
   const handleButtonClick = useCallback(
     (index: number) => {
@@ -1917,28 +1937,28 @@ useEffect(() => {
   //   submit(formData, { method: "post" });
   // }
 
-    const selectAllProducts = async () => {
-      setButtonLoading(() => ({ ...buttonLoading, addAll: true }));
-      const res = await fetch("/api/products");
-      const allVariants = await res.json();
-      setSelectedProducts(allVariants);
-      setButtonLoading(() => ({ ...buttonLoading, addAll: false }));
-      setProductFetched(true);
-    };
+  const selectAllProducts = async () => {
+    setButtonLoading(() => ({ ...buttonLoading, addAll: true }));
+    const res = await fetch("/api/products");
+    const allVariants = await res.json();
+    setSelectedProducts(allVariants);
+    setButtonLoading(() => ({ ...buttonLoading, addAll: false }));
+    setProductFetched(true);
+  };
 
   useEffect(() => {
     // if (productFetched === true) {
-      const formData = new FormData();
-      formData.append("intent", "productsWithPreorder");
-      formData.append("products", JSON.stringify(selectedProducts));
-      formData.append("campaignId", campaign.id);
-      setProductFetched(false);
+    const formData = new FormData();
+    formData.append("intent", "productsWithPreorder");
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignId", campaign.id);
+    setProductFetched(false);
 
-      submit(formData, { method: "post" });
+    submit(formData, { method: "post" });
     // }
-  }, [ selectedProducts, campaign.id]);
+  }, [selectedProducts, campaign.id]);
 
-   useEffect(() => {
+  useEffect(() => {
     let flag = false;
     if (!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
@@ -1949,7 +1969,6 @@ useEffect(() => {
       }
     }
 
-
     if (flag) {
       setWarningPopoverActive(true);
     } else {
@@ -1957,19 +1976,16 @@ useEffect(() => {
     }
   }, [selectedProducts, productsWithPreorder]);
 
-  const handleDuplication=(id: any) =>{
+  const handleDuplication = (id: any) => {
     const prod = productsWithPreorder?.find(
       (product: any) => product.id === id,
-    )
-    if(prod && prod.associatedWithOtherCampaign == true){
+    );
+    if (prod && prod.associatedWithOtherCampaign == true) {
       return true;
     }
-  }
+  };
 
-
-
-
-    const validateForm = async () => {
+  const validateForm = async () => {
     const campaignResult: any = CampaignSchema.safeParse(campaignData);
     const designResult: any = DesignSchema.safeParse(designFields);
 
@@ -1993,7 +2009,6 @@ useEffect(() => {
       errorMessages = [...errorMessages, ...collectErrors(formatted)];
     }
 
-
     if (!designResult.success) {
       const formattedDesign = designResult.error.format();
       errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
@@ -2007,9 +2022,6 @@ useEffect(() => {
     setErrors([]);
     return true;
   };
-  
-
-    
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -2394,7 +2406,7 @@ useEffect(() => {
                                 ? designFields.messageFontSize + "px"
                                 : "16px",
                             color: designFields.preorderMessageColor,
-                          }}              
+                          }}
                         >
                           {campaignData.shippingMessage}
                         </h3>
@@ -2771,12 +2783,17 @@ useEffect(() => {
                   <Button
                     onClick={handleSave}
                     loading={buttonLoading.save}
-                    disabled={buttonLoading.save || buttonLoading.publish || formHasChanges===false }
+                    disabled={
+                      buttonLoading.save ||
+                      buttonLoading.publish ||
+                      formHasChanges === false ||
+                      buttonLoading.delete
+                    }
                   >
-                   Save
+                    Save
                   </Button>
                   <Button
-                    onClick={()=>{
+                    onClick={() => {
                       if (campaign?.status === "PUBLISHED") {
                         handleUnpublish(String(campaign?.id));
                       } else {
@@ -2784,7 +2801,11 @@ useEffect(() => {
                       }
                     }}
                     loading={buttonLoading.publish}
-                    disabled={buttonLoading.publish || buttonLoading.save || buttonLoading.delete}
+                    disabled={
+                      buttonLoading.publish ||
+                      buttonLoading.save ||
+                      buttonLoading.delete
+                    }
                     variant="primary"
                   >
                     {campaign?.status === "PUBLISHED" ? "Unpublish" : "Publish"}

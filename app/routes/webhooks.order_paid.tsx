@@ -9,7 +9,7 @@ export const action = async ({ request }: { request: Request }) => {
     const { topic, payload, admin } = await authenticate.webhook(request);
 
     if(topic !== "ORDERS_PAID"){
-      return Response.json({ error: "Invalid topic" }, { status: 500 });
+      return Response.json({ error: "Invalid topic" }, { status: 200 });
     }
     const note = payload.note;
     const ogOrder = await prisma.campaignOrders.findFirst({
@@ -18,7 +18,7 @@ export const action = async ({ request }: { request: Request }) => {
       }
     })
     if(!ogOrder){
-      return Response.json({ error: "No preorder found" }, { status: 500 });
+      return Response.json({ error: "No preorder found" }, { status: 200 });
     }
     const ogOrderId = ogOrder?.order_id;
 
@@ -34,7 +34,7 @@ export const action = async ({ request }: { request: Request }) => {
 
     if (data.errors) {
       console.error("GraphQL Errors:", data.errors);
-      return Response.json({ error: data.errors }, { status: 500 });
+      return Response.json({ error: data.errors }, { status: 200 });
     }
 
     if (data.data.orderMarkAsPaid.userErrors.length > 0) {

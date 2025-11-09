@@ -36,15 +36,24 @@ const campaignType =
    const quantityError = document.getElementById("quantity-error");
    quantityError.textContent="";
 
-    const isPreorder = btn.dataset.preorder == "true";
+    const isPreorder = btn.dataset.preorder == 'true';
     const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
     const unitsSold = parseInt(btn.dataset.unitsSold || "0", 10);
     const inStock = Number(unitsSold) < Number(maxUnits);
+    const isVariantAvailable = btn.dataset.instock === "true";
     // Apply campaign rules
+    // console.log(typeof  btn.dataset.preorder)
+    // console.log(btn.dataset.preorder,'preorder');
+    // console.log(campaignType, 'campaignType');
+    // console.log(isPreorder, 'isPreorder');
+    // console.log(inStock, 'inStock');
+    // console.log(maxUnits, 'maxUnits');
+    // console.log(unitsSold, 'unitsSold');
+    // console.log(btn.dataset.instock, 'isVariantAvailable');
     let showPreorder = false;
-    if (campaignType === 1 && !inStock) showPreorder = true;
+    if (campaignType === 1 && !isVariantAvailable && inStock) showPreorder = true;
     else if (campaignType === 2) showPreorder = true;
-    else if (campaignType === 3 && inStock) showPreorder = true;
+    else if (campaignType === 3 && isVariantAvailable && inStock) showPreorder = true;
 
     if (isPreorder && showPreorder) {
       btn.style.display = "flex";

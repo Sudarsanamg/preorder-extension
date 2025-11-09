@@ -201,7 +201,6 @@ export default function AdditionalPage() {
     customerEmail: order.customerEmail,
   }));
 
-  // Filters
   const filters = [
     {
       key: "paymentStatus",
@@ -214,6 +213,7 @@ export default function AdditionalPage() {
             { label: "All", value: "" },
             { label: "Paid", value: "paid" },
             { label: "Partially paid", value: "pending" },
+            { label: "Cancelled", value: "cancelled" },
           ]}
           value={paymentStatus}
           onChange={(value: any) => setPaymentStatus(value)}
@@ -259,7 +259,7 @@ export default function AdditionalPage() {
     if (actionData?.success) {
       setIsSending(false);
       setActive(false);
-      shopify?.toast?.show?.('Message sent'); // or replace with your toast solution
+      shopify?.toast?.show?.('Message sent'); 
       clearSelection(); 
     }
     if (actionData && !actionData.success) {

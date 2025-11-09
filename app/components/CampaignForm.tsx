@@ -319,7 +319,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         <Card>
           <div style={{ marginBottom: 10 }}>
             <Text as="h4" variant="headingSm">
-              Preorder note
+              Preorder Note
             </Text>
           </div>
           <p>Visible in cart, checkout, transactional emails</p>
@@ -837,7 +837,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         <Card>
           <BlockStack gap={"200"}>
             <Text as="h4" variant="headingSm">
-              Order tags
+              Order Tags
             </Text>
             <div onKeyDown={handleKeyDown}>
               <TextField
@@ -845,6 +845,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 value={productTagInput}
                 onChange={(value) => setProductTagInput(value)}
                 autoComplete="off"
+                helpText="Press enter to add tag"
               />
             </div>
             <Text as="h4" variant="headingSm">
@@ -893,6 +894,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 value={customerTagInput}
                 onChange={(value) => setCustomerTagInput(value)}
                 autoComplete="off"
+                helpText="Press enter to add tag"
               />
             </div>
             <Text as="h4" variant="headingSm">
