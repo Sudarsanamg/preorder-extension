@@ -1707,8 +1707,8 @@ export default function CampaignDetail() {
         ? "DAYS_AFTER"
         : "EXACT_DATE",
     );
-    formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
-    formData.append("fulfilmentDate", selectedDates.fullfillmentSchedule);
+  formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
+  formData.append("fulfilmentDate", selectedDates.fullfillmentSchedule);
   formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
   formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
   formData.append("fullPaymentText", campaignData.fullPaymentText);
@@ -1749,7 +1749,6 @@ export default function CampaignDetail() {
   };
 
   const handleDiscard = () => {
-    // console.log("Discarding");
     discarding.current = true;
     shopify.saveBar.hide("my-save-bar");
     setSaveBarActive(false);
@@ -1757,6 +1756,7 @@ export default function CampaignDetail() {
     setDesignFields({ ...initialDesignRef.current });
     setSelectedProducts([...initialProducts.current]);
     setSelectedDates({ ...initialDates.current });
+    setRemovedVarients([]);
     shopify.saveBar.hide("my-save-bar");
     setSaveBarActive(false);
   };
@@ -2520,7 +2520,7 @@ export default function CampaignDetail() {
                   >
                     <div>
                       <Text as="p" variant="headingSm">
-                        Add products to Preorder
+                        Add Products to Preorder
                       </Text>
                     </div>
                     <div>
@@ -2672,7 +2672,9 @@ export default function CampaignDetail() {
                               padding: "8px",
                               borderBottom: "1px solid #eee",
                             }}
-                          ></th>
+                          >
+                            Action
+                          </th>
                         </tr>
                       </thead>
                       <tbody>

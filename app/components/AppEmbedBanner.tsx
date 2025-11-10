@@ -21,7 +21,7 @@ export function AppEmbedBanner({
     if ( loader) {
       setTimeout(() => {
         setLoader(false);
-      },2000)
+      },5000)
     }
   }, [isAppEmbedEnabled,loader]);
 
@@ -29,7 +29,7 @@ export function AppEmbedBanner({
 
   const handleActivateNow = () => {
     window.open(
-      `https://${shop}/admin/themes/current/editor?context=apps&activateAppId=preorder-extension`,
+      `https://${shop}/admin/themes/current/editor?context=apps&activateAppId=409fb8e80f3145241daeff0fccc04a8c/preorder-embed`,
       "_blank"
     );
   };

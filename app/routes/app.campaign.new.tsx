@@ -88,6 +88,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return Response.json({ success: false, error: "Store not found" }, { status: 404 });
     }
   const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
+  const storeCurrency = data.data.shop.currencyCode;
 
   switch (intent) {
     case "fetchProductsInCollection": {
@@ -127,7 +128,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true, shopId, plusStore ,shopifyPaymentsEnabled });
+  return json({ success: true, shopId, plusStore ,shopifyPaymentsEnabled ,storeCurrency });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -501,11 +502,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // }
 
 export default function Newcampaign() {
-  let { prod, shopId, plusStore ,shopifyPaymentsEnabled } = useLoaderData<typeof loader>() as {
+  let { prod, shopId, plusStore ,shopifyPaymentsEnabled ,storeCurrency } =  useLoaderData<typeof loader>() as {
     prod: any[];
     shopId: string;
     plusStore: boolean;
     shopifyPaymentsEnabled: boolean;
+    storeCurrency: string;
   };
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
@@ -925,7 +927,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     const prod = productsWithPreorder?.find(
       (product: any) => product.id === id,
     );
-    if (prod && prod.campaignId !== 'null') {
+    if (prod && prod?.campaignId && prod?.campaignId !=='null') {
       return true;
     }
 
@@ -1538,7 +1540,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                   >
                     <div>
                       <Text as="p" variant="headingSm">
-                        Add products to Preorder
+                        Add Products to Preorder
                       </Text>
                     </div>
                     <div style={{ display:"flex",textAlign: "center" }}>
@@ -1780,7 +1782,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                 textAlign: "center",
                               }}
                             >
-                              {formatCurrency(product.variantPrice, "USD")}
+                              {formatCurrency(product.variantPrice, storeCurrency)}
                             </td>
                             <td
                               style={{

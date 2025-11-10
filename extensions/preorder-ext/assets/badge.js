@@ -75,18 +75,18 @@ const campaignType =
     const preorder = variantData.dataset[`variant-${variantId}`] === "true";
     let showBadge = false;
 
-    if (campaignType && preorder) {
-      const el = document.getElementById(`variant-${variantId}`);
-      const inStock = el ? el.dataset.instock === "true" : false;
+    // if (campaignType && preorder) {
+    //   const el = document.getElementById(`variant-${variantId}`);
+    //   const inStock = el ? el.dataset.instock === "true" : false;
 
-      if (
-        (campaignType === 1 && !inStock) ||
-        campaignType === 2 ||
-        (campaignType === 3 )
-      ) {
-        showBadge = true;
-      }
-    }
+    //   if (
+    //     (campaignType === 1 && !inStock) ||
+    //     campaignType === 2 ||
+    //     (campaignType === 3 )
+    //   ) {
+    //     showBadge = true;
+    //   }
+    // }
 
     badge.style.display = showBadge ? "inline-block" : "none";
   }

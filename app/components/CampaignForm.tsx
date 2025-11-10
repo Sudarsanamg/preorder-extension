@@ -772,8 +772,6 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           onChange={(value) =>
                             handleCampaignDataChange("scheduledDays", value)
                           }
-                          
-                          
                         />
                       )}
                       {campaignData.scheduledFullfillmentType === 2 && (
@@ -812,6 +810,9 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                                 start: selectedDates.fullfillmentSchedule,
                                 end: selectedDates.fullfillmentSchedule,
                               }}
+                              disableDatesBefore={
+                                new Date(new Date().setHours(0, 0, 0, 0))
+                              }
                             />
                           </Popover>
                         </div>
