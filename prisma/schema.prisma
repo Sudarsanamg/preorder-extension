@@ -156,7 +156,6 @@ enum CampaignStatus {
   PUBLISHED
   UNPUBLISH
   ARCHIVED
-  DELETED
 }
 
 enum Fulfilmentmode {

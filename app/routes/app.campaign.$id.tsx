@@ -1709,6 +1709,14 @@ export default function CampaignDetail() {
     );
     formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
     formData.append("fulfilmentDate", selectedDates.fullfillmentSchedule);
+  formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
+  formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
+  formData.append("fullPaymentText", campaignData.fullPaymentText);
+  formData.append("partialPaymentText", campaignData.partialPaymentText);
+  formData.append(
+    "partialPaymentInfoText",
+    campaignData.partialPaymentInfoText,
+  );
 
     submit(formData, { method: "post" });
   }
@@ -2433,7 +2441,7 @@ export default function CampaignDetail() {
                   </Card>
                   <div style={{ marginTop: 20 }}>
                     <Card>
-                      <div style={{ padding: 3, textAlign: "center" }}>
+                      <div style={{ padding: 3, textAlign: "center" , marginBottom: '10px' }}>
                         <Text as="p" variant="headingSm">
                           CART, CHECKOUT, EMAIL PREVIEW
                         </Text>
@@ -2444,6 +2452,7 @@ export default function CampaignDetail() {
                             src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg"
                             alt=""
                             height={80}
+                            style={{borderRadius:'10px'}}
                           />
                         </div>
                         <div style={{ marginTop: 10 }}>
@@ -2591,8 +2600,8 @@ export default function CampaignDetail() {
                         placeholder="Search by product name"
                       />
                     </div>
-                    <div>
-                      <ButtonGroup>
+                    <div style={{marginLeft:'10px'}}>
+                      <ButtonGroup noWrap>
                         <Button onClick={openResourcePicker}>
                           Add More Products
                         </Button>

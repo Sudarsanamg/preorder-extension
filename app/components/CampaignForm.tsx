@@ -387,8 +387,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                     error={
                       campaignData.fullPaymentText.length === 0
                         ? "Full payment text is required"
-                        : campaignData.fullPaymentText.length > 20
-                          ? "Full payment text must be less than 20 characters"
+                        : campaignData.fullPaymentText.length > 50
+                          ? "Full payment text must be less than 50 characters"
                           : ""
                     }
                   />

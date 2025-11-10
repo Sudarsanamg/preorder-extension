@@ -2,6 +2,7 @@ export const CREATE_SELLING_PLAN_BASE = (
   paymentMode: "partial" | "full",
   fulfillmentMode: "ONHOLD" | "UNFULFILED" | "SCHEDULED" = "UNFULFILED",
   collectionMode: "DAYS_AFTER" | "EXACT_DATE" = "DAYS_AFTER",
+  formData: FormData
 ) => {
   const isPartial = paymentMode === "partial";
   const isScheduledFulfillment = fulfillmentMode === "SCHEDULED";
@@ -44,17 +45,19 @@ export const CREATE_SELLING_PLAN_BASE = (
 
   const paramList = variableDeclarations.trim().length > 0 ? `(${variableDeclarations})` : "";
   const billingPolicyBlock = `billingPolicy: { fixed: { ${billingFixedFields} } }`;
+  console.log(formData.get('partialPaymentText'),'>>>>>>>>>>>>>>>>>');
+  console.log(formData.get('fullPaymentText'),'>>>>>>>>>>>>>>>>>');
 
   return `
     mutation CreateSellingPlan${paramList} {
       sellingPlanGroupCreate(
         input: {
-          name: "${isPartial ? "Deposit Pre-order" : "Full Payment Pre-order"}"
+          name: "${isPartial ? `${formData.get('partialPaymentText')}` : `${formData.get('fullPaymentText')}` }"
           merchantCode: "${isPartial ? "pre-order-deposit" : "pre-order-full"}"
           options: ["Pre-order"]
           sellingPlansToCreate: [
             {
-              name: "${isPartial ? "Deposit, balance later" : "Pay full upfront"}"
+              name: "${isPartial ?  formData.get('partialPaymentText') :  formData.get('fullPaymentText')}"
               category: PRE_ORDER
               options: ["${isPartial ? "Deposit, balance later" : "Full payment"}"]
               ${billingPolicyBlock}
