@@ -357,6 +357,31 @@ export async function getOrders(shopId: string) {
   });
 }
 
+export async function getOrdersByLimit(shopId: string, limit = 10, skip = 0) {
+  const store = await getStoreIdByShopId(shopId as string);
+  return prisma.campaignOrders.findMany({
+    where: {
+      storeId: store?.id,
+    },
+    select: {
+      order_id: true,
+      order_number: true,
+      dueDate: true,
+      balanceAmount: true,
+      paymentStatus: true,
+      storeId: true,
+      customerEmail: true,
+      fulfilmentStatus: true
+    },
+    skip,
+    take: limit,
+    orderBy: {
+      order_number: "desc",
+    },
+  });
+}
+
+
 export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfilmentmode) {
   const store = await getStoreIdByShopId(shopId as string);
   return prisma.campaignOrders.findMany({
