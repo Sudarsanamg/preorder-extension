@@ -52,7 +52,8 @@ import {
   isShopifyPaymentsEnabled,
 } from "app/graphql/queries/shop";
 import {
-  GET_PRODUCTS_WITH_PREORDER,
+  // GET_PRODUCTS_WITH_PREORDER,
+  GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID,
   SET_PREORDER_METAFIELDS,
 } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
@@ -203,6 +204,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           // -------------------------------
           // PREORDER METAFIELDS UPDATE
           // -------------------------------
+          const campaignType = formData.get("campaignType") as CampaignType;          
           const metafields = products.flatMap((product: any) => [
             {
               ownerId: product.variantId,
@@ -248,7 +250,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
-              value: String(product?.maxUnit || "0"),
+              value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
             },
             {
               ownerId: product.variantId,
@@ -304,7 +308,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
-              value: String(product?.maxUnit || "0"),
+              value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
             },
             {
               ownerId: product.productId,
@@ -467,7 +473,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         productIds = productIds.map((product: any) => product.variantId);
 
-        const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER, {
+        const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID, {
           variables: { ids: productIds },
         });
         const data = await response.json();
@@ -475,7 +481,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const productsWithPreorder = data.data.nodes.map((product: any) => ({
           id: product.id,
           title: product.title,
-          preorder: product?.metafield?.value == "true",
+          campaignId: product?.metafield?.value,
         }));
 
         return json({ productsWithPreorder });
@@ -902,7 +908,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     let flag = false;
     if (!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
-      if (productsWithPreorder[i]?.preorder == true) {
+      if (productsWithPreorder[i]?.campaignId && productsWithPreorder[i]?.campaignId !=='null') {
         flag = true;
         break;
       }
@@ -919,7 +925,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     const prod = productsWithPreorder?.find(
       (product: any) => product.id === id,
     );
-    if (prod && prod.preorder == true) {
+    if (prod && prod.campaignId !== 'null') {
       return true;
     }
 
@@ -1284,7 +1290,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                     top: 20,
                     gap: 20,
                     maxWidth: "400px",
-                    // maxHeight: "600px",
+                    minWidth: "400px",
                     justifySelf: "flex-end",
                   }}
                 >
@@ -1745,12 +1751,19 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                 }}
                               >
                                 <TextField
-                                  type="number"
+                                  type="text"
                                   min={0}
                                   label="Inventory limit"
                                   labelHidden
                                   autoComplete="off"
-                                  value={product?.maxUnit?.toString()}
+                                  value={
+                                    campaignData.campaignType ===
+                                    ("IN_STOCK" as CampaignType)
+                                      ? product.variantInventory
+                                        ? product.variantInventory
+                                        : product.inventory
+                                      : product?.maxUnit.toString()
+                                  }
                                   onChange={(value) =>
                                     handleMaxUnitChange(
                                       product.variantId,
@@ -1759,7 +1772,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                   }
                                 />
                               </td>
-                            )}
+                             )} 
                             <td
                               style={{
                                 padding: "8px",

@@ -5,6 +5,28 @@
    font-size: larger;
 }
 
+
+/* UNIVERSAL: hide selling plan, purchase options, and subscription dropdowns */
+
+product-subscriptions,
+.product-subscriptions,
+.shopify-purchase-option-selector,
+.shopify-purchase-options,
+.purchase-option,
+.purchase-options,
+.product-form__purchase-option,
+.selling-plan-dropdown,
+.selling-plan__options,
+.selling-plan-group,
+.selling-plan-field,
+[data-shopify="purchase-options"],
+[data-component="purchase-options"],
+[data-purchase-option],
+.purchase-options-container {
+  display: none !important;
+}
+
+
 .spinner {
   border: 3px solid rgba(255, 255, 255, 0.3);
   border-top: 3px solid white;

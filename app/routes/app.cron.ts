@@ -1,4 +1,4 @@
-import { json } from "@remix-run/node";
+// import { json } from "@remix-run/node";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import cron from "node-cron";
 import prisma from "../db.server";
@@ -39,5 +39,5 @@ export const loader = async () => {
     }
   }
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

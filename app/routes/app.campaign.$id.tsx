@@ -912,6 +912,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!, shopId);
+        return Response.json({ success: true, error: null ,message: "Campaign deleted successfully" }, { status: 200 });
       }
       if (secondaryIntent === "delete-campaign-create-new") {
         const campaign = await updateCampaign({
@@ -1247,7 +1248,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         }
 
         // return redirect("/app");
-        return Response.json({ success: true, error: null }, { status: 200 });
+        return Response.json({ success: true, error: null  , message: "Campaign updated successfully"}, { status: 200 });
       }
 
       if (secondaryIntent === "save-as-draft") {
@@ -1809,6 +1810,27 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
+    useEffect(() => {
+    if (navigation.state === "idle" && actionData?.success) {
+      shopify.saveBar.hide("my-save-bar");
+      setSaveBarActive(false);
+      shopify.toast.show(actionData.message);
+
+      setButtonLoading((prev): any =>
+        Object.fromEntries(Object.keys(prev).map((key) => [key, false])),
+      );
+
+      // also reset your initial refs so future changes track correctly
+      initialDesignRef.current = designFields;
+      initialCampaignRef.current = campaignData;
+      initialProducts.current = selectedProducts;
+      initialDates.current = selectedDates;
+
+      navigate("/app");
+    }
+  }, [navigation.state, actionData]);
+
+
   useEffect(() => {
     const noChanges =
       JSON.stringify(designFields) ===
@@ -1846,16 +1868,17 @@ export default function CampaignDetail() {
       removedVarients.length === 0 &&
       JSON.stringify(selectedDates) === JSON.stringify(initialDates.current);
 
-    if (noChanges) {
-      if (saveBarActive) {
+    if (noChanges ) {
         shopify.saveBar.hide("my-save-bar");
         setSaveBarActive(false);
-      }
-    } else {
-      if (!saveBarActive) {
+    }
+    else if(removedVarients.length > 0 && actionData?.success){
+        shopify.saveBar.hide("my-save-bar");
+        setSaveBarActive(false);
+    }
+     else {
         shopify.saveBar.show("my-save-bar");
         setSaveBarActive(true);
-      }
     }
   }, [
     designFields,
@@ -1864,28 +1887,8 @@ export default function CampaignDetail() {
     removedVarients,
     selectedDates,
     saveBarActive,
+    actionData
   ]);
-
-  useEffect(() => {
-    if (navigation.state === "idle" && actionData?.success) {
-      // ✅ Hide save bar only when save succeeded
-      shopify.saveBar.hide("my-save-bar");
-      setSaveBarActive(false);
-      shopify.toast.show("Action Completed Successfully");
-
-      // reset your loading buttons
-      setButtonLoading((prev): any =>
-        Object.fromEntries(Object.keys(prev).map((key) => [key, false])),
-      );
-
-      // also reset your initial refs so future changes track correctly
-      initialDesignRef.current = designFields;
-      initialCampaignRef.current = campaignData;
-      initialProducts.current = selectedProducts;
-      initialDates.current = selectedDates;
-      navigate("/app");
-    }
-  }, [navigation.state, actionData]);
 
   const handleButtonClick = useCallback(
     (index: number) => {
@@ -2255,6 +2258,7 @@ export default function CampaignDetail() {
                     position: "sticky",
                     top: 20,
                     maxWidth: "400px",
+                    minWidth: "400px",
                     justifySelf: "flex-end",
                   }}
                 >

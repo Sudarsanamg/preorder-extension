@@ -82,7 +82,7 @@ const campaignType =
       if (
         (campaignType === 1 && !inStock) ||
         campaignType === 2 ||
-        (campaignType === 3 && inStock)
+        (campaignType === 3 )
       ) {
         showBadge = true;
       }
