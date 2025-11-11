@@ -1480,6 +1480,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                             src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg"
                             alt=""
                             height={80}
+                            style={{borderRadius:'10px'}}
                           />
                         </div>
                         <div>

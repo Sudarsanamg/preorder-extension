@@ -29,7 +29,6 @@ export async function runPayment({
   orderId: string;
   mandateId: string;
 }) {
-
   const store = await prisma.store.findUnique({
     where: {
       id: storeId,
@@ -43,7 +42,7 @@ export async function runPayment({
     },
   });
 
-  if(!store?.campaignOrders.length ) {
+  if (!store?.campaignOrders.length) {
     throw new Error(`Something went wrong`);
   }
 
@@ -55,31 +54,42 @@ export async function runPayment({
     throw new Error(`Missing offline token for shop ${shop}`);
   }
 
-  const response = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": decryptedToken,
-    },
-    body: JSON.stringify({
-      query: CREATE_ORDER_PAYMENT,
-      variables: {
-        id: orderId, 
-        idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
-        mandateId,
+  try {
+    const response = await fetch(
+      `https://${shop}/admin/api/2025-01/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": decryptedToken,
+        },
+        body: JSON.stringify({
+          query: CREATE_ORDER_PAYMENT,
+          variables: {
+            id: orderId,
+            idempotencyKey: crypto.randomUUID().replace(/-/g, "").slice(0, 32),
+            mandateId,
+          },
+        }),
       },
-    }),
-  });
+    );
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (data.errors) {
-    console.error("GraphQL errors:", data.errors);
+    if (data.errors) {
+      console.error("GraphQL errors:", data.errors);
+    }
+
+    if (data.data.orderCreateMandatePayment.userErrors.length) {
+      console.error(
+        "Mutation errors:",
+        data.data.orderCreateMandatePayment.userErrors,
+      );
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
   }
-
-  if (data.data.orderCreateMandatePayment.userErrors.length) {
-    console.error("Mutation errors:", data.data.orderCreateMandatePayment.userErrors);
-  }
-
-  return data;
 }

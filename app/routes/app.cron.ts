@@ -22,14 +22,20 @@ export const loader = async () => {
       });
 
       await prisma.vaultedPayment.update({
-        where: { orderId: payment.orderId },
+        where: { 
+          orderId: payment.orderId,
+          storeId: payment.storeId
+         },
         data: {
            paymentStatus: "PAID" ,
            updatedAt: BigInt(Date.now())
           },
       });
       await prisma.campaignOrders.update({
-        where: { order_id: payment.orderId },
+        where: { 
+          order_id: payment.orderId,
+          storeId: payment.storeId
+         },
         data: { paymentStatus: "PAID",
          updatedAt: BigInt(Date.now())
          },

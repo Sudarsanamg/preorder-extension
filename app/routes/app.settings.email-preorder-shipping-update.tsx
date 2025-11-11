@@ -1,5 +1,5 @@
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
-import { Banner, Page, Spinner } from "@shopify/polaris";
+import { Banner, Page,  } from "@shopify/polaris";
 import type { EmailSettings } from "app/types/type";
 // import { hexToHsb } from "app/utils/color";
 import { useEffect, useMemo, useState } from "react";
@@ -38,7 +38,7 @@ export async function loader({ request }: { request: Request }) {
 
   const shopId = data.data.shop.id;
   const shippingEmailSettingsData = await getShippingEmailSettings(shopId);
-  console.log(shippingEmailSettingsData, "shippingEmailSettingsData");
+  // console.log(shippingEmailSettingsData, "shippingEmailSettingsData");
   let parsedConfrimOrderEmailSettingsData: any;
   if (typeof shippingEmailSettingsData === "string") {
     console.log(shippingEmailSettingsData, "shippingEmailSettingsData");
@@ -82,7 +82,7 @@ export const action = async ({ request }: { request: Request }) => {
   }
   if (intent === "change-status") {
     const status = formData.get("status");
-    const shopId = formData.get("shopId");
+    // const shopId = formData.get("shopId");
     try {
       // await shippingEmailSettingsStatusUpdate(String(shopId), status == "true" ? "true" : "false");
       return { success: true, status: status === "true" };

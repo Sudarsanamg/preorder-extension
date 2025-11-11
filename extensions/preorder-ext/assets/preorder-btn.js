@@ -140,6 +140,9 @@ const campaignType =
                 id: variantId,
                 quantity: quantity,
                 selling_plan: sellingPlanId,
+                properties: {
+                  _campaignId: btn.dataset.campaignId,
+                },
               },
             ],
           }),

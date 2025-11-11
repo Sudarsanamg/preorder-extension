@@ -4,16 +4,37 @@ import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }: { request: Request }) => {
   try {
-    const result = await authenticate.webhook(request);
-    const body = result.payload?.body ?? result.payload ?? null;
+    const { shop, payload , topic } = await authenticate.webhook(request);
+    console.log("order update Webhook hitted");
+    console.log(topic);
+
+    if(topic !== "ORDERS_UPDATED"){
+      return Response.json({ error: "Invalid topic" }, { status: 200 });
+    }
+
+    const body = payload?.body ?? payload ?? null;
+    console.log(body);
 
     if (!body || !body.id) {
       return new Response("Invalid payload", { status: 400 });
     }
 
+    const store = await prisma.store.findUnique({
+      where: { shopifyDomain: shop },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return Response.json({ error: "Store not found" }, { status: 200 });
+    }
+    const storeId = store.id;
 
     const existingOrder = await prisma.campaignOrders.findUnique({
-      where: { order_id: `gid://shopify/Order/${body.id}` },
+      where: {
+         order_id: `gid://shopify/Order/${body.id}`,
+         storeId: storeId
+    },
+
     });
 
     if (!existingOrder) {
@@ -22,7 +43,10 @@ export const action = async ({ request }: { request: Request }) => {
 
     if (body.cancelled_at) {
       await prisma.campaignOrders.update({
-        where: { order_id: `gid://shopify/Order/${body.id}` },
+        where: {
+           order_id: `gid://shopify/Order/${body.id}`, 
+           storeId: storeId
+          },
         data: {
           paymentStatus: "CANCELLED",
         },
@@ -46,7 +70,10 @@ export const action = async ({ request }: { request: Request }) => {
         existingOrder.fulfilmentStatus
     ) {
       await prisma.campaignOrders.update({
-        where: { order_id: `gid://shopify/Order/${body.id}` },
+        where: { 
+          order_id: `gid://shopify/Order/${body.id}`,
+          storeId: storeId
+       },
         data: {
           fulfilmentStatus: mapFulfillmentStatus(body.fulfillment_status),
         },

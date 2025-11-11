@@ -1,7 +1,7 @@
 import prisma from "app/db.server";
 import { decrypt } from "app/utils/crypto.server";
 
-export async function incrementUnitsSold(store: string, variantData: { id: string; quantity: number }) {
+export async function incrementUnitsSold(store: string,variantData: { id: string; quantity: number }) {
 
   const accessToken = await prisma.store.findUnique({
     where: { shopifyDomain: store },

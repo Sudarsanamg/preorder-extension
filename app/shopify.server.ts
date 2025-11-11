@@ -44,7 +44,7 @@ const shopify = shopifyApp({
     },
     ORDERS_CREATE: {
       deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: '/webhooks/custom'
+      callbackUrl: '/webhooks/order_create'
     },
     ORDERS_PAID:{
       deliveryMethod: DeliveryMethod.Http,
@@ -53,6 +53,10 @@ const shopify = shopifyApp({
     PRODUCTS_UPDATE: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: '/webhooks/products_update'
+    },
+    ORDERS_UPDATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: '/webhooks/order_update'
     }
 
   },

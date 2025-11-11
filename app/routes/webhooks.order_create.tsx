@@ -6,16 +6,11 @@ import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
 import nodemailer from "nodemailer";
 import { incrementUnitsSold } from "app/models/preorder.server";
 import {
-  // GetCampaignIdsQuery,
-  GetVariantCampaignIdsQuery,
-} from "app/graphql/queries/campaign";
-import {
   AddTagsToOrderMutation,
   draftOrderCreate,
   getOrderVaultedMethods,
   getOrderWithProducts,
 } from "app/graphql/queries/orders";
-import { GET_SHOP_WITH_PLAN } from "app/graphql/queries/shop";
 import { draftOrderInvoiceSendMutation } from "app/graphql/mutation/orders";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { FulfillmentStatus } from "@prisma/client";
@@ -23,49 +18,48 @@ import type { FulfillmentStatus } from "@prisma/client";
 export const action = async ({ request }: { request: Request }) => {
   try {
     const { topic, shop, payload, admin } = await authenticate.webhook(request);
+    console.log("order create Webhook hitted");
+
+    if (topic !== "ORDERS_CREATE") {
+      return Response.json({ error: "Invalid topic" }, { status: 200 });
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { shopifyDomain: shop },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return Response.json({ error: "Store not found" }, { status: 200 });
+    }
+    const storeId = store.id;
 
     const orderCreate = async (payload: any) => {
       if (topic === "ORDERS_CREATE") {
         try {
           const line_items = payload.line_items || [];
-          const variantData  = line_items.map((item: any) => ({
+          const variantData = line_items.map((item: any) => ({
             id: item.variant_id,
             quantity: item.quantity,
           }));
 
-          const formattedVariantIds = variantData.map(
-            (v: any) => `gid://shopify/ProductVariant/${v.id}`,
-          );
+          let campaignIds = line_items
+            .map((item: { properties: { name: string; value: string }[] }) => {
+              const prop = item.properties?.find(
+                (p) => p.name === "_campaignId",
+              );
+              return prop ? prop.value : null;
+            })
+            .filter(Boolean);
 
-          const GetCampaignIdsQueryResponse = await admin?.graphql(
-            GetVariantCampaignIdsQuery,
-            {
-              variables: { ids: formattedVariantIds },
-            },
-          );
-
-          const GetCampaignIdsQueryResponseBody =
-            await GetCampaignIdsQueryResponse?.json();
-
-          let campaignIds: string[] = [];
-          for (const node of GetCampaignIdsQueryResponseBody?.data.nodes) {
-            if (node?.metafield?.value) {
-              campaignIds.push(node.metafield.value);
-            }
-          }
-          if (campaignIds.length === 0) {
-            return Response.json(
-              { error: "No preorder found" },
-              { status: 200 },
-            );
-          }
-
-          // find unique campaign ids
           campaignIds = [...new Set(campaignIds)];
+
+          if(campaignIds.length === 0) {
+            return Response.json({ error: "No campaign found" }, { status: 200 });
+          }
 
           let orderContainsPreorderItem = campaignIds.length > 0;
 
-          // //update preorder_units_sold
           for (const data of variantData) {
             try {
               await incrementUnitsSold(shop, data);
@@ -73,10 +67,13 @@ export const action = async ({ request }: { request: Request }) => {
               console.log(error);
             }
           }
-          //update no of orders for campaign
+
           for (const campaignId of campaignIds) {
             await prisma.preorderCampaign.update({
-              where: { id: campaignId },
+              where: {
+                id: campaignId,
+                storeId: storeId,
+              },
               data: {
                 totalOrders: {
                   increment: 1,
@@ -85,7 +82,6 @@ export const action = async ({ request }: { request: Request }) => {
             });
           }
 
-          // get Tags from campaign ids
           let orderTags: string[] = [];
           let customerTags: string[] = [];
 
@@ -95,6 +91,7 @@ export const action = async ({ request }: { request: Request }) => {
                 id: {
                   in: campaignIds,
                 },
+                storeId: storeId,
               },
             });
 
@@ -108,20 +105,15 @@ export const action = async ({ request }: { request: Request }) => {
             }
           }
           if (orderTags.length > 0 && orderContainsPreorderItem) {
-            // add tags to order using mutation
             const uniqueTags = [
               ...new Set(orderTags),
               ...new Set(customerTags),
             ];
 
             const orderId = payload.admin_graphql_api_id;
-            // const AddTagsToOrderMutationResponse =
             await admin?.graphql(AddTagsToOrderMutation, {
               variables: { id: orderId, tags: uniqueTags },
             });
-
-            // const AddTagsToOrderMutationResponseBody =
-            //   await AddTagsToOrderMutationResponse.json();
           }
 
           if (orderContainsPreorderItem) {
@@ -134,18 +126,12 @@ export const action = async ({ request }: { request: Request }) => {
             const customerEmail = payload.email || payload.customer?.email;
             const remaining = Number(secondSchedule?.amount);
             const uuid = uuidv4();
-            const response = await admin?.graphql(GET_SHOP_WITH_PLAN);
-            const data = await response?.json();
-            const shop = data?.data.shop;
-            const shopId = shop.id;
-            const storeDomain = shop.primaryDomain?.host;
-
-            // getDueByValt is true
-            // this should be in whole store (Because if order contains one valulted payment order and draft payment order i can go wrong)
             let vaultPayment = false;
+
             const campaign = await prisma.preorderCampaign.findFirst({
               where: {
                 id: campaignIds[0],
+                storeId: storeId,
               },
             });
 
@@ -153,11 +139,8 @@ export const action = async ({ request }: { request: Request }) => {
               vaultPayment = true;
             }
 
-            //find email settings respective to shop
-
-            // get email template
             const emailSettings = await prisma.store.findFirst({
-              where: { shopId: shopId },
+              where: { id: storeId },
               select: {
                 ConfrimOrderEmailSettings: true,
               },
@@ -167,7 +150,7 @@ export const action = async ({ request }: { request: Request }) => {
               emailSettings?.ConfrimOrderEmailSettings;
 
             const emailConsent = await prisma.store.findFirst({
-              where: { shopId: shopId },
+              where: { id: storeId },
               select: {
                 sendCustomEmail: true,
               },
@@ -194,7 +177,7 @@ export const action = async ({ request }: { request: Request }) => {
               ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
               balanceAmount: remaining ?? 0,
               paymentStatus: remaining > 0 ? "PENDING" : "PAID",
-              shopId: shopId,
+              storeId: storeId,
               customerEmail: customerEmail,
               totalAmount: new Decimal(payload.total_price),
               currency: payload.currency,
@@ -202,10 +185,9 @@ export const action = async ({ request }: { request: Request }) => {
               campaignId: campaignIds[0],
             });
 
-            //send update email
             const getOrderWithProductsResponse = await getOrderWithProducts(
               orderId,
-              storeDomain,
+              shop,
             );
 
             try {
@@ -244,12 +226,11 @@ export const action = async ({ request }: { request: Request }) => {
               console.error("❌ Email error:", error);
             }
 
-            // // Draft order mutation
-            // the only way to match og order with draft order is note key
             if (remaining > 0 && vaultPayment === false) {
               await prisma.campaignOrders.update({
                 where: {
                   order_id: orderId,
+                  storeId: storeId,
                 },
                 data: {
                   draft_order_id: uuid,
@@ -276,33 +257,17 @@ export const action = async ({ request }: { request: Request }) => {
               });
               const data = await response?.json();
 
-              if (data?.data.draftOrderCreate.userErrors.length) {
-                console.error(" Draft order errors:");
-              } else {
-                console.log("Draft order created:");
-                console.log(" Invoice URL:");
-              }
-
               const draftOrderId = data?.data.draftOrderCreate.draftOrder.id;
 
               // Call Shopify Admin API
-              const emailResponse = await admin?.graphql(
-                draftOrderInvoiceSendMutation,
-                {
-                  variables: {
-                    id: draftOrderId,
-                    email: {
-                      to: customerEmail,
-                    },
+              await admin?.graphql(draftOrderInvoiceSendMutation, {
+                variables: {
+                  id: draftOrderId,
+                  email: {
+                    to: customerEmail,
                   },
                 },
-              );
-
-              const emailData = await emailResponse?.json();
-              console.log(
-                " Invoice send response:",
-                JSON.stringify(emailData, null, 2),
-              );
+              });
 
               return new Response("OK", {
                 status: 200,
@@ -319,16 +284,18 @@ export const action = async ({ request }: { request: Request }) => {
                 data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
               const mandateId = methods?.[0]?.id;
 
-              await createDuePayment(
+             const dueOrder = await createDuePayment(
                 orderId,
                 remaining.toString(),
                 secondSchedule.currency,
                 mandateId,
                 secondSchedule.due_at,
                 "PENDING",
-                storeDomain,
                 campaignOrder.id,
+                storeId,
               );
+
+              console.log("dueOrder", dueOrder);
 
               return new Response("OK", {
                 status: 200,

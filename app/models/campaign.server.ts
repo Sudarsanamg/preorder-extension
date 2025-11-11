@@ -408,7 +408,7 @@ export async function createOrder({
   dueDate,
   balanceAmount,
   paymentStatus,
-  shopId,
+  storeId,
   customerEmail,
   totalAmount,
   currency,
@@ -421,7 +421,7 @@ export async function createOrder({
   dueDate?: Date;
   balanceAmount?: number;
   paymentStatus: PaymentStatus;
-  shopId: string;
+  storeId: string;
   customerEmail: string;
   totalAmount: string,
   currency?: string,
@@ -429,14 +429,11 @@ export async function createOrder({
   campaignId : string
 }) {
   try {
-    const store = await getStoreIdByShopId(shopId);
-    if(!store){
-      throw new Error("Store not found");
-    }
+  
     const newOrder = await prisma.campaignOrders.create({
       data: {
         order_number,
-        storeId : store?.id,
+        storeId : storeId,
         order_id,
         draft_order_id,
         dueDate,
@@ -462,9 +459,13 @@ export async function createOrder({
 export async function orderStatusUpdate(
   orderdraft_order_id: string,
   paymentStatus: PaymentStatus,
+  storeId: string
 ) {
   return prisma.campaignOrders.update({
-    where: { draft_order_id: orderdraft_order_id },
+    where: { 
+      draft_order_id: orderdraft_order_id ,
+      storeId : storeId
+    },
     data: {
        paymentStatus, 
        updatedAt: BigInt(Date.now())
@@ -562,13 +563,10 @@ export async function createDuePayment(
   mandateId: string,
   dueDate: Date,
   paymentStatus: PaymentStatus,
-  storeDomain: string,
-  campaignOrderId : string
+  campaignOrderId : string,
+  storeId: string
 ) {
-  const store = await getStoreID(storeDomain);
-  if(!store){
-    throw new Error("Store not found");
-  }
+
   return prisma.vaultedPayment.create({
     data: {
       orderId,
@@ -577,7 +575,7 @@ export async function createDuePayment(
       mandateId,
       dueDate,
       paymentStatus,
-      storeId: store.id,
+      storeId: storeId,
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
       campaignOrderId

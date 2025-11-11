@@ -104,6 +104,7 @@
     data-max-units="{{ variant.metafields.custom.preorder_max_units.value }}"
     data-units-sold="{{ variant.metafields.custom.preorder_units_sold.value }}" 
     data-instock="{% if variant.inventory_management and variant.inventory_quantity > 0 %}true{% else %}false{% endif %}"
+    data-campaign-id="{{ variant.metafields.custom.campaign_id.value }}"
     style="display:none;
               border: {{ designSettings.borderSize }}px solid {{ designSettings.borderColor }};
               border-radius: {{ designSettings.borderRadius }}px;
