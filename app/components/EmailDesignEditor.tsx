@@ -202,9 +202,6 @@ export default function EmailDesignEditor({
                       label="Store name"
                       autoComplete="off"
                       value={emailSettings.storeNameColor}
-                      onChange={(value) => {
-                        handleEmailSettingsChange("storeNameColor", value);
-                      }}
                     />
                   </div>
                 </InlineStack>
@@ -304,9 +301,6 @@ export default function EmailDesignEditor({
                       label="Store name"
                       autoComplete="off"
                       value={emailSettings.subheadingColor}
-                      onChange={(value) => {
-                        handleEmailSettingsChange("subheadingColor", value);
-                      }}
                     />
                   </div>
                 </InlineStack>
@@ -387,12 +381,6 @@ export default function EmailDesignEditor({
                       autofocusTarget="first-node"
                       onClose={() => togglePopover("descriptionColor")}
                     >
-                      {/* <ColorPicker
-                        onChange={(color) =>
-                          handleColorChange(color, "descriptionColor")
-                        }
-                        color={hexToHsb(emailSettings.descriptionColor)}
-                      /> */}
 
                       <div style={{ pointerEvents: "auto" }}>
                         <SketchPicker
@@ -409,9 +397,6 @@ export default function EmailDesignEditor({
                       label="Store name"
                       autoComplete="off"
                       value={emailSettings.descriptionColor}
-                      onChange={(value) => {
-                        handleEmailSettingsChange("descriptionColor", value);
-                      }}
                     />
                   </div>
                 </InlineStack>
@@ -502,9 +487,6 @@ export default function EmailDesignEditor({
                       label="Store name"
                       autoComplete="off"
                       value={emailSettings.productTitleColor}
-                      onChange={(value) => {
-                        handleEmailSettingsChange("productTitleColor", value);
-                      }}
                     />
                   </div>
                 </InlineStack>

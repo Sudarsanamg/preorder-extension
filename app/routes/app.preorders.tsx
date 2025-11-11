@@ -18,7 +18,7 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "app/shopify.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { getOrders } from "app/models/campaign.server";
+import {  getOrdersByLimit, getStoreIdByShopId } from "app/models/campaign.server";
 import { Link, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
 import { useCallback, useEffect, useState } from "react";
 import type { IndexFiltersProps, TabProps } from "@shopify/polaris";
@@ -34,13 +34,17 @@ import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import { formatDate } from "app/utils/formatDate";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const adminSession = await authenticate.admin(request);
-  const { admin , session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get("page") || "1");
+  const limit = Number(url.searchParams.get("limit") || "10");
+
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
-    const isStoreExist = await isStoreRegistered(shop);
-    if(!isStoreExist){
-      return Response.json({ success: false, error: "Store not found" }, { status: 404 });
-    }
+
+  const isStoreExist = await isStoreRegistered(shop);
+  if (!isStoreExist) {
+    return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+  }
 
   const shopQuery = `{
     shop {
@@ -54,31 +58,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const data = await response.json();
   const shopId = data.data.shop.id;
 
-  const orders = await getOrders(shopId);
-  // console.log(orders, "orders");
-  // const ordersId = orders.map((order: any) => order.order_id);
-
-  // // Fetch fulfillment status from Shopify
-  // const fullFillmentResponse = await admin.graphql(getOrdersfulfilmentStatus, {
-  //   variables: { ids: ordersId },
-  // });
-  // const fullFillmentResponsedata = await fullFillmentResponse.json();
-  // const fulfilmentStatusNodes = fullFillmentResponsedata.data.nodes;
-
-  // const fulfilmentStatusMap: Record<string, string> = {};
-  // fulfilmentStatusNodes.forEach((node: any) => {
-  //   if (node) fulfilmentStatusMap[node.id] = node.displayfulfilmentStatus;
-  // });
+  // Add pagination to your Prisma query
+  const orders = await getOrdersByLimit(shopId, limit, (page - 1) * limit);
+  const storeId = await getStoreIdByShopId(shopId);
+  // console.log(storeId, "storeId");
+  const totalCount = await prisma.campaignOrders.count({ where: { storeId :storeId?.id} });
+  // console.log(totalCount, "totalCount");
 
   const enrichedOrders = orders.map((order: any) => ({
     ...order,
-   
     paymentStatus: (order.paymentStatus || "unknown").toLowerCase(),
   }));
 
-  const shopDomain = adminSession.session.shop;
-  return { orders: enrichedOrders, shopDomain };
+  return {
+    orders: enrichedOrders,
+    totalCount,
+    currentPage: page,
+    totalPages: Math.ceil(totalCount / limit),
+    limit,
+    shopDomain: shop,
+  };
 };
+
 
 export const action = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -168,8 +169,8 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
 
 
 export default function AdditionalPage() {
-  const { orders, shopDomain } = useLoaderData<typeof loader>();
   const [active, setActive] = useState(false);
+  const { orders, totalPages, currentPage, shopDomain } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   let actionData = useActionData<typeof action>();
   const [isSending, setIsSending] = useState(false);
@@ -201,7 +202,6 @@ export default function AdditionalPage() {
     customerEmail: order.customerEmail,
   }));
 
-  // Filters
   const filters = [
     {
       key: "paymentStatus",
@@ -214,6 +214,7 @@ export default function AdditionalPage() {
             { label: "All", value: "" },
             { label: "Paid", value: "paid" },
             { label: "Partially paid", value: "pending" },
+            { label: "Cancelled", value: "cancelled" },
           ]}
           value={paymentStatus}
           onChange={(value: any) => setPaymentStatus(value)}
@@ -252,6 +253,17 @@ export default function AdditionalPage() {
     return matchesQuery && matchesTab && matchesPaymentStatus;
   });
 
+  const handlePageChange = (direction: "next" | "previous") => {
+  const nextPage = direction === "next" ? currentPage + 1 : currentPage - 1;
+  if (nextPage >= 1 && nextPage <= totalPages) {
+    const params = new URLSearchParams({
+      page: nextPage.toString(),
+      limit: "10",
+    });
+    submit(params, { method: "get" });
+  }
+};
+
   const { selectedResources, allResourcesSelected, handleSelectionChange ,clearSelection} =
     useIndexResourceState(filteredOrders);
 
@@ -259,7 +271,7 @@ export default function AdditionalPage() {
     if (actionData?.success) {
       setIsSending(false);
       setActive(false);
-      shopify?.toast?.show?.('Message sent'); // or replace with your toast solution
+      shopify?.toast?.show?.('Message sent'); 
       clearSelection(); 
     }
     if (actionData && !actionData.success) {
@@ -404,7 +416,7 @@ export default function AdditionalPage() {
         onClose={handleChange}
         title="Send shipping notification"
         primaryAction={{
-          content: isSending ? 'Sending...' : 'Send',
+          content: isSending ? "Sending..." : "Send",
           onAction: handleShippingNotification,
           loading: isSending,
           disabled: isSending,
@@ -458,54 +470,59 @@ export default function AdditionalPage() {
           </BlockStack>
         </Modal.Section>
       </Modal>
-      <div style={{ margin:20}}>
-      <Card>
-        <IndexFilters
-          queryValue={queryValue}
-          queryPlaceholder="Search orders"
-          onQueryChange={handleFiltersQueryChange}
-          onQueryClear={() => setQueryValue("")}
-          cancelAction={{
-            onAction: () => setQueryValue(""),
-            disabled: false,
-            loading: false,
-          }}
-          tabs={tabs}
-          selected={selectedTab}
-          onSelect={(index) => setSelectedTab(index)}
-          filters={filters}
-          appliedFilters={appliedFilters}
-          onClearAll={() => {
-            setQueryValue("");
-            setPaymentStatus(undefined);
-          }}
-          mode={mode}
-          setMode={setMode}
-        />
-        <IndexTable
-          condensed={useBreakpoints().smDown}
-          resourceName={resourceName}
-          itemCount={filteredOrders.length}
-          selectedItemsCount={
-            allResourcesSelected ? "All" : selectedResources.length
-          }
-          onSelectionChange={handleSelectionChange}
-          promotedBulkActions={promotedBulkActions}
-          headings={[
-            { title: "Order" },
-            { title: "Due Date" },
-            { title: "Balance Amount", alignment: "end" },
-            { title: "Payment status" },
-            { title: "Fulfillment status" },
-          ]}
-        //    pagination={{
-        //   hasNext: true,
-        //   onNext: () => {},
-        // }}
-        >
-          {rowMarkup}
-        </IndexTable>
-      </Card>
+      <div style={{ margin: 20 }}>
+        <Card>
+          <IndexFilters
+            queryValue={queryValue}
+            queryPlaceholder="Search orders"
+            onQueryChange={handleFiltersQueryChange}
+            onQueryClear={() => setQueryValue("")}
+            cancelAction={{
+              onAction: () => setQueryValue(""),
+              disabled: false,
+              loading: false,
+            }}
+            tabs={tabs}
+            selected={selectedTab}
+            onSelect={(index) => setSelectedTab(index)}
+            filters={filters}
+            appliedFilters={appliedFilters}
+            onClearAll={() => {
+              setQueryValue("");
+              setPaymentStatus(undefined);
+            }}
+            mode={mode}
+            setMode={setMode}
+            canCreateNewView={false}
+          />
+          <IndexTable
+            condensed={useBreakpoints().smDown}
+            resourceName={resourceName}
+            itemCount={filteredOrders.length}
+            selectedItemsCount={
+              allResourcesSelected ? "All" : selectedResources.length
+            }
+            
+            onSelectionChange={handleSelectionChange}
+            promotedBulkActions={promotedBulkActions}
+            headings={[
+              { title: "Order" },
+              { title: "Due Date" },
+              { title: "Balance Amount", alignment: "end" },
+              { title: "Payment status" },
+              { title: "Fulfillment status" },
+            ]}
+            pagination={{
+              hasNext: currentPage < totalPages,
+              hasPrevious: currentPage > 1,
+              onNext: () => handlePageChange("next"),
+              onPrevious: () => handlePageChange("previous"),
+            }}
+            
+          >
+            {rowMarkup}
+          </IndexTable>
+        </Card>
       </div>
     </Page>
   );

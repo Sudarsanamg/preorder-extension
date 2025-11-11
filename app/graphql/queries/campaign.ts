@@ -55,3 +55,13 @@ export const THEME_LIST = `query ThemeList($roles: [ThemeRole!], $filenames: [St
           }
         }
       }`;
+
+export const getVariantCampaignId = `#graphql
+          query getMetafield($id: ID!) {
+            productVariant(id: $id) {
+              metafield(namespace: "custom", key: "campaign_id") {
+                value
+              }
+            }
+          }
+          `;

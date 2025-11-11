@@ -15,6 +15,7 @@
 <div id="app-preorder-embed">
     <div id="quantity-error" style="color: red; font-size: 14px; margin-top: 4px;"></div>
     <div id="campaign-countdown"></div>
+    {% comment %} <p>Hello world</p> {% endcomment %}
 
   {% comment %} <p>Hello world</p> {% endcomment %}
   <!-- 1. Variant Preorder Data -->
@@ -47,7 +48,7 @@
   <span id="preorder-badge" style="display:none;" class="preorder-badge">Preorder</span>
 
   <!-- Variant Prices -->
-  <div id="variant-prices" style="margin-top: 10px; margin-bottom: 10px;">
+  {% comment %} <div id="variant-prices" style="margin-top: 10px; margin-bottom: 10px;">
     {% for variant in product.variants %}
     {% assign allocation = variant.selling_plan_allocations.first %}
     {% assign preorder = variant.metafields.custom.preorder.value %}
@@ -77,7 +78,7 @@
 
     </div>
     {% endfor %}
-  </div>
+  </div> {% endcomment %}
 
 
 
@@ -101,7 +102,9 @@
   <div class="preorder-button" data-variant-id="{{ variant.id }}"
     data-preorder="{{ variant.metafields.custom.preorder.value }}"
     data-max-units="{{ variant.metafields.custom.preorder_max_units.value }}"
-    data-units-sold="{{ variant.metafields.custom.preorder_units_sold.value }}" data-instock="{{ variant.available }}"
+    data-units-sold="{{ variant.metafields.custom.preorder_units_sold.value }}" 
+    data-instock="{% if variant.inventory_management and variant.inventory_quantity > 0 %}true{% else %}false{% endif %}"
+    data-campaign-id="{{ variant.metafields.custom.campaign_id.value }}"
     style="display:none;
               border: {{ designSettings.borderSize }}px solid {{ designSettings.borderColor }};
               border-radius: {{ designSettings.borderRadius }}px;
@@ -126,64 +129,69 @@
   </div>
   
   {% endfor %}
+  <div id="campaign-data"
+     data-campaign-type="{{ campaignprops.object.value.campaignData.campaigntype | upcase | default: 'IN_STOCK' }}">
+</div>
 
-  <!-- Preorder Payment Info (Partial Payment) -->
-  {% for variant in product.variants %}
-  {% assign price = variant.price %}
-  {% assign allocation = variant.selling_plan_allocations.first %}
+
+<!-- Preorder Payment Info (Partial Payment) -->
+{% for variant in product.variants %}
   {% assign deposit_percent = variant.metafields.custom.deposit_percent.value | default: 0 %}
-  {% assign comparePrice = %}
-  <div class="preorder-variant" data-variant-id="{{ variant.id }}" style="display: none;">
-    {% if deposit_percent > 0
-    and variant.metafields.custom.preorder == true
-    and parsedCampaignData.payment_type == 'partial' %}
+  {% assign price = variant.price %}
+  {% assign payment_type = parsedCampaignData.payment_type %}
+{% if variant.inventory_management and variant.inventory_quantity > 0 %}
+  {% assign instock = true %}
+{% else %}
+  {% assign instock = false %}
+{% endif %}
+
+  {% comment %} {% if deposit_percent > 0 and variant.metafields.custom.preorder == true and payment_type == 'partial' %} {% endcomment %}
     {% assign initial_payment = price | times: deposit_percent | divided_by: 100 %}
     {% assign balance_payment = price | minus: initial_payment %}
-    {% assign balance_due_date = variant.metafields.custom.balance_due_date.value %}
-  {% assign payment_schedule = campaignprops.object.value.campaignData.payment_schedule %}
-  {% assign due_payment_type = payment_schedule.type %}
-  {% assign due_payment_value = payment_schedule.value %}
-  
-  
-  
-  {% if due_payment_type == "DAYS_AFTER" %}
-  {% assign days_after = due_payment_value | plus: 0 %}
-  {% assign seconds_to_add = days_after | times: 86400 %}
-  {% assign current_time = 'now' | date: "%s" %}
-  {% assign due_timestamp = current_time | plus: seconds_to_add %}
-  {% assign balance_due_date = due_timestamp | date: "%Y-%m-%dT%H:%M:%SZ" %}
-  {% elsif due_payment_type == "EXACT_DATE" %}
-  {% assign balance_due_date = due_payment_value %}
-  {% else %}
-  {% assign balance_due_date = nil %}
-  {% endif %}
-  
-  <div class="preorder-payment-info" style="text-align: center;">
-    <p style="
-        font-size: {{ designSettings.messageFontSize }}px;
-        color: {{ designSettings.messageColor }};
-        font-family: {{ designSettings.fontFamily }};
-      ">
-      {% if balance_due_date %}
-      Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b %Y" }}
-      {% else %}
-      Pay {{ initial_payment | money }} now and the remaining balance later
+    {% assign payment_schedule = campaignprops.object.value.campaignData.payment_schedule %}
+    {% assign due_payment_type = payment_schedule.type %}
+    {% assign due_payment_value = payment_schedule.value %}
+
+    {% if due_payment_type == "DAYS_AFTER" %}
+      {% assign days_after = due_payment_value | plus: 0 %}
+      {% assign seconds_to_add = days_after | times: 86400 %}
+      {% assign current_time = 'now' | date: "%s" %}
+      {% assign due_timestamp = current_time | plus: seconds_to_add %}
+      {% assign balance_due_date = due_timestamp | date: "%Y-%m-%dT%H:%M:%SZ" %}
+    {% elsif due_payment_type == "EXACT_DATE" %}
+      {% assign balance_due_date = due_payment_value %}
+    {% else %}
+      {% assign balance_due_date = nil %}
+    {% endif %}
+
+    <div class="preorder-variant" data-variant-id="{{ variant.id }}" style="display: none;">
+       {% if deposit_percent > 0 and variant.metafields.custom.preorder == true and payment_type == 'partial' %}
+      <div class="preorder-payment-info" style="text-align:center;">
+        <p style="
+          font-size: {{ designSettings.messageFontSize }}px;
+          color: {{ designSettings.messageColor }};
+          font-family: {{ designSettings.fontFamily }};
+        ">
+          {% if balance_due_date %}
+            Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b %Y" }}
+          {% else %}
+            Pay {{ initial_payment | money }} now and the remaining balance later
+          {% endif %}
+        </p>
+      </div>
       {% endif %}
-    </p>
-  </div>
-  
-  <p style="
-            font-size: {{ designSettings.messageFontSize }}px;
-            color: {{ designSettings.messageColor }};
-            font-family: {{ designSettings.fontFamily }};
-            text-align:center
-          ">
+      <p style="
+          font-size: {{ designSettings.messageFontSize }}px;
+          color: {{ designSettings.messageColor }};
+          font-family: {{ designSettings.fontFamily }};
+          text-align:center;
+        ">
         {{ parsedCampaignData.shipping_message }}
       </p>
     </div>
-    {% endif %}
-  </div>
-  {% endfor %}
+  {% comment %} {% endif %} {% endcomment %}
+{% endfor %}
+
 
   {% comment %} {% endif %} {% endcomment %}
 

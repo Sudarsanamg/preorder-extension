@@ -1,9 +1,8 @@
 import prisma from "app/db.server";
 import { decrypt } from "app/utils/crypto.server";
 
-export async function incrementUnitsSold(store: string, id: string) {
-  console.log("incrementUnitsSold", store, id);
-  // Step 0: Get access token
+export async function incrementUnitsSold(store: string,variantData: { id: string; quantity: number }) {
+
   const accessToken = await prisma.store.findUnique({
     where: { shopifyDomain: store },
     select: { offlineToken: true },
@@ -37,7 +36,7 @@ export async function incrementUnitsSold(store: string, id: string) {
     },
     body: JSON.stringify({
       query: GET_VARIANT_METAFIELD,
-      variables: { id },
+      variables: { id: `gid://shopify/ProductVariant/${variantData.id}`},
     }),
   });
 
@@ -45,7 +44,7 @@ export async function incrementUnitsSold(store: string, id: string) {
   const currentValue = Number(productJson.data.product?.metafield?.value || "0");
 
   // Step 2: Increment value
-  const newValue = currentValue + 1;
+  const newValue = currentValue + variantData.quantity;
 
   // Step 3: Update metafield using metafieldsSet
   const SET_METAFIELD = `
@@ -84,7 +83,7 @@ export async function incrementUnitsSold(store: string, id: string) {
     },
     body: JSON.stringify({
       query: SET_METAFIELD,
-      variables: { ownerId: id, value: newValue.toString() },
+      variables: { ownerId: `gid://shopify/ProductVariant/${variantData.id}`, value: newValue.toString() },
     }),
   });
 

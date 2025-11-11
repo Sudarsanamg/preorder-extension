@@ -17,6 +17,7 @@ export const GET_SHOP_WITH_PLAN = `#graphql
   shop {
     id
     name
+    currencyCode
     plan {
       displayName
       partnerDevelopment

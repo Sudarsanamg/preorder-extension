@@ -1,9 +1,20 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "app/db.server";
+import {  updateMaxUnitMutation } from "app/graphql/mutation/metafields";
+import { getVariantCampaignId } from "app/graphql/queries/campaign";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, topic, payload } = await authenticate.webhook(request);
+  const { admin, topic, payload, shop } = await authenticate.webhook(request);
+
+  const store = await prisma.store.findUnique({
+    where: { shopifyDomain: shop },
+    select: { id: true },
+  });
+
+  if (!store) {
+    return Response.json({ error: "Store not found" }, { status: 200 });
+  }
 
   if (topic === "PRODUCTS_UPDATE") {
     const variants = payload.variants;
@@ -13,51 +24,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const variantId = `gid://shopify/ProductVariant/${variant.id}`;
         const available = variant.inventory_quantity;
 
-        // Step 1: Fetch variant metafield preorder
         const res = await admin?.graphql(
-          `#graphql
-          query getMetafield($id: ID!) {
-            productVariant(id: $id) {
-              metafield(namespace: "custom", key: "campaign_id") {
-                value
-              }
-            }
-          }
-          `,
+          getVariantCampaignId,
           { variables: { id: variantId } },
         );
         const json = await res?.json();
         const campaignId = json?.data.productVariant?.metafield?.value;
-        if(!campaignId){
-         continue
+        if (!campaignId) {
+          continue;
         }
 
         const campaign = await prisma.preorderCampaign.findUnique({
-          where: { id: campaignId },
+          where: {
+            id: campaignId,
+          },
           select: { campaignType: true },
         });
-        if(!campaign){
-          continue
+        if (!campaign) {
+          continue;
         }
 
         // Step 2: If preorder == true, update preorder_max_units
-        if (campaignId !== "" && campaign?.campaignType === 'IN_STOCK') {
+        if (campaignId !== "" && campaign?.campaignType === "IN_STOCK") {
           await admin?.graphql(
-            `#graphql
-            mutation setMetafield($id: ID!, $value: String!) {
-              metafieldsSet(metafields: [
-                {
-                  ownerId: $id,
-                  namespace: "custom",
-                  key: "preorder_max_units",
-                  type: "number_integer",
-                  value: $value
-                }
-              ]) {
-                userErrors { field message }
-              }
-            }
-          `,
+            updateMaxUnitMutation,
             {
               variables: {
                 id: variantId,

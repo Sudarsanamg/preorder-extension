@@ -51,6 +51,20 @@ export const GET_PRODUCTS_WITH_PREORDER = `#graphql
   }
 `;
 
+export const GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID = `#graphql
+  query getProductsMetafields($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on ProductVariant {
+        id
+        title
+        metafield(namespace: "custom", key: "campaign_id") {
+          value
+        }
+      }
+    }
+  }
+`;
+
 export const removeMetaFieldMutation = `
             mutation setPreorderMetafields($metafields: [MetafieldsSetInput!]!) {
               metafieldsSet(metafields: $metafields) {
@@ -65,6 +79,22 @@ export const removeMetaFieldMutation = `
                   field
                   message
                 }
+              }
+            }
+          `;
+
+export const updateMaxUnitMutation = `#graphql
+            mutation setMetafield($id: ID!, $value: String!) {
+              metafieldsSet(metafields: [
+                {
+                  ownerId: $id,
+                  namespace: "custom",
+                  key: "preorder_max_units",
+                  type: "number_integer",
+                  value: $value
+                }
+              ]) {
+                userErrors { field message }
               }
             }
           `;

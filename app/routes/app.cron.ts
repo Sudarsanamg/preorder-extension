@@ -1,4 +1,4 @@
-import { json } from "@remix-run/node";
+// import { json } from "@remix-run/node";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import cron from "node-cron";
 import prisma from "../db.server";
@@ -22,14 +22,20 @@ export const loader = async () => {
       });
 
       await prisma.vaultedPayment.update({
-        where: { orderId: payment.orderId },
+        where: { 
+          orderId: payment.orderId,
+          storeId: payment.storeId
+         },
         data: {
            paymentStatus: "PAID" ,
            updatedAt: BigInt(Date.now())
           },
       });
       await prisma.campaignOrders.update({
-        where: { order_id: payment.orderId },
+        where: { 
+          order_id: payment.orderId,
+          storeId: payment.storeId
+         },
         data: { paymentStatus: "PAID",
          updatedAt: BigInt(Date.now())
          },
@@ -39,5 +45,5 @@ export const loader = async () => {
     }
   }
 
-  return json({ ok: true });
+  return Response.json({ ok: true });
 };

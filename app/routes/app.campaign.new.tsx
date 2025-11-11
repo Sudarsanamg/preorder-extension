@@ -52,7 +52,8 @@ import {
   isShopifyPaymentsEnabled,
 } from "app/graphql/queries/shop";
 import {
-  GET_PRODUCTS_WITH_PREORDER,
+  // GET_PRODUCTS_WITH_PREORDER,
+  GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID,
   SET_PREORDER_METAFIELDS,
 } from "app/graphql/mutation/metafields";
 import { createSellingPlan } from "app/services/sellingPlan.server";
@@ -87,6 +88,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return Response.json({ success: false, error: "Store not found" }, { status: 404 });
     }
   const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
+  const storeCurrency = data.data.shop.currencyCode;
 
   switch (intent) {
     case "fetchProductsInCollection": {
@@ -126,7 +128,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true, shopId, plusStore ,shopifyPaymentsEnabled });
+  return json({ success: true, shopId, plusStore ,shopifyPaymentsEnabled ,storeCurrency });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -194,11 +196,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
 
         if (products.length > 0) {
-          await addProductsToCampaign(campaign.id, products ,formData.get("shopId") as string);
+          await addProductsToCampaign(
+            campaign.id,
+            products,
+            formData.get("shopId") as string,
+          );
 
           // -------------------------------
           // PREORDER METAFIELDS UPDATE
           // -------------------------------
+          const campaignType = formData.get("campaignType") as CampaignType;          
           const metafields = products.flatMap((product: any) => [
             {
               ownerId: product.variantId,
@@ -244,7 +251,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
-              value: String(product?.maxUnit || "0"),
+              value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
             },
             {
               ownerId: product.variantId,
@@ -300,7 +309,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               namespace: "custom",
               key: "preorder_max_units",
               type: "number_integer",
-              value: String(product?.maxUnit || "0"),
+              value: campaignType == "IN_STOCK"
+                  ? String(product.variantInventory)
+                  : String(product?.maxUnit || "0"),
             },
             {
               ownerId: product.productId,
@@ -312,13 +323,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           ]);
           // if (intent !== "SAVE") {
           try {
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields },
-            });
+            for (let i = 0; i < metafields.length; i += 20) {
+              const batch = metafields.slice(i, i + 20);
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields:batch },
+              });
+            }
 
-            await admin.graphql(SET_PREORDER_METAFIELDS, {
-              variables: { metafields: productMetafields },
-            });
+            for (let i = 0; i < productMetafields.length; i += 20) {
+              const batch = productMetafields.slice(i, i + 20);
+
+              await admin.graphql(SET_PREORDER_METAFIELDS, {
+                variables: { metafields: batch },
+              });
+            }
           } catch (err) {
             console.error("GraphQL mutation failed:", err);
             throw err;
@@ -409,6 +427,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 campaigntags: JSON.parse(
                   (formData.get("orderTags") as string) || "[]",
                 ).join(","),
+                customerTags: JSON.parse(
+                  (formData.get("customerTags") as string) || "[]",
+                ).join(","),
                 campaigntype: formData.get("campaignType") as CampaignType,
                 fulfillment: {
                   type: formData.get("fulfilmentmode") as Fulfilmentmode,
@@ -453,7 +474,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         productIds = productIds.map((product: any) => product.variantId);
 
-        const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER, {
+        const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID, {
           variables: { ids: productIds },
         });
         const data = await response.json();
@@ -461,7 +482,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const productsWithPreorder = data.data.nodes.map((product: any) => ({
           id: product.id,
           title: product.title,
-          preorder: product?.metafield?.value == "true",
+          campaignId: product?.metafield?.value,
         }));
 
         return json({ productsWithPreorder });
@@ -481,11 +502,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // }
 
 export default function Newcampaign() {
-  let { prod, shopId, plusStore ,shopifyPaymentsEnabled } = useLoaderData<typeof loader>() as {
+  let { prod, shopId, plusStore ,shopifyPaymentsEnabled ,storeCurrency } =  useLoaderData<typeof loader>() as {
     prod: any[];
     shopId: string;
     plusStore: boolean;
     shopifyPaymentsEnabled: boolean;
+    storeCurrency: string;
   };
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
@@ -582,15 +604,8 @@ export default function Newcampaign() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [hasCollectionFetched, setHasCollectionFetched] = useState<boolean>(false);
   const [noProductWarning, setNoProductWarning] = useState<boolean>(false);
-    const [errors, setErrors] = useState<string[]>([]);
-    // const navigation = useNavigation();
-    // const isSaving = navigation.state === "submitting";
+  const [errors, setErrors] = useState<string[]>([]);
 
-
-  
-  
-  const payment = 3.92;
-  const remaining = 35.28;
   const [buttonLoading, SetButtonLoading] = useState({
     add: false,
     remove: false,
@@ -602,8 +617,8 @@ export default function Newcampaign() {
   const [saveBarVisible, setSaveBarVisible] = useState(false);
 
   const formattedText = campaignData.partialPaymentInfoText
-    .replace("{payment}", `$${payment}`)
-    .replace("{remaining}", `$${remaining}`)
+    .replace("{payment}", `$3.92`)
+    .replace("{remaining}", `$35.28`)
     .replace(
       "{date}",
       formatDate(selectedDates.duePaymentDate.toLocaleDateString()),
@@ -705,13 +720,18 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
  
 
   const handleDateChange = (field: string, range: any) => {
-    const localDate = new Date(
+   if (!range?.start) return; 
+
+  const utcDate = new Date(
+    Date.UTC(
       range.start.getFullYear(),
       range.start.getMonth(),
-      range.start.getDate(),
-    );
-    setSelectedDates((prev) => ({ ...prev, [field]: localDate }));
-    setPopoverActive((prev) => ({ ...prev, [field]: false }));
+      range.start.getDate()
+    )
+  );
+
+  setSelectedDates((prev) => ({ ...prev, [field]: utcDate }));
+  setPopoverActive((prev) => ({ ...prev, [field]: false }));
   };
 
   const tabs = [
@@ -890,7 +910,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     let flag = false;
     if (!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
-      if (productsWithPreorder[i]?.preorder == true) {
+      if (productsWithPreorder[i]?.campaignId && productsWithPreorder[i]?.campaignId !=='null') {
         flag = true;
         break;
       }
@@ -907,7 +927,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     const prod = productsWithPreorder?.find(
       (product: any) => product.id === id,
     );
-    if (prod && prod.preorder == true) {
+    if (prod && prod?.campaignId && prod?.campaignId !=='null') {
       return true;
     }
 
@@ -1272,7 +1292,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                     top: 20,
                     gap: 20,
                     maxWidth: "400px",
-                    // maxHeight: "600px",
+                    minWidth: "400px",
                     justifySelf: "flex-end",
                   }}
                 >
@@ -1460,6 +1480,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                             src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg"
                             alt=""
                             height={80}
+                            style={{borderRadius:'10px'}}
                           />
                         </div>
                         <div>
@@ -1520,7 +1541,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                   >
                     <div>
                       <Text as="p" variant="headingSm">
-                        Add products to Preorder
+                        Add Products to Preorder
                       </Text>
                     </div>
                     <div style={{ display:"flex",textAlign: "center" }}>
@@ -1733,12 +1754,19 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                 }}
                               >
                                 <TextField
-                                  type="number"
+                                  type="text"
                                   min={0}
                                   label="Inventory limit"
                                   labelHidden
                                   autoComplete="off"
-                                  value={product?.maxUnit?.toString()}
+                                  value={
+                                    campaignData.campaignType ===
+                                    ("IN_STOCK" as CampaignType)
+                                      ? product.variantInventory
+                                        ? product.variantInventory
+                                        : product.inventory
+                                      : product?.maxUnit.toString()
+                                  }
                                   onChange={(value) =>
                                     handleMaxUnitChange(
                                       product.variantId,
@@ -1747,7 +1775,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                   }
                                 />
                               </td>
-                            )}
+                             )} 
                             <td
                               style={{
                                 padding: "8px",
@@ -1755,7 +1783,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                 textAlign: "center",
                               }}
                             >
-                              {formatCurrency(product.variantPrice, "USD")}
+                              {formatCurrency(product.variantPrice, storeCurrency)}
                             </td>
                             <td
                               style={{

@@ -26,7 +26,7 @@ export async function createSellingPlan(
   } = {}
 ) {
   const variantIds = products.map((p) => p.variantId);
-  const mutation = CREATE_SELLING_PLAN_BASE(paymentMode, fulfillmentMode, collectionMode);
+  const mutation = CREATE_SELLING_PLAN_BASE(paymentMode, fulfillmentMode, collectionMode, formData);
 
   const variables: Record<string, any> = { variantIds };
 

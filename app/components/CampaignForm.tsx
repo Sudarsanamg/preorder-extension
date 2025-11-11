@@ -319,7 +319,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         <Card>
           <div style={{ marginBottom: 10 }}>
             <Text as="h4" variant="headingSm">
-              Preorder note
+              Preorder Note
             </Text>
           </div>
           <p>Visible in cart, checkout, transactional emails</p>
@@ -387,8 +387,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                     error={
                       campaignData.fullPaymentText.length === 0
                         ? "Full payment text is required"
-                        : campaignData.fullPaymentText.length > 20
-                          ? "Full payment text must be less than 20 characters"
+                        : campaignData.fullPaymentText.length > 50
+                          ? "Full payment text must be less than 50 characters"
                           : ""
                     }
                   />
@@ -772,8 +772,6 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           onChange={(value) =>
                             handleCampaignDataChange("scheduledDays", value)
                           }
-                          
-                          
                         />
                       )}
                       {campaignData.scheduledFullfillmentType === 2 && (
@@ -812,6 +810,9 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                                 start: selectedDates.fullfillmentSchedule,
                                 end: selectedDates.fullfillmentSchedule,
                               }}
+                              disableDatesBefore={
+                                new Date(new Date().setHours(0, 0, 0, 0))
+                              }
                             />
                           </Popover>
                         </div>
@@ -837,7 +838,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         <Card>
           <BlockStack gap={"200"}>
             <Text as="h4" variant="headingSm">
-              Order tags
+              Order Tags
             </Text>
             <div onKeyDown={handleKeyDown}>
               <TextField
@@ -845,6 +846,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 value={productTagInput}
                 onChange={(value) => setProductTagInput(value)}
                 autoComplete="off"
+                helpText="Press enter to add tag"
               />
             </div>
             <Text as="h4" variant="headingSm">
@@ -893,6 +895,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 value={customerTagInput}
                 onChange={(value) => setCustomerTagInput(value)}
                 autoComplete="off"
+                helpText="Press enter to add tag"
               />
             </div>
             <Text as="h4" variant="headingSm">

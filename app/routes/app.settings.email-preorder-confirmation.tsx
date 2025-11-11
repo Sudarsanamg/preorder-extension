@@ -7,6 +7,7 @@ import {
   useSubmit,
   useNavigate,
   useNavigation,
+  useActionData,
 
 } from "@remix-run/react";
 import {
@@ -77,6 +78,7 @@ export const action = async ({ request }: { request: Request }) => {
         JSON.parse(designFields as string),
       );
       await updateCustomEmailStatus(String(shopId), statusBool);
+      return { success: true };
     } catch (error) {
       console.error("Error saving email settings:", error);
       return { success: false, error: "Failed to save email settings." };
@@ -90,6 +92,7 @@ export const action = async ({ request }: { request: Request }) => {
 
     try {
       await updateCustomEmailStatus(String(shopId), statusBool);
+      return { success: true };
       // return redirect("/app");
     } catch (error) {
       console.error("Error changing email settings status:", error);
@@ -104,6 +107,7 @@ export default function EmailPreorderConfirmationSettings() {
   const navigate = useNavigate();
   const { shopId, status, parsedConfrimOrderEmailSettingsData } =
     useLoaderData<typeof loader>();
+  const actionData :any = useActionData();
   const parsedSettings = parsedConfrimOrderEmailSettingsData;
   const submit = useSubmit();
   const [errors, setErrors] = useState<string[]>([]);
@@ -205,7 +209,6 @@ export default function EmailPreorderConfirmationSettings() {
 
       // shopify.saveBar.hide("my-save-bar");
       setSaveBarVisible(false);
-      shopify.toast.show("Saved successfully");
     } catch (error) {
       console.error(error);
       shopify.toast.show("Failed to save");
@@ -218,6 +221,7 @@ export default function EmailPreorderConfirmationSettings() {
     setEmailSettings(initialSettings);
     shopify.saveBar.hide("my-save-bar");
     setSaveBarVisible(false);
+    setTemplate(status);
     setSubject(initialSettings.subject);
     setErrors([]);
   };
@@ -265,20 +269,11 @@ export default function EmailPreorderConfirmationSettings() {
     }
   }, [emailSettings, initialSettings, shopify, template]);
 
-  // useEffect(() => {
-  //  if(saveBarVisible === false){
-  //   shopify.saveBar.hide('my-save-bar');
-  //  }
-  // }, [saveBarVisible]);
-
-  //   function handleSwitch(status: boolean) {
-  //   console.log("Toggling status to:", status);
-  //   const formData = new FormData();
-  //   formData.append("intent", "change-status");
-  //   formData.append("status", status.toString());
-  //   formData.append("shopId", shopId);
-  //   submit(formData, { method: "post" });
-  // }
+  useEffect(() => {
+    if(actionData?.success){
+      shopify.toast.show("Saved successfully");
+    }
+  },[actionData]);
 
   return (
     <Page

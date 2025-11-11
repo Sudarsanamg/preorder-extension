@@ -2,14 +2,15 @@ export const CREATE_SELLING_PLAN_BASE = (
   paymentMode: "partial" | "full",
   fulfillmentMode: "ONHOLD" | "UNFULFILED" | "SCHEDULED" = "UNFULFILED",
   collectionMode: "DAYS_AFTER" | "EXACT_DATE" = "DAYS_AFTER",
+  formData: FormData
 ) => {
   const isPartial = paymentMode === "partial";
   const isScheduledFulfillment = fulfillmentMode === "SCHEDULED";
   const isExactDateCollection = collectionMode === "EXACT_DATE";
 
-  let billingPolicy;
+  let billingFixedFields;
   if (isPartial) {
-    billingPolicy = isExactDateCollection
+    billingFixedFields = isExactDateCollection
       ? `checkoutCharge: { type: PERCENTAGE, value: { percentage: $percentage } }
          remainingBalanceChargeTrigger: EXACT_TIME
          remainingBalanceChargeExactTime: $exactDate`
@@ -17,7 +18,7 @@ export const CREATE_SELLING_PLAN_BASE = (
          remainingBalanceChargeTrigger: TIME_AFTER_CHECKOUT
          remainingBalanceChargeTimeAfterCheckout: $days`;
   } else {
-    billingPolicy = `checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
+    billingFixedFields = `checkoutCharge: { type: PERCENTAGE, value: { percentage: 100 } }
                      remainingBalanceChargeTrigger: NO_REMAINING_BALANCE`;
   }
 
@@ -40,21 +41,26 @@ export const CREATE_SELLING_PLAN_BASE = (
     isScheduledFulfillment ? "$fulfillmentDate: DateTime!" : "",
   ]
     .filter(Boolean)
-    .join(" ");
+    .join(", ");
 
-  return `#graphql
-    mutation CreateSellingPlan(${variableDeclarations}) {
+  const paramList = variableDeclarations.trim().length > 0 ? `(${variableDeclarations})` : "";
+  const billingPolicyBlock = `billingPolicy: { fixed: { ${billingFixedFields} } }`;
+  console.log(formData.get('partialPaymentText'),'>>>>>>>>>>>>>>>>>');
+  console.log(formData.get('fullPaymentText'),'>>>>>>>>>>>>>>>>>');
+
+  return `
+    mutation CreateSellingPlan${paramList} {
       sellingPlanGroupCreate(
         input: {
-          name: "${isPartial ? "Deposit Pre-order" : "Full Payment Pre-order"}"
+          name: "${isPartial ? `${formData.get('partialPaymentText')}` : `${formData.get('fullPaymentText')}` }"
           merchantCode: "${isPartial ? "pre-order-deposit" : "pre-order-full"}"
           options: ["Pre-order"]
           sellingPlansToCreate: [
             {
-              name: "${isPartial ? "Deposit, balance later" : "Pay full upfront"}"
+              name: "${isPartial ?  formData.get('partialPaymentText') :  formData.get('fullPaymentText')}"
               category: PRE_ORDER
               options: ["${isPartial ? "Deposit, balance later" : "Full payment"}"]
-              billingPolicy: { fixed: { ${billingPolicy} } }
+              ${billingPolicyBlock}
               ${deliveryPolicy}
               inventoryPolicy: { reserve: ON_FULFILLMENT }
               ${pricingPolicies}
