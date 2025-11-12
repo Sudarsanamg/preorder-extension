@@ -36,7 +36,7 @@ export async function applyDiscountToVariants(
       const productId = variant.product.id;
       const basePrice = parseFloat(variant.compareAtPrice || variant.price);
       let newPrice = basePrice;
-      console.log({ basePrice, discountType, discountValue });
+      // console.log({ basePrice, discountType, discountValue });
 
       if (discountType === "FIXED" && discountValue < basePrice) {
         newPrice = basePrice - flatDiscount;
