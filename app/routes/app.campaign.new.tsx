@@ -1,10 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type {
-  LoaderFunctionArgs,
-  ActionFunctionArgs} from "@remix-run/node";
-import {
-  json,
-} from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import {
   AppProvider,
   Button,
@@ -18,7 +14,6 @@ import {
   Tabs,
   Banner,
   InlineStack,
-  
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -28,9 +23,7 @@ import {
   useActionData,
   useLoaderData,
 } from "@remix-run/react";
-import {
-  DeleteIcon,
-} from "@shopify/polaris-icons";
+import { DeleteIcon } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker } from "@shopify/app-bridge/actions";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
@@ -47,20 +40,21 @@ import {
   // GET_PRODUCTS_WITH_PREORDER,
   GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID,
 } from "app/graphql/mutation/metafields";
-import type {
-  CampaignType,
-} from "@prisma/client";
+import type { CampaignType } from "@prisma/client";
 import { formatCurrency } from "app/helper/currencyFormatter";
 import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
-import { CampaignSchema, DesignSchema } from "app/utils/validator/zodValidateSchema";
-// import styles from "../styles/campaignFormStyle.css";
+import {
+  CampaignSchema,
+  DesignSchema,
+} from "app/utils/validator/zodValidateSchema";
 import "../tailwind.css";
 import { createCampaign } from "app/helper/campaignHelper";
+import { PreviewComponent } from "app/components/PreviewComponent";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin ,session} = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const response = await admin.graphql(GET_SHOP_WITH_PLAN);
   const data = await response.json();
   const shopId = data.data.shop.id;
@@ -69,9 +63,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const intent = url.searchParams.get("intent");
   const shopDomain = session.shop;
   const isStoreExist = await isStoreRegistered(shopDomain);
-    if(!isStoreExist){
-      return Response.json({ success: false, error: "Store not found" }, { status: 404 });
-    }
+  if (!isStoreExist) {
+    return Response.json(
+      { success: false, error: "Store not found" },
+      { status: 404 },
+    );
+  }
   const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
   const storeCurrency = data.data.shop.currencyCode;
 
@@ -96,7 +93,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               productId: node.id,
               productTitle: node.title,
               handle: node.handle,
-              productImage: node.images.edges[0]?.node?.url || null, 
+              productImage: node.images.edges[0]?.node?.url || null,
               variantId: v.node.id,
               variantTitle: v.node.displayName,
               variantPrice: v.node.price,
@@ -113,7 +110,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  return json({ success: true, shopId, plusStore ,shopifyPaymentsEnabled ,storeCurrency });
+  return json({
+    success: true,
+    shopId,
+    plusStore,
+    shopifyPaymentsEnabled,
+    storeCurrency,
+  });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -130,12 +133,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const response = await admin.graphql(GET_SHOP);
       const data = await response.json();
       shopId = data.data.shop.id;
-      
-      const isStoreExist = await isStoreRegistered(shopDomain);
-      if(!isStoreExist){
-        return Response.json({ success: false, error: "Store not found" }, { status: 404 });
-      }
 
+      const isStoreExist = await isStoreRegistered(shopDomain);
+      if (!isStoreExist) {
+        return Response.json(
+          { success: false, error: "Store not found" },
+          { status: 404 },
+        );
+      }
     } catch (err) {
       console.error("Admin authentication failed:", err);
       return json({ error: "Admin authentication failed" }, { status: 500 });
@@ -145,7 +150,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "create-campaign":
       case "SAVE": {
         const campaign = await createCampaign(formData, admin, shopId);
-        return Response.json({ success: campaign.success, campaignId: campaign.campaignId });
+        return Response.json({
+          success: campaign.success,
+          campaignId: campaign.campaignId,
+        });
       }
 
       case "productsWithPreorder": {
@@ -153,9 +161,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         productIds = productIds.map((product: any) => product.variantId);
 
-        const response = await admin.graphql(GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID, {
-          variables: { ids: productIds },
-        });
+        const response = await admin.graphql(
+          GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID,
+          {
+            variables: { ids: productIds },
+          },
+        );
         const data = await response.json();
 
         const productsWithPreorder = data.data.nodes.map((product: any) => ({
@@ -178,13 +189,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  let { prod, shopId, plusStore ,shopifyPaymentsEnabled ,storeCurrency } =  useLoaderData<typeof loader>() as {
-    prod: any[];
-    shopId: string;
-    plusStore: boolean;
-    shopifyPaymentsEnabled: boolean;
-    storeCurrency: string;
-  };
+  let { prod, shopId, plusStore, shopifyPaymentsEnabled, storeCurrency } =
+    useLoaderData<typeof loader>() as {
+      prod: any[];
+      shopId: string;
+      plusStore: boolean;
+      shopifyPaymentsEnabled: boolean;
+      storeCurrency: string;
+    };
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
   };
@@ -201,13 +213,13 @@ export default function Newcampaign() {
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
   });
- const [selectedDates, setSelectedDates] = useState({
-  start: new Date(Date.now()),
-  end: new Date(Date.now()),
-  duePaymentDate: new Date(Date.now()),
-  campaignEndDate: new Date(Date.now()),
-  fullfillmentSchedule: new Date(Date.now()),
-});
+  const [selectedDates, setSelectedDates] = useState({
+    start: new Date(Date.now()),
+    end: new Date(Date.now()),
+    duePaymentDate: new Date(Date.now()),
+    campaignEndDate: new Date(Date.now()),
+    fullfillmentSchedule: new Date(Date.now()),
+  });
 
   const initialDates = useRef(selectedDates);
   const [popoverActive, setPopoverActive] = useState({
@@ -215,7 +227,8 @@ export default function Newcampaign() {
     fullfillmentSchedule: false,
     campaignEndDate: false,
   });
-  const [warningPopoverActive, setWarningPopoverActive] = useState<boolean>(false);
+  const [warningPopoverActive, setWarningPopoverActive] =
+    useState<boolean>(false);
   const [productRadio, setproductRadio] = useState("option1");
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -226,34 +239,33 @@ export default function Newcampaign() {
     popoverActive: false,
     inputValue: new Date().toLocaleDateString(),
   });
-  const [campaignData,setCampaignData] = useState<CampaignFields>({
-    campaignName:"",
-    campaignType:'ALLWAYS',
-    productTags:["Preorder"],
-    customerTags:[
-    "Preorder-Customer",
-  ],
-  preOrderNoteKey:"Note",
-  preOrderNoteValue:"Preorder",
-  buttonText:"Preorder",
-  shippingMessage:"Ship as soon as possible",
-  partialPaymentPercentage:"10",
-  paymentMode:"partial",
-  partialPaymentType:"percent",
-  duePaymentType:2,
-  campaignEndTime:"00:00",
-  fulfilmentMode:"UNFULFILED",
-  scheduledFullfillmentType:1,
-  scheduledDays:"0",
-  paymentAfterDays:"0",
-  fullPaymentText:"Full Payment",
-  partialPaymentText:"Partial Payment",
-  partialPaymentInfoText:"Pay {payment} now and {remaining} will be charged on {date}",
-  discountType:"PERCENTAGE",
-  discountPercentage:0,
-  flatDiscount:0,
-  getPaymentsViaValtedPayments:shopifyPaymentsEnabled
-  })
+  const [campaignData, setCampaignData] = useState<CampaignFields>({
+    campaignName: "",
+    campaignType: "ALLWAYS",
+    productTags: ["Preorder"],
+    customerTags: ["Preorder-Customer"],
+    preOrderNoteKey: "Note",
+    preOrderNoteValue: "Preorder",
+    buttonText: "Preorder",
+    shippingMessage: "Ship as soon as possible",
+    partialPaymentPercentage: "10",
+    paymentMode: "partial",
+    partialPaymentType: "percent",
+    duePaymentType: 2,
+    campaignEndTime: "00:00",
+    fulfilmentMode: "UNFULFILED",
+    scheduledFullfillmentType: 1,
+    scheduledDays: "0",
+    paymentAfterDays: "0",
+    fullPaymentText: "Full Payment",
+    partialPaymentText: "Partial Payment",
+    partialPaymentInfoText:
+      "Pay {payment} now and {remaining} will be charged on {date}",
+    discountType: "PERCENTAGE",
+    discountPercentage: 0,
+    flatDiscount: 0,
+    getPaymentsViaValtedPayments: shopifyPaymentsEnabled,
+  });
   const [designFields, setDesignFields] = useState<DesignFields>({
     messageFontSize: "16",
     messageColor: "#000000",
@@ -276,10 +288,11 @@ export default function Newcampaign() {
   });
   const initialCampaignData = useRef<CampaignFields>(campaignData);
   const designFieldsRef = useRef<DesignFields>(designFields);
-  
+
   const [activeButtonIndex, setActiveButtonIndex] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [hasCollectionFetched, setHasCollectionFetched] = useState<boolean>(false);
+  const [hasCollectionFetched, setHasCollectionFetched] =
+    useState<boolean>(false);
   const [noProductWarning, setNoProductWarning] = useState<boolean>(false);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -293,25 +306,25 @@ export default function Newcampaign() {
   });
   const [saveBarVisible, setSaveBarVisible] = useState(false);
 
-  const formattedText = campaignData.partialPaymentInfoText
-    .replace("{payment}", `$3.92`)
-    .replace("{remaining}", `$35.28`)
-    .replace(
-      "{date}",
-      formatDate(selectedDates.duePaymentDate.toLocaleDateString()),
-    );
+  // const formattedText = campaignData.partialPaymentInfoText
+  //   .replace("{payment}", `$3.92`)
+  //   .replace("{remaining}", `$35.28`)
+  //   .replace(
+  //     "{date}",
+  //     formatDate(selectedDates.duePaymentDate.toLocaleDateString()),
+  //   );
 
-   useEffect(() => {
-    if(actionData?.success){
+  useEffect(() => {
+    if (actionData?.success) {
       shopify.saveBar.hide("my-save-bar");
       shopify.toast.show("Saved successfully");
-       SetButtonLoading((prev):any =>
-        Object.fromEntries(Object.keys(prev).map((key) => [key, false]))
+      SetButtonLoading((prev): any =>
+        Object.fromEntries(Object.keys(prev).map((key) => [key, false])),
       );
       setIsSubmitting(false);
       navigate("/app");
     }
-  },[actionData])
+  }, [actionData]);
 
   const handleClick = async (action: string) => {
     SetButtonLoading((prev: any) => ({ ...prev, [action]: !prev[action] }));
@@ -328,32 +341,33 @@ export default function Newcampaign() {
     [],
   );
 
-const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, value: CampaignFields[K]) => {
-  setCampaignData((prevData) => ({
-    ...prevData,
-    [field]: value
-  }));
+  const handleCampaignDataChange = <K extends keyof CampaignFields>(
+    field: K,
+    value: CampaignFields[K],
+  ) => {
+    setCampaignData((prevData) => ({
+      ...prevData,
+      [field]: value,
+    }));
 
- if (field === "campaignEndTime" || field ==='campaignEndDate') {
-  const timeStr = value as string;
-  setSelectedDates((prev) => {
-    const date = prev.campaignEndDate;
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    const finalUtc = new Date(
-      Date.UTC(
-        date.getUTCFullYear(),
-        date.getUTCMonth(),
-        date.getUTCDate(),
-        hours || 0,
-        minutes || 0
-      )
-    );
-    return { ...prev, campaignEndDate: finalUtc };
-  });
-}
-
-
-};
+    if (field === "campaignEndTime" || field === "campaignEndDate") {
+      const timeStr = value as string;
+      setSelectedDates((prev) => {
+        const date = prev.campaignEndDate;
+        const [hours, minutes] = timeStr.split(":").map(Number);
+        const finalUtc = new Date(
+          Date.UTC(
+            date.getUTCFullYear(),
+            date.getUTCMonth(),
+            date.getUTCDate(),
+            hours || 0,
+            minutes || 0,
+          ),
+        );
+        return { ...prev, campaignEndDate: finalUtc };
+      });
+    }
+  };
 
   const openResourcePicker = () => {
     shopify.modal.hide("my-modal");
@@ -395,7 +409,6 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     picker.dispatch(ResourcePicker.Action.OPEN);
   };
 
-
   const selectAllProducts = async () => {
     const res = await fetch("/api/products");
     const allVariants = await res.json();
@@ -414,34 +427,33 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     setMonthYear({ month: newMonth, year: newYear });
   }, []);
 
- 
+  const handleDateChange = (field: string, range: any) => {
+    if (!range?.start) return;
 
- const handleDateChange = (field: string, range: any) => {
-  if (!range?.start) return;
+    const utcDate = new Date(
+      Date.UTC(
+        range.start.getFullYear(),
+        range.start.getMonth(),
+        range.start.getDate(),
+      ),
+    );
 
-  const utcDate = new Date(
-    Date.UTC(
-      range.start.getFullYear(),
-      range.start.getMonth(),
-      range.start.getDate()
-    )
-  );
+    const [hours, minutes] = campaignData.campaignEndTime
+      .split(":")
+      .map(Number);
+    const finalUtc = new Date(
+      Date.UTC(
+        utcDate.getUTCFullYear(),
+        utcDate.getUTCMonth(),
+        utcDate.getUTCDate(),
+        hours || 0,
+        minutes || 0,
+      ),
+    );
 
-  const [hours, minutes] = campaignData.campaignEndTime.split(":").map(Number);
-  const finalUtc = new Date(
-    Date.UTC(
-      utcDate.getUTCFullYear(),
-      utcDate.getUTCMonth(),
-      utcDate.getUTCDate(),
-      hours || 0,
-      minutes || 0
-    )
-  );
-
-  setSelectedDates((prev) => ({ ...prev, [field]: finalUtc }));
-  setPopoverActive((prev) => ({ ...prev, [field]: false }));
-};
-
+    setSelectedDates((prev) => ({ ...prev, [field]: finalUtc }));
+    setPopoverActive((prev) => ({ ...prev, [field]: false }));
+  };
 
   const tabs = [
     {
@@ -495,7 +507,10 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
-      handleCampaignDataChange("discountType",index === 0 ? "PERCENTAGE" : "FIXED");
+      handleCampaignDataChange(
+        "discountType",
+        index === 0 ? "PERCENTAGE" : "FIXED",
+      );
     },
     [activeButtonIndex],
   );
@@ -508,84 +523,96 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     })
     .replace(",", "")}`;
 
-  
   const handleSubmit = () => {
-  const { valid } = validateForm();
-  if (!valid) return;
+    const { valid } = validateForm();
+    if (!valid) return;
 
-    if(selectedProducts.length === 0){
+    if (selectedProducts.length === 0) {
       setNoProductWarning(true);
       setTimeout(() => {
         setNoProductWarning(false);
-      },5000);
+      }, 5000);
       return;
     }
-  handleClick("publish")
-  setNoProductWarning(false);
-  setIsSubmitting(true);
+    handleClick("publish");
+    setNoProductWarning(false);
+    setIsSubmitting(true);
 
-  const formData = new FormData();
-  formData.append("intent", "create-campaign");
+    const formData = new FormData();
+    formData.append("intent", "create-campaign");
 
-  formData.append(
-    "name",
-    campaignData.campaignName !== "" 
-      ? campaignData.campaignName 
-      : `Campaign ${formatedDate}`,
-  );
+    formData.append(
+      "name",
+      campaignData.campaignName !== ""
+        ? campaignData.campaignName
+        : `Campaign ${formatedDate}`,
+    );
 
-  formData.append("shopId", shopId);
-  formData.append("depositPercent", String(campaignData.partialPaymentPercentage));
-  formData.append("refundDeadlineDays", "0");
+    formData.append("shopId", shopId);
+    formData.append(
+      "depositPercent",
+      String(campaignData.partialPaymentPercentage),
+    );
+    formData.append("refundDeadlineDays", "0");
 
-  formData.append(
-    "campaignEndDate",
-    selectedDates.campaignEndDate.toISOString(),
-  );
+    formData.append(
+      "campaignEndDate",
+      selectedDates.campaignEndDate.toISOString(),
+    );
 
-  formData.append("products", JSON.stringify(selectedProducts));
-  formData.append("campaignType", String(campaignData.campaignType));
-  formData.append("buttonText", String(campaignData.buttonText));
-  formData.append("shippingMessage", String(campaignData.shippingMessage));
-  formData.append("paymentMode", String(campaignData.paymentMode));
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignType", String(campaignData.campaignType));
+    formData.append("buttonText", String(campaignData.buttonText));
+    formData.append("shippingMessage", String(campaignData.shippingMessage));
+    formData.append("paymentMode", String(campaignData.paymentMode));
 
-  formData.append("designFields", JSON.stringify(designFields));
-  formData.append("discountType", campaignData.discountType);
-  formData.append("discountPercentage", String(campaignData.discountPercentage));
-  formData.append("flatDiscount", String(campaignData.flatDiscount));
+    formData.append("designFields", JSON.stringify(designFields));
+    formData.append("discountType", campaignData.discountType);
+    formData.append(
+      "discountPercentage",
+      String(campaignData.discountPercentage),
+    );
+    formData.append("flatDiscount", String(campaignData.flatDiscount));
 
-  formData.append("orderTags", JSON.stringify(campaignData.productTags));
-  formData.append("customerTags", JSON.stringify(campaignData.customerTags));
+    formData.append("orderTags", JSON.stringify(campaignData.productTags));
+    formData.append("customerTags", JSON.stringify(campaignData.customerTags));
 
-  formData.append("getDueByValt", String(campaignData.getPaymentsViaValtedPayments));
-  formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
-  formData.append(
-    "collectionMode",
-    campaignData.duePaymentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
-  );
-  formData.append("paymentAfterDays", String(campaignData.paymentAfterDays));
-  formData.append(
-    "balanceDueDate",
-    selectedDates.duePaymentDate.toISOString(),
-  );
-  formData.append(
-    "scheduledFulfilmentType",
-    campaignData.scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
-  );
-  formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
-  formData.append(
-    "fulfilmentDate",
-    selectedDates.fullfillmentSchedule.toISOString(),
-  );
-  formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
-  formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
-  formData.append("fullPaymentText", campaignData.fullPaymentText);
-  formData.append("partialPaymentText", campaignData.partialPaymentText);
-  formData.append("partialPaymentInfoText", campaignData.partialPaymentInfoText);
+    formData.append(
+      "getDueByValt",
+      String(campaignData.getPaymentsViaValtedPayments),
+    );
+    formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
+    formData.append(
+      "collectionMode",
+      campaignData.duePaymentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
+    );
+    formData.append("paymentAfterDays", String(campaignData.paymentAfterDays));
+    formData.append(
+      "balanceDueDate",
+      selectedDates.duePaymentDate.toISOString(),
+    );
+    formData.append(
+      "scheduledFulfilmentType",
+      campaignData.scheduledFullfillmentType === 1
+        ? "DAYS_AFTER"
+        : "EXACT_DATE",
+    );
+    formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
+    formData.append(
+      "fulfilmentDate",
+      selectedDates.fullfillmentSchedule.toISOString(),
+    );
+    formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
+    formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
+    formData.append("fullPaymentText", campaignData.fullPaymentText);
+    formData.append("partialPaymentText", campaignData.partialPaymentText);
+    formData.append(
+      "partialPaymentInfoText",
+      campaignData.partialPaymentInfoText,
+    );
 
-  submit(formData, { method: "post" });
-};
-
+    submit(formData, { method: "post" });
+  };
 
   const handleMaxUnitChange = (id: string, value: number) => {
     setSelectedProducts((prev: any) =>
@@ -611,7 +638,10 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     let flag = false;
     if (!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
-      if (productsWithPreorder[i]?.campaignId && productsWithPreorder[i]?.campaignId !=='null') {
+      if (
+        productsWithPreorder[i]?.campaignId &&
+        productsWithPreorder[i]?.campaignId !== "null"
+      ) {
         flag = true;
         break;
       }
@@ -628,7 +658,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     const prod = productsWithPreorder?.find(
       (product: any) => product.id === id,
     );
-    if (prod && prod?.campaignId && prod?.campaignId !=='null') {
+    if (prod && prod?.campaignId && prod?.campaignId !== "null") {
       return true;
     }
 
@@ -638,7 +668,7 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
   function handleRemoveTag(index: number): void {
     const updatedTags = [...campaignData.productTags];
     updatedTags.splice(index, 1);
-   handleCampaignDataChange("productTags", updatedTags);
+    handleCampaignDataChange("productTags", updatedTags);
   }
 
   function handleRemoveCustomerTag(index: number) {
@@ -654,157 +684,167 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     );
   }
 
- useEffect(() => {
-
-  if (prod && prod.length > 0 && !hasCollectionFetched) {
-    setSelectedProducts(prod);
-    setHasCollectionFetched(true); 
-  }
-}, [prod,hasCollectionFetched]);
-
-const validateForm = (): { valid: boolean; messages: string[] } => {
-  const campaignResult: any = CampaignSchema.safeParse(campaignData);
-  const designResult: any = DesignSchema.safeParse(designFields);
-
-  const collectErrors = (obj: any) => {
-    let messages: string[] = [];
-    for (const key in obj) {
-      if (Array.isArray(obj[key]?._errors)) {
-        messages.push(...obj[key]._errors);
-      }
-      if (typeof obj[key] === "object" && obj[key] !== null) {
-        messages.push(...collectErrors(obj[key]));
-      }
+  useEffect(() => {
+    if (prod && prod.length > 0 && !hasCollectionFetched) {
+      setSelectedProducts(prod);
+      setHasCollectionFetched(true);
     }
-    return messages;
+  }, [prod, hasCollectionFetched]);
+
+  const validateForm = (): { valid: boolean; messages: string[] } => {
+    const campaignResult: any = CampaignSchema.safeParse(campaignData);
+    const designResult: any = DesignSchema.safeParse(designFields);
+
+    const collectErrors = (obj: any) => {
+      let messages: string[] = [];
+      for (const key in obj) {
+        if (Array.isArray(obj[key]?._errors)) {
+          messages.push(...obj[key]._errors);
+        }
+        if (typeof obj[key] === "object" && obj[key] !== null) {
+          messages.push(...collectErrors(obj[key]));
+        }
+      }
+      return messages;
+    };
+
+    let errorMessages: string[] = [];
+
+    if (!campaignResult.success) {
+      const formatted = campaignResult.error.format();
+      errorMessages = [...errorMessages, ...collectErrors(formatted)];
+    }
+
+    if (!designResult.success) {
+      const formattedDesign = designResult.error.format();
+      errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
+    }
+
+    setErrors(errorMessages);
+    return { valid: errorMessages.length === 0, messages: errorMessages };
   };
 
-  let errorMessages: string[] = [];
-
-  if (!campaignResult.success) {
-    const formatted = campaignResult.error.format();
-    errorMessages = [...errorMessages, ...collectErrors(formatted)];
-  }
-
-  if (!designResult.success) {
-    const formattedDesign = designResult.error.format();
-    errorMessages = [...errorMessages, ...collectErrors(formattedDesign)];
-  }
-
-  setErrors(errorMessages); 
-  return { valid: errorMessages.length === 0, messages: errorMessages };
-};
-
-
   const handleSave = () => {
-  const { valid } = validateForm();
-  if (!valid) return;
-  
-  if(selectedProducts.length == 0) {
-    setNoProductWarning(true);
-    setTimeout(() => {
-      setNoProductWarning(false);
-    },5000)
-    return;
-  }
-  handleClick("draft");
-  setNoProductWarning(false);
-  // shopify.saveBar.hide("my-save-bar");
-  setIsSubmitting(true);
-  SetButtonLoading((prev)=> ({...prev, draft: true}));
-  // setSaveBarVisible(false);
+    const { valid } = validateForm();
+    if (!valid) return;
 
- 
+    if (selectedProducts.length == 0) {
+      setNoProductWarning(true);
+      setTimeout(() => {
+        setNoProductWarning(false);
+      }, 5000);
+      return;
+    }
+    handleClick("draft");
+    setNoProductWarning(false);
+    // shopify.saveBar.hide("my-save-bar");
+    setIsSubmitting(true);
+    SetButtonLoading((prev) => ({ ...prev, draft: true }));
+    // setSaveBarVisible(false);
 
-  const formData = new FormData();
-  formData.append("intent", "SAVE");
+    const formData = new FormData();
+    formData.append("intent", "SAVE");
 
-  formData.append(
-    "name",
-    campaignData.campaignName !== ""
-      ? campaignData.campaignName
-      : `Campaign ${formatedDate}`,
-  );
-  formData.append("shopId", shopId);
-  formData.append("depositPercent", String(campaignData.partialPaymentPercentage));
-  formData.append(
-    "balanceDueDate",
-    selectedDates.duePaymentDate.toISOString(),
-  );
-  formData.append("refundDeadlineDays", "0");
-  formData.append(
-    "campaignEndDate",
-    selectedDates.campaignEndDate.toISOString(),
-  );
+    formData.append(
+      "name",
+      campaignData.campaignName !== ""
+        ? campaignData.campaignName
+        : `Campaign ${formatedDate}`,
+    );
+    formData.append("shopId", shopId);
+    formData.append(
+      "depositPercent",
+      String(campaignData.partialPaymentPercentage),
+    );
+    formData.append(
+      "balanceDueDate",
+      selectedDates.duePaymentDate.toISOString(),
+    );
+    formData.append("refundDeadlineDays", "0");
+    formData.append(
+      "campaignEndDate",
+      selectedDates.campaignEndDate.toISOString(),
+    );
 
-  formData.append("products", JSON.stringify(selectedProducts));
-  formData.append("campaignType", String(campaignData.campaignType));
-  formData.append("buttonText", String(campaignData.buttonText));
-  formData.append("shippingMessage", String(campaignData.shippingMessage));
-  formData.append("paymentMode", String(campaignData.paymentMode));
-  formData.append("designFields", JSON.stringify(designFields));
-  formData.append("discountType", campaignData.discountType);
-  formData.append("discountPercentage", String(campaignData.discountPercentage));
-  formData.append("flatDiscount", String(campaignData.flatDiscount));
-  formData.append("orderTags", JSON.stringify(campaignData.productTags));
-  formData.append("customerTags", JSON.stringify(campaignData.customerTags));
-  formData.append("getDueByValt", String(campaignData.getPaymentsViaValtedPayments));
-  formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
-  formData.append(
-    "scheduledFulfilmentType",
-    campaignData.scheduledFullfillmentType === 1 ? "DAYS_AFTER" : "EXACT_DATE",
-  );
-  formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
-  formData.append(
-    "fulfilmentDate",
-    selectedDates.fullfillmentSchedule.toISOString(),
-  );
-  formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
-  formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
-  formData.append("fullPaymentText", campaignData.fullPaymentText);
-  formData.append("partialPaymentText", campaignData.partialPaymentText);
-  formData.append("partialPaymentInfoText", campaignData.partialPaymentInfoText);
+    formData.append("products", JSON.stringify(selectedProducts));
+    formData.append("campaignType", String(campaignData.campaignType));
+    formData.append("buttonText", String(campaignData.buttonText));
+    formData.append("shippingMessage", String(campaignData.shippingMessage));
+    formData.append("paymentMode", String(campaignData.paymentMode));
+    formData.append("designFields", JSON.stringify(designFields));
+    formData.append("discountType", campaignData.discountType);
+    formData.append(
+      "discountPercentage",
+      String(campaignData.discountPercentage),
+    );
+    formData.append("flatDiscount", String(campaignData.flatDiscount));
+    formData.append("orderTags", JSON.stringify(campaignData.productTags));
+    formData.append("customerTags", JSON.stringify(campaignData.customerTags));
+    formData.append(
+      "getDueByValt",
+      String(campaignData.getPaymentsViaValtedPayments),
+    );
+    formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
+    formData.append(
+      "scheduledFulfilmentType",
+      campaignData.scheduledFullfillmentType === 1
+        ? "DAYS_AFTER"
+        : "EXACT_DATE",
+    );
+    formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
+    formData.append(
+      "fulfilmentDate",
+      selectedDates.fullfillmentSchedule.toISOString(),
+    );
+    formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
+    formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
+    formData.append("fullPaymentText", campaignData.fullPaymentText);
+    formData.append("partialPaymentText", campaignData.partialPaymentText);
+    formData.append(
+      "partialPaymentInfoText",
+      campaignData.partialPaymentInfoText,
+    );
 
-  submit(formData, { method: "post" });
-
-  
-};
+    submit(formData, { method: "post" });
+  };
 
   const handleDiscard = () => {
     console.log("Discarding");
     shopify.saveBar.hide("my-save-bar");
-    setCampaignData({...initialCampaignData.current});
-    setDesignFields({...designFieldsRef.current});
+    setCampaignData({ ...initialCampaignData.current });
+    setDesignFields({ ...designFieldsRef.current });
     setSelectedProducts([]);
-    setSelectedDates({...initialDates.current});
+    setSelectedDates({ ...initialDates.current });
     setErrors([]);
-    
+
     setSaveBarVisible(false);
   };
 
- useEffect(() => {
-   if (isSubmitting) return;
-  const hasUnsavedChanges =
-    JSON.stringify(designFields) !== JSON.stringify(designFieldsRef.current) ||
-    JSON.stringify(campaignData) !== JSON.stringify(initialCampaignData.current) ||
-    selectedProducts.length > 0 ||
-    JSON.stringify(selectedDates) !== JSON.stringify(initialDates.current);
+  useEffect(() => {
+    if (isSubmitting) return;
+    const hasUnsavedChanges =
+      JSON.stringify(designFields) !==
+        JSON.stringify(designFieldsRef.current) ||
+      JSON.stringify(campaignData) !==
+        JSON.stringify(initialCampaignData.current) ||
+      selectedProducts.length > 0 ||
+      JSON.stringify(selectedDates) !== JSON.stringify(initialDates.current);
 
-  if (hasUnsavedChanges && !saveBarVisible) {
-    shopify.saveBar.show("my-save-bar");
-    setSaveBarVisible(true);
-  } else if (!hasUnsavedChanges && saveBarVisible) {
-    shopify.saveBar.hide("my-save-bar");
-    setSaveBarVisible(false);
-  }
-}, [
-  designFields,
-  selectedProducts,
-  campaignData,
-  selectedDates,
-  saveBarVisible,
-  isSubmitting
-]);
+    if (hasUnsavedChanges && !saveBarVisible) {
+      shopify.saveBar.show("my-save-bar");
+      setSaveBarVisible(true);
+    } else if (!hasUnsavedChanges && saveBarVisible) {
+      shopify.saveBar.hide("my-save-bar");
+      setSaveBarVisible(false);
+    }
+  }, [
+    designFields,
+    selectedProducts,
+    campaignData,
+    selectedDates,
+    saveBarVisible,
+    isSubmitting,
+  ]);
 
   useEffect(() => {
     setSaveBarVisible(false);
@@ -814,7 +854,6 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
     <AppProvider i18n={enTranslations}>
       <Page
         title="Create Preorder Campaign"
-       
         backAction={{
           content: "Back",
           onAction: () => {
@@ -839,25 +878,24 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
               handleSave();
             },
             loading: buttonLoading.draft,
-            disabled: buttonLoading.draft || buttonLoading.publish ,
+            disabled: buttonLoading.draft || buttonLoading.publish,
           },
         ]}
       >
         <SaveBar id="my-save-bar">
-          <button variant="primary" onClick={handleSave}
-          loading={buttonLoading.draft ? "" :  buttonLoading.publish ? "" : false}
-          disabled={isSubmitting}
+          <button
+            variant="primary"
+            onClick={handleSave}
+            loading={
+              buttonLoading.draft ? "" : buttonLoading.publish ? "" : false
+            }
+            disabled={isSubmitting}
           ></button>
-          <button onClick={handleDiscard}
-          disabled={isSubmitting}
-          ></button>
+          <button onClick={handleDiscard} disabled={isSubmitting}></button>
         </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
         {errors.length > 0 && (
-          <Banner
-            title="Please fix the following errors"
-            tone="critical"
-          >
+          <Banner title="Please fix the following errors" tone="critical">
             <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
               {errors.map((err, i) => (
                 <li key={i}>{err}</li>
@@ -865,25 +903,21 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
             </ul>
           </Banner>
         )}
-        {(noProductWarning && errors.length === 0) &&
-           <Banner
-          title="Cannot save campaign"
-          tone="warning"
-          onDismiss={() => setNoProductWarning(false)}
-        >
-          You must select at least one product before saving your campaign.
-        </Banner>
-      }
-        
+        {noProductWarning && errors.length === 0 && (
+          <Banner
+            title="Cannot save campaign"
+            tone="warning"
+            onDismiss={() => setNoProductWarning(false)}
+          >
+            You must select at least one product before saving your campaign.
+          </Banner>
+        )}
 
         <form method="post" onSubmit={handleSubmit}>
           <div
             style={{ display: "flex", justifyContent: "flex-end", margin: 2 }}
-          >
-          </div>
-          <div
-            className="form-parent  gap-5 md:flex justify-between m-3"
-          >
+          ></div>
+          <div className="form-parent  gap-5 md:flex justify-between m-3">
             {/* left */}
             {selected === 0 && (
               <CampaignForm
@@ -926,223 +960,18 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
 
             {/* right */}
             {(selected === 0 || selected === 1) && (
-              <div style={{ flex: 1, marginLeft: 5, gap: 20 , marginRight:0 }} className="right mt-10 md:mt-0" >
+              <div
+                style={{ flex: 1, marginLeft: 5, gap: 20, marginRight: 0 }}
+                className="right mt-10 md:mt-0"
+              >
                 {/* preview */}
-                <div
-                  style={{
-                    position: "sticky",
-                    top: 20,
-                    gap: 20,
-                    maxWidth: "400px",
-                    minWidth: "400px",
-                    justifySelf: "flex-end",
-                  }}
-                >
-                  <Card>
-                    <div style={{ display: "flex", justifyContent: "center" }}>
-                      <Text as="h4" variant="headingSm">
-                        Preview
-                      </Text>
-                    </div>
-                    <div style={{ fontFamily: designFields.fontFamily }}>
-                      <Text as="h1" variant="headingLg">
-                        White T-shirt
-                      </Text>
-                      <div style={{ marginTop: 10 }}>
-                        <InlineStack gap="200">
-                          <Text as="h1" variant="headingMd">
-                            {campaignData.discountPercentage === 0 &&
-                            campaignData.flatDiscount === 0 ? (
-                              <Text as="h1" variant="headingLg">
-                                $499.00
-                              </Text>
-                            ) : (
-                              <Text as="h1" variant="headingLg">
-                                {activeButtonIndex === 0 &&
-                                campaignData.discountPercentage !== 0
-                                  ? "$" +
-                                    (
-                                      499.0 -
-                                      (499.0 *
-                                        campaignData.discountPercentage) /
-                                        100
-                                    ).toFixed(2)
-                                  : 499.0 - campaignData.flatDiscount > 0
-                                    ? "$" + (499.0 - campaignData.flatDiscount)
-                                    : "$" + 0}
-                              </Text>
-                            )}
-                          </Text>
-                          {campaignData.discountPercentage === 0 &&
-                          campaignData.flatDiscount === 0 ? null : (
-                            <Text
-                              as="h1"
-                              variant="headingMd"
-                              textDecorationLine="line-through"
-                            >
-                              $499.00
-                            </Text>
-                          )}
-                        </InlineStack>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        marginTop: 10,
-                        marginBottom: 20,
-                        fontFamily: designFields.fontFamily,
-                      }}
-                    >
-                      <Text as="h1" variant="headingSm">
-                        Size
-                      </Text>
-                      <div style={{ display: "flex", gap: 10 }}>
-                        {/* Inactive (Small) */}
-                        <div
-                          style={{
-                            border: "1px solid black",
-                            borderRadius: 80,
-                            padding: "6px 12px",
-                            minWidth: "80px",
-                            textAlign: "center",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span style={{ color: "black", fontWeight: 500 }}>
-                            Small
-                          </span>
-                        </div>
-
-                        {/* Active (Medium) */}
-                        <div
-                          style={{
-                            border: "1px solid black",
-                            borderRadius: 80,
-                            padding: "6px 12px",
-                            minWidth: "80px",
-                            textAlign: "center",
-                            backgroundColor: "black",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span style={{ color: "white", fontWeight: 500 }}>
-                            Medium
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        marginTop: designFields.spacingOT + "px",
-                        marginBottom: designFields.spacingOB + "px",
-                        fontFamily: designFields.fontFamily,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          background:
-                            designFields.buttonStyle === "gradient"
-                              ? `linear-gradient(${designFields.gradientDegree}deg, ${designFields.gradientColor1}, ${designFields.gradientColor2})`
-                              : designFields.buttonBackgroundColor,
-                          borderRadius: `${designFields.borderRadius}px`,
-                          borderColor: designFields.borderColor,
-                          borderWidth: `${designFields.borderSize}px`,
-                          borderStyle: "solid",
-                          paddingTop: `${designFields.spacingIT}px`,
-                          paddingBottom: `${designFields.spacingIB}px`,
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: designFields.buttonTextColor,
-                            fontWeight: "bold",
-                            fontSize: `${designFields.buttonFontSize}px`,
-                          }}
-                        >
-                          {campaignData.buttonText}
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        padding: 5,
-                        fontFamily: designFields.fontFamily,
-                      }}
-                    >
-                      <Text as="h1" variant="headingMd">
-                        <h3
-                          style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            fontFamily:
-                              designFields.fontFamily !== ""
-                                ? designFields.fontFamily
-                                : "Helvetica Neue",
-                            fontSize:
-                              designFields.messageFontSize !== ""
-                                ? designFields.messageFontSize + "px"
-                                : "16px",
-                            color: designFields.preorderMessageColor,
-                          }}
-                        >
-                          {campaignData.shippingMessage}
-                        </h3>
-                      </Text>
-                    </div>
-                    {campaignData.paymentMode === "partial" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          fontFamily: designFields.fontFamily,
-                          textAlign: "center",
-                        }}
-                      >
-                        <Text as="h1" variant="headingMd">
-                          {formattedText}
-                        </Text>
-                      </div>
-                    )}
-                  </Card>
-                  <div style={{ marginTop: 10 }}>
-                    <Card>
-                      <div style={{ padding: 3, textAlign: "center" ,marginBottom:5}}>
-                        <Text as="p" variant="headingSm">
-                          CART, CHECKOUT, EMAIL PREVIEW
-                        </Text>
-                      </div>
-                      <div style={{ display: "flex", gap: 25 }}>
-                        <div>
-                          <img
-                            src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg"
-                            alt=""
-                            height={80}
-                            style={{borderRadius:'10px'}}
-                          />
-                        </div>
-                        <div>
-                          <p style={{ fontWeight: "bold", fontSize: "16px" }}>
-                            Baby Pink T-shirt
-                          </p>
-                          {campaignData.paymentMode === "partial" ? (
-                            <p>{campaignData.partialPaymentText}</p>
-                          ) : (
-                            <p>{campaignData.fullPaymentText}</p>
-                          )}
-                          <p>
-                            {campaignData.preOrderNoteKey} :{" "}
-                            {campaignData.preOrderNoteValue}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
+                <PreviewComponent
+                  campaignData={campaignData}
+                  designFields={designFields}
+                  selectedDates={selectedDates}
+                  formatDate={formatDate}
+                />
+                {/*  */}
               </div>
             )}
           </div>

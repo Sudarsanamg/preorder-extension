@@ -89,6 +89,7 @@ import {
   DesignSchema,
 } from "app/utils/validator/zodValidateSchema";
 import "../tailwind.css";
+import { PreviewComponent } from "app/components/PreviewComponent";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -758,9 +759,6 @@ const storeId = store?.id;
         variables: { metafields: batch },
       });
     }
-
-
-     
     } catch (err) {
       console.error("❌ GraphQL mutation failed:", err);
       throw err;
@@ -2255,218 +2253,12 @@ export default function CampaignDetail() {
                 className="right mt-10 md:mt-0"
               >
                 {/* preview */}
-                <div
-                  style={{
-                    position: "sticky",
-                    top: 20,
-                    maxWidth: "400px",
-                    minWidth: "400px",
-                    justifySelf: "flex-end",
-                  }}
-                >
-                  <Card>
-                    <div style={{ display: "flex", justifyContent: "center" }}>
-                      <Text as="h4" variant="headingSm">
-                        Preview
-                      </Text>
-                    </div>
-                    <div style={{}}>
-                      <Text as="h1" variant="headingLg">
-                        White T-shirt
-                      </Text>
-                      <div style={{ marginTop: 10 }}>
-                        <InlineStack gap="200">
-                          <Text as="h1" variant="headingMd">
-                            {campaignData.discountPercentage === 0 &&
-                            campaignData.flatDiscount === 0 ? (
-                              <Text as="h1" variant="headingLg">
-                                $499.00
-                              </Text>
-                            ) : (
-                              <Text as="h1" variant="headingLg">
-                                {activeButtonIndex === 0 &&
-                                campaignData.discountPercentage !== 0
-                                  ? "$" +
-                                    (
-                                      499.0 -
-                                      (499.0 *
-                                        campaignData.discountPercentage) /
-                                        100
-                                    ).toFixed(2)
-                                  : 499.0 - campaignData.flatDiscount > 0
-                                    ? "$" + (499.0 - campaignData.flatDiscount)
-                                    : "$" + 0}
-                              </Text>
-                            )}
-                          </Text>
-                          {campaignData.discountPercentage === 0 &&
-                          campaignData.flatDiscount === 0 ? null : (
-                            <Text
-                              as="h1"
-                              variant="headingMd"
-                              textDecorationLine="line-through"
-                            >
-                              $499.00
-                            </Text>
-                          )}
-                        </InlineStack>
-                      </div>
-                    </div>
-                    <div style={{ marginTop: 10, marginBottom: 20 }}>
-                      <Text as="h1" variant="headingSm">
-                        Size
-                      </Text>
-                      <div style={{ display: "flex", gap: 10 }}>
-                        <div
-                          style={{
-                            border: "1px solid black",
-                            borderRadius: 80,
-                            padding: "6px 12px",
-                            minWidth: "80px",
-                            textAlign: "center",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span style={{ color: "black", fontWeight: 500 }}>
-                            Small
-                          </span>
-                        </div>
-
-                        {/* Active (Medium) */}
-                        <div
-                          style={{
-                            border: "1px solid black",
-                            borderRadius: 80,
-                            padding: "6px 12px",
-                            minWidth: "80px",
-                            textAlign: "center",
-                            backgroundColor: "black",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span style={{ color: "white", fontWeight: 500 }}>
-                            Medium
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        marginTop: designFields.spacingOT + "px",
-                        marginBottom: designFields.spacingOB + "px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          // height: 50,
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          backgroundColor:
-                            designFields?.buttonStyle === "single"
-                              ? designFields?.buttonBackgroundColor
-                              : "black",
-                          background:
-                            designFields?.buttonStyle === "gradient"
-                              ? `linear-gradient(${designFields?.gradientDegree}deg, ${designFields?.gradientColor1}, ${designFields?.gradientColor2})`
-                              : designFields?.buttonBackgroundColor,
-                          borderRadius: designFields.borderRadius + "px",
-                          // marginTop: "auto",
-                          borderColor: designFields.borderColor,
-                          borderWidth: designFields.borderSize + "px",
-                          borderStyle: "solid",
-                          paddingTop: designFields.spacingIT + "px",
-                          paddingBottom: designFields.spacingIB + "px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: designFields.buttonTextColor,
-                            fontWeight: "bold",
-                            fontSize: designFields.buttonFontSize + "px",
-                          }}
-                        >
-                          {campaignData.buttonText}
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        padding: 5,
-                      }}
-                    >
-                      <Text as="h1" variant="headingMd">
-                        <h3
-                          style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            textAlign: "center",
-                            fontFamily:
-                              designFields.fontFamily !== ""
-                                ? designFields.fontFamily
-                                : "Helvetica Neue",
-                            fontSize:
-                              designFields.messageFontSize !== ""
-                                ? designFields.messageFontSize + "px"
-                                : "16px",
-                            color: designFields.preorderMessageColor,
-                          }}
-                        >
-                          {campaignData.shippingMessage}
-                        </h3>
-                      </Text>
-                    </div>
-                    {campaignData.paymentMode === "partial" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          textAlign: "center",
-                        }}
-                      >
-                        <Text as="h1" variant="headingMd">
-                          Pay $3.92 now and $35.28 will be charged on{" "}
-                          {formatDate(selectedDates.duePaymentDate)}
-                        </Text>
-                      </div>
-                    )}
-                  </Card>
-                  <div style={{ marginTop: 20 }}>
-                    <Card>
-                      <div style={{ padding: 3, textAlign: "center" , marginBottom: '10px' }}>
-                        <Text as="p" variant="headingSm">
-                          CART, CHECKOUT, EMAIL PREVIEW
-                        </Text>
-                      </div>
-                      <div style={{ display: "flex", gap: 25 }}>
-                        <div>
-                          <img
-                            src="https://essential-preorder.vercel.app/images/placeholder-preorder-product-img.jpg"
-                            alt=""
-                            height={80}
-                            style={{borderRadius:'10px'}}
-                          />
-                        </div>
-                        <div style={{ marginTop: 10 }}>
-                          <p style={{ fontWeight: "bold", fontSize: "16px" }}>
-                            Baby Pink T-shirt
-                          </p>
-                          {campaignData.paymentMode === "partial" ? (
-                            <p>Partial payment</p>
-                          ) : (
-                            <p>Pay in full</p>
-                          )}
-                          <p>
-                            {campaignData.preOrderNoteKey} :{" "}
-                            {campaignData.preOrderNoteValue}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
+                <PreviewComponent
+                  campaignData={campaignData}
+                  designFields={designFields}
+                  formatDate={formatDate}
+                  selectedDates={selectedDates}
+                  />
               </div>
             )}
           </div>
