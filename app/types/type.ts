@@ -34,6 +34,7 @@ export interface CampaignFields {
   paymentMode: 'full' | 'partial';
   partialPaymentType: 'percent' | 'flat';
   duePaymentType: 1 | 2;
+  campaignEndDate?: string;
   campaignEndTime: string;
   fulfilmentMode: 'UNFULFILED' | 'SCHEDULED' | 'ONHOLD';
   scheduledFullfillmentType: 1 | 2;

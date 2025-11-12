@@ -525,13 +525,14 @@ export default function Newcampaign() {
     month: new Date().getMonth(),
     year: new Date().getFullYear(),
   });
-  const [selectedDates, setSelectedDates] = useState({
-    start: new Date(),
-    end: new Date(),
-    duePaymentDate: new Date(),
-    campaignEndDate: new Date(),
-    fullfillmentSchedule: new Date(),
-  });
+ const [selectedDates, setSelectedDates] = useState({
+  start: new Date(Date.now()),
+  end: new Date(Date.now()),
+  duePaymentDate: new Date(Date.now()),
+  campaignEndDate: new Date(Date.now()),
+  fullfillmentSchedule: new Date(Date.now()),
+});
+
   const initialDates = useRef(selectedDates);
   const [popoverActive, setPopoverActive] = useState({
     duePaymentDate: false,
@@ -656,6 +657,26 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     ...prevData,
     [field]: value
   }));
+
+ if (field === "campaignEndTime" || field ==='campaignEndDate') {
+  const timeStr = value as string;
+  setSelectedDates((prev) => {
+    const date = prev.campaignEndDate;
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    const finalUtc = new Date(
+      Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate(),
+        hours || 0,
+        minutes || 0
+      )
+    );
+    return { ...prev, campaignEndDate: finalUtc };
+  });
+}
+
+
 };
 
   const openResourcePicker = () => {
@@ -719,8 +740,8 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
 
  
 
-  const handleDateChange = (field: string, range: any) => {
-   if (!range?.start) return; 
+ const handleDateChange = (field: string, range: any) => {
+  if (!range?.start) return;
 
   const utcDate = new Date(
     Date.UTC(
@@ -730,9 +751,21 @@ const handleCampaignDataChange = <K extends keyof CampaignFields>(field: K, valu
     )
   );
 
-  setSelectedDates((prev) => ({ ...prev, [field]: utcDate }));
+  const [hours, minutes] = campaignData.campaignEndTime.split(":").map(Number);
+  const finalUtc = new Date(
+    Date.UTC(
+      utcDate.getUTCFullYear(),
+      utcDate.getUTCMonth(),
+      utcDate.getUTCDate(),
+      hours || 0,
+      minutes || 0
+    )
+  );
+
+  setSelectedDates((prev) => ({ ...prev, [field]: finalUtc }));
   setPopoverActive((prev) => ({ ...prev, [field]: false }));
-  };
+};
+
 
   const tabs = [
     {
@@ -1783,7 +1816,7 @@ const validateForm = (): { valid: boolean; messages: string[] } => {
                                 textAlign: "center",
                               }}
                             >
-                              {formatCurrency(product.variantPrice, storeCurrency)}
+                              {formatCurrency(product.variantPrice, storeCurrency??'USD')}
                             </td>
                             <td
                               style={{
