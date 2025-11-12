@@ -37,6 +37,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const campaign = await prisma.preorderCampaign.findUnique({
           where: {
             id: campaignId,
+            storeId: store.id
           },
           select: { campaignType: true },
         });

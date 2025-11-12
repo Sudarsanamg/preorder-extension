@@ -137,7 +137,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       return json({ error: "Failed to fetch products" });
     }
   } else {
-    const campaign = await getCampaignById(params.id!);
+    const campaign = await getCampaignById(params.id!,shop);
     const varientId = campaign?.products?.map((p) => p.variantId) || [];
     const response = await admin.graphql(GET_VARIENT_BY_IDS, {
       variables: { ids: varientId },
@@ -219,11 +219,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       { status: 404 },
     );
   }
+const store = await getStoreIdByShopId(shopId);
+const storeId = store?.id;
 
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const secondaryIntent = formData.get("secondaryIntent") as string;
-  const campaignCurrentStatusResponse = await getCampaignStatus(params.id!);
+  const campaignCurrentStatusResponse = await getCampaignStatus(params.id!,storeId as string);
   const campaignCurrentStatus = campaignCurrentStatusResponse?.status;
   if (intent === "productsWithPreorder") {
     let productIds = JSON.parse(formData.get("products") as string);
@@ -288,7 +290,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const updatedProducts = JSON.parse(
         (formData.get("products") as string) || "[]",
       );
-      await replaceProductsInCampaign(String(params.id!), updatedProducts);
+      await replaceProductsInCampaign(String(params.id!), updatedProducts, storeId as string);
 
       const handleRes = await admin.graphql(GetCampaignId, {
         variables: {
@@ -879,7 +881,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const errors = [];
 
       for (const group of groups) {
-        const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
+      const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
           variables: { id: group.id },
         });
         const deleteData = await deleteResp.json();
@@ -955,7 +957,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         console.log(products, "products");
 
         if (products.length > 0) {
-          await replaceProductsInCampaign(String(params.id!), products);
+          await replaceProductsInCampaign(String(params.id!), products,storeId as string);
 
           const campaignType = formData.get("campaignType") as CampaignType;
           //if campaign type === 3 then inventory quantity need to update
@@ -1138,7 +1140,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           },
         ];
 
-        //if we just update here its enough
 
         const handleRes = await admin.graphql(GetCampaignId, {
           variables: {
@@ -1287,7 +1288,6 @@ export default function CampaignDetail() {
   };
   const actionData = useActionData<typeof action>();
 
-  console.log(productsWithPreorder, "productsWithPreorder");
   const [buttonLoading, setButtonLoading] = useState({
     publish: false,
     delete: false,
@@ -1412,13 +1412,10 @@ export default function CampaignDetail() {
   });
   const initialCampaignRef = useRef(campaignData);
   const initialDesignRef = useRef(designFields);
-  const [productFetched, setProductFetched] = useState(false);
-  console.log(productFetched);
   const [warningPopoverActive, setWarningPopoverActive] = useState(false);
   const [noProductWarning, setNoProductWarning] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const navigation = useNavigation();
-  // const isSaving = navigation.state === "submitting";
   const [formHasChanges, setFormHasChanges] = useState(false);
 
   const handleCampaignDataChange = <K extends keyof CampaignFields>(
@@ -1498,7 +1495,6 @@ export default function CampaignDetail() {
           })),
         );
         setSelectedProducts(products);
-        setProductFetched(true);
       } else {
         // ✅ collections selected → fetch products inside
         let allProducts: any[] = [];
@@ -1954,7 +1950,6 @@ export default function CampaignDetail() {
     const allVariants = await res.json();
     setSelectedProducts(allVariants);
     setButtonLoading(() => ({ ...buttonLoading, addAll: false }));
-    setProductFetched(true);
   };
 
   useEffect(() => {
@@ -1963,7 +1958,6 @@ export default function CampaignDetail() {
     formData.append("intent", "productsWithPreorder");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("campaignId", campaign.id);
-    setProductFetched(false);
 
     submit(formData, { method: "post" });
     // }

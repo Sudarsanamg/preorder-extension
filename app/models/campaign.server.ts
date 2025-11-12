@@ -51,7 +51,6 @@ export async function getAccessToken(shopifyDomain: string) {
 
 export async function getAllCampaign(shopId?: string) {
   const store = await getStoreIdByShopId(shopId as string);
-  console.log(store?.id, "store");
   return prisma.preorderCampaign.findMany({
     where: {
       storeId: store?.id,
@@ -62,10 +61,11 @@ export async function getAllCampaign(shopId?: string) {
   });
 }
 
-export async function getCampaignStatus(id: string) {
+export async function getCampaignStatus(id: string , storeId: string ) {
   return prisma.preorderCampaign.findFirst({
     where: {
-      id
+      id,
+      storeId
     },
     select: {
       status: true,
@@ -214,17 +214,16 @@ export async function addProductsToCampaign(
 export async function replaceProductsInCampaign(
   campaignId: string,
   products: { productId: string; variantId?: string; totalInventory: number }[],
+  storeId: string
 ) {
-  const storeId = await prisma.preorderCampaign.findUnique({
-    where: { id: campaignId },
-    select: { storeId: true },
-  })
   return prisma.$transaction([
     // 1. Delete all existing products for this campaign
 
     prisma.preorderCampaignProduct.deleteMany({
       where: { 
-        campaignId: campaignId },
+        campaignId: campaignId ,
+        storeId: storeId
+      },
     }),
 
     // 2. Insert the new products
@@ -234,7 +233,7 @@ export async function replaceProductsInCampaign(
         productId: p.productId,
         variantId: p.variantId,
         maxQuantity: p.totalInventory,
-        storeId: storeId?.storeId,
+        storeId: storeId,
         updatedAt: BigInt(Date.now()),
         createdAt: BigInt(Date.now())
       })),
@@ -298,9 +297,18 @@ export async function getCampaigns(storeId: string) {
   });
 }
 
-export async function getCampaignById(id: string) {
+export async function getCampaignById(id: string, storeDomain: string) {
+  
+  const storeId = await prisma.store.findFirst({
+    where: { shopifyDomain: storeDomain },
+    select: { id: true },
+  })
+
   return prisma.preorderCampaign.findUnique({
-    where: { id },
+    where: { 
+      id,
+      storeId: storeId?.id
+     },
     include: {
       products: true,
       // preorders: true,
@@ -473,12 +481,6 @@ export async function orderStatusUpdate(
   });
 }
 
-export async function orderStatusUpdateByOrderId(orderId: string) {
-  return prisma.campaignOrders.update({
-    where: { order_id: orderId },
-    data: { paymentStatus: "PAID" },
-  });
-}
 
 
 export async function getEmailSettingsStatus(shopId: string) {
@@ -584,10 +586,10 @@ export async function createDuePayment(
 }
 
 
-export async function getAllVariants(storeID: string) {
+export async function getAllVariants(shopId: string) {
   // Get stored access token for this shop
   const store = await prisma.store.findUnique({
-    where: { shopId: storeID },
+    where: { shopId: shopId },
     select: { offlineToken: true ,
       shopifyDomain: true
     },

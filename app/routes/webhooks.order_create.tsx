@@ -18,7 +18,6 @@ import type { FulfillmentStatus } from "@prisma/client";
 export const action = async ({ request }: { request: Request }) => {
   try {
     const { topic, shop, payload, admin } = await authenticate.webhook(request);
-    console.log("order create Webhook hitted");
 
     if (topic !== "ORDERS_CREATE") {
       return Response.json({ error: "Invalid topic" }, { status: 200 });
