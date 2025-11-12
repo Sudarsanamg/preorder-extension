@@ -760,7 +760,7 @@ export default function Index() {
                       {emailCampaignStatus == true ? (
                         <Badge tone="success">On</Badge>
                       ) : (
-                        <Badge tone="critical">Off</Badge>
+                        <Badge tone="warning">Off</Badge>
                       )}
                     </Text>
                     <Text as="p" tone="subdued" variant="bodySm">

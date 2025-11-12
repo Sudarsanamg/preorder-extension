@@ -7,9 +7,8 @@ import {
 } from "app/graphql/mutation/orders";
 
 export const action = async ({ request }: { request: Request }) => {
-  console.log("order paid Webhook hitted");
   try {
-    const { topic, payload, admin , shop } = await authenticate.webhook(request);
+    const { topic, payload, admin, shop } = await authenticate.webhook(request);
 
     if (topic !== "ORDERS_PAID") {
       return Response.json({ error: "Invalid topic" }, { status: 200 });
@@ -32,9 +31,11 @@ export const action = async ({ request }: { request: Request }) => {
         storeId: storeId,
       },
     });
+
     if (!ogOrder) {
       return Response.json({ error: "No preorder found" }, { status: 200 });
     }
+
     const ogOrderId = ogOrder?.order_id;
     const variables = {
       input: {
@@ -43,31 +44,12 @@ export const action = async ({ request }: { request: Request }) => {
     };
 
     try {
-      const response = await admin?.graphql(orderMarkAsPaid, { variables });
-      const data: any = await response?.json();
-
-      if (data.errors) {
-        console.error("GraphQL Errors:", data.errors);
-        return Response.json({ error: data.errors }, { status: 200 });
-      }
-
-      if (data.data.orderMarkAsPaid.userErrors.length > 0) {
-        console.error("User Errors:", data.data.orderMarkAsPaid.userErrors);
-        return Response.json(
-          { errors: data.data.orderMarkAsPaid.userErrors },
-          { status: 200 },
-        );
-      }
-
+      await admin?.graphql(orderMarkAsPaid, { variables });
       orderStatusUpdate(note, "PAID", storeId);
       const duePaymentOrderId = payload.admin_graphql_api_id;
-      // archeive the due payment
-       await admin?.graphql(
-        CloseOrderMutation,
-        {
-          variables: { id: duePaymentOrderId },
-        },
-      );
+      await admin?.graphql(CloseOrderMutation, {
+        variables: { id: duePaymentOrderId },
+      });
 
       return new Response("Ok");
     } catch (error) {
