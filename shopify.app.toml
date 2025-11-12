@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://subscription-bits-cited-cork.trycloudflare.com"
+application_url = "https://beginning-shipped-canal-nebraska.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -40,13 +40,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://subscription-bits-cited-cork.trycloudflare.com/auth/callback",
-  "https://subscription-bits-cited-cork.trycloudflare.com/auth/shopify/callback",
-  "https://subscription-bits-cited-cork.trycloudflare.com/api/auth/callback"
+  "https://beginning-shipped-canal-nebraska.trycloudflare.com/auth/callback",
+  "https://beginning-shipped-canal-nebraska.trycloudflare.com/auth/shopify/callback",
+  "https://beginning-shipped-canal-nebraska.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://subscription-bits-cited-cork.trycloudflare.com/apps/cancel-order"
+url = "https://beginning-shipped-canal-nebraska.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

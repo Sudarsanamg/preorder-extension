@@ -1,6 +1,3 @@
-// import { json } from "@remix-run/node";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import cron from "node-cron";
 import prisma from "../db.server";
 import { runPayment} from "../helper/runPayment";
 
