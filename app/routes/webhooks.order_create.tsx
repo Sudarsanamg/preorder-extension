@@ -213,27 +213,44 @@ async function processVaultPayment({
   );
 }
 
-export const action = async ({ request }: { request: Request }) => {
+async function processOrderCreate({
+  shop,
+  payload,
+  admin,
+}: {
+  shop: string;
+  payload: any;
+  admin: any;
+}) {
   try {
-    const { topic, shop, payload, admin } = await authenticate.webhook(request);
-    if (topic !== "ORDERS_CREATE") {
-      return Response.json({ error: "Invalid topic" }, { status: 200 });
-    }
-
     const store = await getStore(shop);
     if (!store) {
-      return Response.json({ error: "Store not found" }, { status: 200 });
+      return;
+    }
+
+    if (
+      payload.source_name === "shopify_draft_order" ||
+      payload.draft_order_id
+    ) {
+      return ;
     }
 
     const storeId = store.id;
-    const lineItems = payload.line_items || [];
-    const campaignIds = extractCampaignIds(lineItems);
+    const orderId = payload.admin_graphql_api_id;
+    const existing = await prisma.campaignOrders.findUnique({
+      where: { orderId },
+    });
 
-    if (campaignIds.length === 0) {
-      return Response.json({ error: "No campaign found" }, { status: 200 });
+    if (existing) {
+      return;
     }
 
-    // Increment units sold
+    const lineItems = payload.line_items || [];
+    const campaignIds = extractCampaignIds(lineItems);
+    if (campaignIds.length === 0) {
+      return;
+    }
+
     for (const item of lineItems) {
       await incrementUnitsSold(shop, {
         id: item.variant_id,
@@ -241,7 +258,6 @@ export const action = async ({ request }: { request: Request }) => {
       });
     }
 
-    // Increment campaign totals
     for (const campaignId of campaignIds) {
       await prisma.preorderCampaign.update({
         where: { id: campaignId, storeId },
@@ -251,54 +267,68 @@ export const action = async ({ request }: { request: Request }) => {
 
     await handleOrderTags(admin, payload, storeId, campaignIds);
 
-    try {
-      const { campaignOrder, remaining, secondSchedule, customerEmail } =
-        await createCampaignOrder(payload, storeId, campaignIds);
+    const { campaignOrder, remaining, secondSchedule, customerEmail } =
+      await createCampaignOrder(payload, storeId, campaignIds);
 
-      const campaign = await prisma.preorderCampaign.findFirst({
-        where: { id: campaignIds[0], storeId },
-      });
+    await sendCustomEmail({
+      storeId,
+      customerEmail,
+      orderId,
+      orderNumber: payload.order_number,
+      shop,
+    });
 
-      const vaultPayment = campaign?.getDueByValt || false;
-      const orderId = payload.admin_graphql_api_id;
-      const customerId = payload.customer?.admin_graphql_api_id;
+    const campaign = await prisma.preorderCampaign.findFirst({
+      where: { id: campaignIds[0], storeId },
+    });
 
-      await sendCustomEmail({
-        storeId,
+    const vaultPayment = campaign?.getDueByValt || false;
+    const customerId = payload.customer?.admin_graphql_api_id;
+
+    if (remaining > 0 && !vaultPayment) {
+      await processDraftInvoice({
+        admin,
+        customerId,
         customerEmail,
-        orderId,
+        remaining,
         orderNumber: payload.order_number,
-        shop,
+        orderId,
+        storeId,
       });
-
-      if (remaining > 0 && !vaultPayment) {
-        await processDraftInvoice({
-          admin,
-          customerId,
-          customerEmail,
-          remaining,
-          orderNumber: payload.order_number,
-          orderId,
-          storeId,
-        });
-      } 
-      else if (remaining > 0 && vaultPayment) {
-        await processVaultPayment({
-          admin,
-          orderId,
-          remaining,
-          secondSchedule,
-          campaignOrder,
-          storeId,
-        });
-      }
-    } catch (error) {
-      console.error("ORDERS_CREATE webhook error:", error);
     }
 
-    return new Response("OK", { status: 200 });
+    if (remaining > 0 && vaultPayment) {
+      await processVaultPayment({
+        admin,
+        orderId,
+        remaining,
+        secondSchedule,
+        campaignOrder,
+        storeId,
+      });
+    }
   } catch (error) {
-    console.error("ORDERS_CREATE webhook error:", error);
-    return new Response("Error", { status: 500 });
+    console.error("ORDERS_CREATE PROCESSING ERROR:", error);
+  }
+}
+
+export const action = async ({ request }: { request: Request }) => {
+  try {
+    const { topic, shop, payload, admin } = await authenticate.webhook(request);
+
+    if (topic !== "ORDERS_CREATE") {
+      return new Response("OK", { status: 200 });
+    }
+
+    const response = new Response("OK", { status: 200 });
+
+    processOrderCreate({ shop, payload, admin }).catch((error) =>
+      console.error("ORDERS_CREATE ASYNC ERROR:", error),
+    );
+
+    return response;
+  } catch (error) {
+    console.error("Webhook receive error:", error);
+    return new Response("OK", { status: 200 });
   }
 };

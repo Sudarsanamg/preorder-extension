@@ -471,6 +471,7 @@ export async function orderStatusUpdate(
   paymentStatus: PaymentStatus,
   storeId: string
 ) {
+  if(!orderdraft_order_id) return
   return prisma.campaignOrders.update({
     where: { 
       draftOrderId: orderdraft_order_id ,
