@@ -344,7 +344,6 @@ export const publishCampaign = async (
     variantIds,
     campaignData?.discountType as DiscountType,
     Number(campaignData?.discountValue || 0),
-    Number(campaignData?.discountValue || 0),
   );
 };
 
@@ -537,7 +536,6 @@ export const createCampaign = async (
       admin,
       varientIds,
       discountType,
-      Number(formData.get("discountValue") || 0),
       Number(formData.get("discountValue") || 0),
     );
 
