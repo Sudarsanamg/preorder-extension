@@ -351,8 +351,8 @@ export async function getOrders(shopId: string) {
       storeId: store?.id,
     },
     select: {
-      order_id: true,
-      order_number: true,
+      orderId: true,
+      orderNumber: true,
       dueDate: true,
       balanceAmount: true,
       paymentStatus: true,
@@ -361,7 +361,7 @@ export async function getOrders(shopId: string) {
       fulfilmentStatus: true
     },
     orderBy: {
-      order_number: "desc",
+      orderNumber: "desc",
     },
    
   });
@@ -374,8 +374,8 @@ export async function getOrdersByLimit(shopId: string, limit = 10, skip = 0) {
       storeId: store?.id,
     },
     select: {
-      order_id: true,
-      order_number: true,
+      orderId: true,
+      orderNumber: true,
       dueDate: true,
       balanceAmount: true,
       paymentStatus: true,
@@ -386,7 +386,7 @@ export async function getOrdersByLimit(shopId: string, limit = 10, skip = 0) {
     skip,
     take: limit,
     orderBy: {
-      order_number: "desc",
+      orderNumber: "desc",
     },
   });
 }
@@ -400,8 +400,8 @@ export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfil
       
     },
     select: {
-      order_id: true,
-      order_number: true,
+      orderId: true,
+      orderNumber: true,
       dueDate: true,
       balanceAmount: true,
       paymentStatus: true,
@@ -412,9 +412,9 @@ export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfil
 }
 
 export async function createOrder({
-  order_number,
-  order_id,
-  draft_order_id,
+  orderNumber,
+  orderId,
+  draftOrderId,
   dueDate,
   balanceAmount,
   paymentStatus,
@@ -425,9 +425,9 @@ export async function createOrder({
   fulfilmentStatus,
   campaignId
 }: {
-  order_number: number;
-  order_id: string;
-  draft_order_id?: string;
+  orderNumber: number;
+  orderId: string;
+  draftOrderId?: string;
   dueDate?: Date;
   balanceAmount?: number;
   paymentStatus: PaymentStatus;
@@ -442,10 +442,10 @@ export async function createOrder({
   
     const newOrder = await prisma.campaignOrders.create({
       data: {
-        order_number,
+        orderNumber: orderNumber,
         storeId : storeId,
-        order_id,
-        draft_order_id,
+        orderId : orderId,
+        draftOrderId,
         dueDate,
         balanceAmount,
         paymentStatus,
@@ -473,7 +473,7 @@ export async function orderStatusUpdate(
 ) {
   return prisma.campaignOrders.update({
     where: { 
-      draft_order_id: orderdraft_order_id ,
+      draftOrderId: orderdraft_order_id ,
       storeId : storeId
     },
     data: {

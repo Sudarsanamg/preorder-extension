@@ -26,7 +26,7 @@ export const loader = async () => {
       });
 
       await prisma.campaignOrders.update({
-        where: { order_id: payment.orderId },
+        where: { orderId: payment.orderId },
         data: { paymentStatus: "CANCELLED" },
       })
     } catch (err) {

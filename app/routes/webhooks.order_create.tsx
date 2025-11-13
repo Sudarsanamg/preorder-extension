@@ -47,13 +47,13 @@ async function sendCustomEmail({
   storeId,
   customerEmail,
   orderId,
-  order_number,
+  orderNumber,
   shop,
 }: {
   storeId: string;
   customerEmail: string;
   orderId: string;
-  order_number: number;
+  orderNumber: number;
   shop: string;
 }) {
   const emailSettings = await prisma.store.findFirst({
@@ -70,7 +70,7 @@ async function sendCustomEmail({
   const emailTemplate = generateEmailTemplate(
     emailSettings.ConfrimOrderEmailSettings,
     templateData,
-    order_number.toString(),
+    orderNumber.toString(),
   );
 
   const transporter = nodemailer.createTransport({
@@ -122,15 +122,15 @@ async function createCampaignOrder(
   campaignIds: string[],
 ) {
   const orderId = payload.admin_graphql_api_id;
-  const order_number = payload.order_number;
+  const orderNumber = payload.order_number;
   const schedules = payload?.payment_terms?.payment_schedules || [];
   const secondSchedule = schedules[1];
   const customerEmail = payload.email || payload.customer?.email;
   const remaining = Number(secondSchedule?.amount);
 
   const campaignOrder = await createOrder({
-    order_number,
-    order_id: orderId,
+    orderNumber,
+    orderId: orderId,
     ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
     balanceAmount: remaining ?? 0,
     paymentStatus: remaining > 0 ? "PENDING" : "PAID",
@@ -150,15 +150,15 @@ async function processDraftInvoice({
   customerId,
   customerEmail,
   remaining,
-  order_number,
+  orderNumber,
   orderId,
   storeId,
 }: any) {
   const uuid = uuidv4();
 
   await prisma.campaignOrders.update({
-    where: { order_id: orderId, storeId },
-    data: { draft_order_id: uuid },
+    where: { orderId: orderId, storeId },
+    data: { draftOrderId: uuid },
   });
 
   const variables = {
@@ -166,7 +166,7 @@ async function processDraftInvoice({
       customerId,
       lineItems: [
         {
-          title: `Remaining Balance Payment for order #${order_number}`,
+          title: `Remaining Balance Payment for order #${orderNumber}`,
           quantity: 1,
           originalUnitPrice: remaining,
         },
@@ -268,7 +268,7 @@ export const action = async ({ request }: { request: Request }) => {
       storeId,
       customerEmail,
       orderId,
-      order_number: payload.order_number,
+      orderNumber: payload.order_number,
       shop,
     });
 
@@ -278,7 +278,7 @@ export const action = async ({ request }: { request: Request }) => {
         customerId,
         customerEmail,
         remaining,
-        order_number: payload.order_number,
+        orderNumber: payload.order_number,
         orderId,
         storeId,
       });

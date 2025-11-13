@@ -50,10 +50,10 @@ model Store {
 }
 
 model VaultedPayment {
-  id              String           @id @default(uuid())
-  orderId         String           @unique
+  id              String         @id @default(uuid())
+  orderId         String         @unique
   storeId         String
-  campaignOrderId String           @unique
+  campaignOrderId String         @unique
   amount          Decimal
   currencyCode    String
   mandateId       String
@@ -61,8 +61,8 @@ model VaultedPayment {
   paymentStatus   PaymentStatus
   createdAt       BigInt
   updatedAt       BigInt
-  store           Store            @relation(fields: [storeId], references: [id])
-  campaignOrder   CampaignOrders   @relation("OrderVaultedPayment", fields: [campaignOrderId], references: [id])
+  store           Store          @relation(fields: [storeId], references: [id])
+  campaignOrder   CampaignOrders @relation("OrderVaultedPayment", fields: [campaignOrderId], references: [id])
 
   @@unique([orderId, storeId])
 }
@@ -116,10 +116,10 @@ model PreorderCampaignProduct {
 model CampaignOrders {
   id               String             @id @default(uuid())
   storeId          String
-  campaignId       String            
-  order_number     Int
-  order_id         String             @unique
-  draft_order_id   String?            @unique
+  campaignId       String
+  orderNumber      Int
+  orderId          String             @unique
+  draftOrderId     String?            @unique
   customerEmail    String             @default("")
   dueDate          DateTime?
   totalAmount      Decimal?
@@ -133,8 +133,8 @@ model CampaignOrders {
   vaultedPayment   VaultedPayment?    @relation("OrderVaultedPayment")
   campaign         PreorderCampaign   @relation(fields: [campaignId], references: [id])
 
-  @@unique([storeId, order_id])
-  @@unique([storeId, draft_order_id])
+  @@unique([storeId, orderId])
+  @@unique([storeId, draftOrderId])
 }
 
 enum PaymentStatus {
@@ -178,7 +178,6 @@ enum FulfillmentStatus {
   ON_HOLD
   FULFILLED
 }
-
 
 enum CampaignType {
   OUT_OF_STOCK

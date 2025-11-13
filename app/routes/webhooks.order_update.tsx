@@ -31,7 +31,7 @@ export const action = async ({ request }: { request: Request }) => {
 
     const existingOrder = await prisma.campaignOrders.findUnique({
       where: {
-         order_id: `gid://shopify/Order/${body.id}`,
+         orderId: `gid://shopify/Order/${body.id}`,
          storeId: storeId
     },
 
@@ -44,7 +44,7 @@ export const action = async ({ request }: { request: Request }) => {
     if (body.cancelled_at) {
       await prisma.campaignOrders.update({
         where: {
-           order_id: `gid://shopify/Order/${body.id}`, 
+           orderId: `gid://shopify/Order/${body.id}`, 
            storeId: storeId
           },
         data: {
@@ -71,7 +71,7 @@ export const action = async ({ request }: { request: Request }) => {
     ) {
       await prisma.campaignOrders.update({
         where: { 
-          order_id: `gid://shopify/Order/${body.id}`,
+          orderId: `gid://shopify/Order/${body.id}`,
           storeId: storeId
        },
         data: {

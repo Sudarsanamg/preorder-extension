@@ -27,7 +27,7 @@ export const action = async ({ request }: { request: Request }) => {
     const note = payload.note;
     const ogOrder = await prisma.campaignOrders.findFirst({
       where: {
-        draft_order_id: note,
+        draftOrderId: note,
         storeId: storeId,
       },
     });
@@ -36,7 +36,7 @@ export const action = async ({ request }: { request: Request }) => {
       return Response.json({ error: "No preorder found" }, { status: 200 });
     }
 
-    const ogOrderId = ogOrder?.order_id;
+    const ogOrderId = ogOrder?.orderId;
     const variables = {
       input: {
         id: ogOrderId,

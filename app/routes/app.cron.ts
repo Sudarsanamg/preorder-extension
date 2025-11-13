@@ -30,7 +30,7 @@ export const loader = async () => {
       });
       await prisma.campaignOrders.update({
         where: { 
-          order_id: payment.orderId,
+          orderId: payment.orderId,
           storeId: payment.storeId
          },
         data: { paymentStatus: "PAID",

@@ -194,7 +194,7 @@ export default function AdditionalPage() {
 
   const allOrders = orders.map((order: any) => ({
     id: order.order_id,
-    orderNumber: `#${order.order_number}`,
+    orderNumber: `#${order.orderNumber}`,
     dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
     balanceAmount: `$${order.balanceAmount ?? 0}`,
     paymentStatus: order.paymentStatus,
