@@ -193,7 +193,7 @@ export default function AdditionalPage() {
   const handleChange = useCallback(() => setActive((a) => !a), []);
 
   const allOrders = orders.map((order: any) => ({
-    id: order.order_id,
+    id: order.orderId,
     orderNumber: `#${order.orderNumber}`,
     dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
     balanceAmount: `$${order.balanceAmount ?? 0}`,

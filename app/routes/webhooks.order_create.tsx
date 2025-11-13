@@ -198,8 +198,7 @@ async function processVaultPayment({
   });
 
   const { data }: any = await response?.json();
-  const methods =
-    data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
+  const methods = data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
   const mandateId = methods?.[0]?.id;
 
   await createDuePayment(
@@ -213,7 +212,6 @@ async function processVaultPayment({
     storeId,
   );
 }
-
 
 export const action = async ({ request }: { request: Request }) => {
   try {
@@ -253,44 +251,49 @@ export const action = async ({ request }: { request: Request }) => {
 
     await handleOrderTags(admin, payload, storeId, campaignIds);
 
-    const { campaignOrder, remaining, secondSchedule, customerEmail } =
-      await createCampaignOrder(payload, storeId, campaignIds);
+    try {
+      const { campaignOrder, remaining, secondSchedule, customerEmail } =
+        await createCampaignOrder(payload, storeId, campaignIds);
 
-    const campaign = await prisma.preorderCampaign.findFirst({
-      where: { id: campaignIds[0], storeId },
-    });
+      const campaign = await prisma.preorderCampaign.findFirst({
+        where: { id: campaignIds[0], storeId },
+      });
 
-    const vaultPayment = campaign?.getDueByValt || false;
-    const orderId = payload.admin_graphql_api_id;
-    const customerId = payload.customer?.admin_graphql_api_id;
+      const vaultPayment = campaign?.getDueByValt || false;
+      const orderId = payload.admin_graphql_api_id;
+      const customerId = payload.customer?.admin_graphql_api_id;
 
-    await sendCustomEmail({
-      storeId,
-      customerEmail,
-      orderId,
-      orderNumber: payload.order_number,
-      shop,
-    });
-
-    if (remaining > 0 && !vaultPayment) {
-      await processDraftInvoice({
-        admin,
-        customerId,
+      await sendCustomEmail({
+        storeId,
         customerEmail,
-        remaining,
+        orderId,
         orderNumber: payload.order_number,
-        orderId,
-        storeId,
+        shop,
       });
-    } else if (remaining > 0 && vaultPayment) {
-      await processVaultPayment({
-        admin,
-        orderId,
-        remaining,
-        secondSchedule,
-        campaignOrder,
-        storeId,
-      });
+
+      if (remaining > 0 && !vaultPayment) {
+        await processDraftInvoice({
+          admin,
+          customerId,
+          customerEmail,
+          remaining,
+          orderNumber: payload.order_number,
+          orderId,
+          storeId,
+        });
+      } 
+      else if (remaining > 0 && vaultPayment) {
+        await processVaultPayment({
+          admin,
+          orderId,
+          remaining,
+          secondSchedule,
+          campaignOrder,
+          storeId,
+        });
+      }
+    } catch (error) {
+      console.error("ORDERS_CREATE webhook error:", error);
     }
 
     return new Response("OK", { status: 200 });

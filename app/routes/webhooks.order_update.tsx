@@ -5,15 +5,12 @@ import { authenticate } from "../shopify.server";
 export const action = async ({ request }: { request: Request }) => {
   try {
     const { shop, payload , topic } = await authenticate.webhook(request);
-    console.log("order update Webhook hitted");
-    console.log(topic);
 
     if(topic !== "ORDERS_UPDATED"){
       return Response.json({ error: "Invalid topic" }, { status: 200 });
     }
 
     const body = payload?.body ?? payload ?? null;
-    console.log(body);
 
     if (!body || !body.id) {
       return new Response("Invalid payload", { status: 400 });
