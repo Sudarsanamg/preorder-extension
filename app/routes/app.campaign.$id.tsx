@@ -9,7 +9,7 @@ import {
 } from "../models/campaign.server";
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { json,  } from "@remix-run/node";
 import {
   AppProvider,
   Button,
@@ -138,7 +138,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       return json({ error: "Failed to fetch products" });
     }
   } else {
-    const campaign = await getCampaignById(params.id!,shop);
+    const campaign = await getCampaignById(params.id!, shop);
     const varientId = campaign?.products?.map((p) => p.variantId) || [];
     const response = await admin.graphql(GET_VARIENT_BY_IDS, {
       variables: { ids: varientId },
@@ -220,13 +220,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       { status: 404 },
     );
   }
-const store = await getStoreIdByShopId(shopId);
-const storeId = store?.id;
+  const store = await getStoreIdByShopId(shopId);
+  const storeId = store?.id;
 
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const secondaryIntent = formData.get("secondaryIntent") as string;
-  const campaignCurrentStatusResponse = await getCampaignStatus(params.id!,storeId as string);
+  const campaignCurrentStatusResponse = await getCampaignStatus(
+    params.id!,
+    storeId as string,
+  );
   const campaignCurrentStatus = campaignCurrentStatusResponse?.status;
   if (intent === "productsWithPreorder") {
     let productIds = JSON.parse(formData.get("products") as string);
@@ -258,145 +261,82 @@ const storeId = store?.id;
     return json({ productsWithPreorder });
   }
   if (intent === "update-campaign") {
-    try {
-      await updateCampaign({
-        id: params.id!,
-        name: formData.get("name") as string,
-        depositPercent: Number(formData.get("depositPercent")),
-        balanceDueDate: new Date(formData.get("balanceDueDate") as string),
-        refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-        releaseDate: formData.get("campaignEndDate")
-          ? new Date(formData.get("campaignEndDate") as string)
-          : undefined,
-        orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
-        customerTags: JSON.parse(
-          (formData.get("customerTags") as string) || "[]",
-        ),
-        discountType: formData.get("discountType") as DiscountType,
-        discountValue: Number(formData.get("discountValue") || "0"),
-        campaignType: formData.get("campaignType") as CampaignType,
-        getDueByValt: (formData.get("getDueByValt") as string) === "true",
-        status: campaignCurrentStatus,
-        fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
-        scheduledFulfilmentType: formData.get(
-          "scheduledFulfilmentType",
-        ) as scheduledFulfilmentType,
-        fulfilmentDaysAfter: Number(formData.get("fulfilmentDaysAfter")),
-        fulfilmentExactDate: new Date(
-          formData.get("fulfilmentExactDate") as string,
-        ),
-        shopId: shopId,
+    const products = JSON.parse((formData.get("products") as string) || "[]");
+
+    const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
+      variables: { id: products[0].productId },
+    });
+    const productData = await productResp.json();
+
+    const groups =
+      productData.data.product.sellingPlanGroups.edges.map(
+        (edge: any) => edge.node,
+      ) || [];
+
+    const deletedGroups = [];
+    const errors = [];
+
+    for (const group of groups) {
+      const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
+        variables: { id: group.id },
       });
-      const updatedProducts = JSON.parse(
-        (formData.get("products") as string) || "[]",
-      );
-      await replaceProductsInCampaign(String(params.id!), updatedProducts, storeId as string, formData.get("campaignType") as CampaignType);
+      const deleteData = await deleteResp.json();
 
-      const handleRes = await admin.graphql(GetCampaignId, {
-        variables: {
-          handle: { type: "preordercampaign", handle: params.id },
-        },
-      });
-
-      const handleData = await handleRes.json();
-      const metaobjectId = handleData?.data?.metaobjectByHandle?.id;
-
-      if (!metaobjectId) {
-        throw new Error(
-          "Campaign metaobject not found for handle: " + params.id,
-        );
-      }
-      const designFields = JSON.parse(formData.get("designFields") as string);
-      const campaignFields = [
-        {
-          key: "object",
-          value: JSON.stringify({
-            campaignData: {
-              campaign_id: String(params.id),
-              name: (formData.get("name") as string) || "Untitled Campaign",
-              status: "publish",
-              button_text: (formData.get("buttonText") as string) || "Preorder",
-              shipping_message:
-                (formData.get("shippingMessage") as string) ||
-                "Ship as soon as possible",
-              payment_type: (formData.get("paymentMode") as string) || "Full",
-              payment_schedule: {
-                type: formData.get("collectionMode") as scheduledFulfilmentType,
-                value:
-                  (formData.get(
-                    "collectionMode",
-                  ) as scheduledFulfilmentType) === "DAYS_AFTER"
-                    ? formData.get("paymentAfterDays")
-                    : new Date(
-                        formData.get("balanceDueDate") as string,
-                      ).toISOString(),
-              },
-              ppercent: String(formData.get("depositPercent") || "0"),
-              paymentduedate: new Date(
-                (formData.get("balanceDueDate") as string) || Date.now(),
-              ).toISOString(),
-              campaign_end_date: new Date(
-                (formData.get("campaignEndDate") as string) || Date.now(),
-              ).toISOString(),
-              discount_type: (formData.get("discountType") as string) || "none",
-              discountValue:
-                (formData.get("discountValue") as string) || "0",
-              campaigntags: JSON.parse(
-                (formData.get("orderTags") as string) || "[]",
-              ).join(","),
-              customerTags: JSON.parse(
-                (formData.get("customerTags") as string) || "[]",
-              ).join(","),
-              campaigntype: formData.get("campaignType") as CampaignType,
-              fulfillment: {
-                type: formData.get("fulfilmentmode") as Fulfilmentmode,
-                schedule: {
-                  type: formData.get(
-                    "scheduledFulfilmentType",
-                  ) as scheduledFulfilmentType,
-                  value:
-                    (formData.get(
-                      "scheduledFulfilmentType",
-                    ) as scheduledFulfilmentType) === "DAYS_AFTER"
-                      ? formData.get("fulfilmentDaysAfter")
-                      : new Date(
-                          formData.get("fullfilmentDate") as string,
-                        ).toISOString(),
-                },
-              },
-            },
-            designFields: {
-              ...designFields,
-            },
-          }),
-        },
-      ];
-
-      const campaignUpdateResponse = await admin.graphql(
-        updateCampaignDataMutation,
-        {
-          variables: {
-            id: metaobjectId,
-            metaobjectUpdate: { fields: campaignFields },
-          },
-        },
-      );
-
-      const parsedCampaign = await campaignUpdateResponse.json();
-
-      if (parsedCampaign?.data?.metaobjectUpdate?.userErrors?.length) {
-        console.error(
-          "Campaign Update Errors:",
-          parsedCampaign.data.metaobjectUpdate.userErrors,
-        );
+      if (
+        deleteData.data.sellingPlanGroupDelete.userErrors &&
+        deleteData.data.sellingPlanGroupDelete.userErrors.length > 0
+      ) {
+        errors.push({
+          groupId: group.id,
+          errors: deleteData.data.sellingPlanGroupDelete.userErrors,
+        });
       } else {
-        console.log(
-          "Updated Campaign Metaobject:",
-          parsedCampaign.data.metaobjectUpdate.metaobject,
+        deletedGroups.push(
+          deleteData.data.sellingPlanGroupDelete.deletedSellingPlanGroupId,
         );
       }
+    }
 
-      const products = JSON.parse((formData.get("products") as string) || "[]");
+    const campaign = await updateCampaign({
+      id: params.id!,
+      name: formData.get("name") as string,
+      depositPercent: Number(formData.get("depositPercent")),
+      balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+      refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
+      releaseDate: formData.get("campaignEndDate")
+        ? new Date(formData.get("campaignEndDate") as string)
+        : undefined,
+      orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
+      customerTags: JSON.parse(
+        (formData.get("customerTags") as string) || "[]",
+      ),
+      discountType: formData.get("discountType") as DiscountType,
+      discountValue: Number(formData.get("discountValue") || "0"),
+      campaignType: formData.get("campaignType") as CampaignType,
+      shopId: shopId,
+      getDueByValt: (formData.get("getDueByValt") as string) === "true",
+      status: campaignCurrentStatus,
+      fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
+      scheduledFulfilmentType: formData.get(
+        "scheduledFulfilmentType",
+      ) as scheduledFulfilmentType,
+      fulfilmentDaysAfter: Number(formData.get("fulfilmentDaysAfter")),
+      fulfilmentExactDate: new Date(
+        formData.get("fulfilmentExactDate") as string,
+      ),
+      paymentType: formData.get("paymentMode") as string,
+      campaignEndDate: new Date(formData.get("campaignEndDate") as string),
+    });
+
+
+    if (products.length > 0) {
+      await replaceProductsInCampaign(
+        String(params.id!),
+        products,
+        storeId as string,
+        formData.get("campaignType") as CampaignType,
+      );
+
       const campaignType = formData.get("campaignType") as CampaignType;
 
       const metafields = products.flatMap((product: any) => [
@@ -405,76 +345,24 @@ const storeId = store?.id;
           namespace: "custom",
           key: "campaign_id",
           type: "single_line_text_field",
-          value: String(params.id),
+          value: String(campaign.id),
         },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "preorder",
-          type: "boolean",
-          value: "true",
-        },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "preorder_end_date",
-          type: "date_time",
-          value: new Date(
-            formData.get("campaignEndDate") as string,
-          ).toISOString(),
-        },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "deposit_percent",
-          type: "number_integer",
-          value: String(formData.get("depositPercent") || "0"),
-        },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "balance_due_date",
-          type: "date",
-          value: new Date(
-            formData.get("balanceDueDate") as string,
-          ).toISOString(),
-        },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "preorder_max_units",
-          type: "number_integer",
-          value: campaignType == "IN_STOCK"
-                  ? String(product.variantInventory)
-                  : String(product?.maxUnit || "0"),
-        },
-        {
-          ownerId: product.variantId,
-          namespace: "custom",
-          key: "preorder_units_sold",
-          type: "number_integer",
-          value: "0",
-        },
-      ]);
-
-      const productMetafields = products.flatMap((product: any) => [
         {
           ownerId: product.productId,
           namespace: "custom",
           key: "campaign_id",
           type: "single_line_text_field",
-          value: String(params.id),
+          value: String(campaign.id),
         },
         {
-          ownerId: product.productId,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "preorder",
           type: "boolean",
           value: "true",
         },
-
         {
-          ownerId: product.productId,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "preorder_end_date",
           type: "date_time",
@@ -483,14 +371,14 @@ const storeId = store?.id;
           ).toISOString(),
         },
         {
-          ownerId: product.productId,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "deposit_percent",
           type: "number_integer",
           value: String(formData.get("depositPercent") || "0"),
         },
         {
-          ownerId: product.productId,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "balance_due_date",
           type: "date",
@@ -499,20 +387,14 @@ const storeId = store?.id;
           ).toISOString(),
         },
         {
-          ownerId: product.productId,
+          ownerId: product.variantId,
           namespace: "custom",
           key: "preorder_max_units",
           type: "number_integer",
-          value: campaignType == "IN_STOCK"
-                  ? String(product.variantInventory)
-                  : String(product?.maxUnit || "0"),
-        },
-        {
-          ownerId: product.productId,
-          namespace: "custom",
-          key: "preorder_units_sold",
-          type: "number_integer",
-          value: "0",
+          value:
+            campaignType == "IN_STOCK"
+              ? String(product.variantInventory)
+              : String(product?.maxUnit || "0"),
         },
       ]);
 
@@ -523,98 +405,219 @@ const storeId = store?.id;
             variables: { metafields: batch },
           });
         }
-
-        for (let i = 0; i < productMetafields.length; i += 20) {
-          const batch = productMetafields.slice(i, i + 20);
-          await admin.graphql(SET_PREORDER_METAFIELDS, {
-            variables: { metafields: batch },
-          });
-        }
       } catch (err) {
         console.error("GraphQL mutation failed:", err);
         throw err;
       }
+    }
 
-      const removedVarients = formData.get("removedVarients") as string;
-      const parsedRemovedVarients = removedVarients
-        ? JSON.parse(removedVarients)
-        : [];
+    // if the payment option is partial
+    const discountType = formData.get("discountType") as DiscountType;
+    const variantIds = products.map((p: any) => p.variantId);
+    await applyDiscountToVariants(
+      admin,
+      variantIds,
+      discountType,
+      Number(formData.get("discountValue") || 0),
+    );
 
-      if (parsedRemovedVarients.length > 0) {
-        for (const variantId of parsedRemovedVarients) {
-          const { data }: any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+    await createSellingPlan(
+      admin,
+      formData.get("paymentMode") as "partial" | "full",
+      products,
+      formData,
+      {
+        fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
+        collectionMode: formData.get(
+          "collectionMode",
+        ) as scheduledFulfilmentType,
+        fulfillmentDate: new Date(
+          formData.get("fulfilmentDate") as string,
+        ).toISOString(),
+        customDays: Number(formData.get("paymentAfterDays") as string),
+        balanceDueDate: new Date(
+          formData.get("balanceDueDate") as string,
+        ).toISOString(),
+      },
+    );
+    if (
+      formData.get("campaignType") == "OUT_OF_STOCK" ||
+      formData.get("campaignType") == "ALLWAYS"
+    ) {
+      allowOutOfStockForVariants(admin, products);
+    }
+    const designFields = JSON.parse(formData.get("designFields") as string);
+
+    const campaignFields = [
+      {
+        key: "object",
+        value: JSON.stringify({
+          campaignData: {
+            campaign_id: String(campaign.id),
+            name: (formData.get("name") as string) || "Untitled Campaign",
+            status: "publish",
+            button_text: (formData.get("buttonText") as string) || "Preorder",
+            shipping_message:
+              (formData.get("shippingMessage") as string) ||
+              "Ship as soon as possible",
+            payment_type: (formData.get("paymentMode") as string) || "Full",
+            payment_schedule: {
+              type: formData.get("collectionMode") as scheduledFulfilmentType,
+              value:
+                (formData.get("collectionMode") as scheduledFulfilmentType) ===
+                "DAYS_AFTER"
+                  ? formData.get("paymentAfterDays")
+                  : new Date(
+                      formData.get("balanceDueDate") as string,
+                    ).toISOString(),
+            },
+            ppercent: String(formData.get("depositPercent") || "0"),
+            paymentduedate: new Date(
+              (formData.get("balanceDueDate") as string) || Date.now(),
+            ).toISOString(),
+            campaign_end_date: new Date(
+              (formData.get("campaignEndDate") as string) || Date.now(),
+            ).toISOString(),
+            discount_type: formData.get("discountType") as DiscountType,
+            discountValue: (formData.get("discountValue") as string) || "0",
+            campaigntags: JSON.parse(
+              (formData.get("orderTags") as string) || "[]",
+            ).join(","),
+            customerTags: JSON.parse(
+              (formData.get("customerTags") as string) || "[]",
+            ).join(","),
+            campaigntype: formData.get("campaignType") as CampaignType,
+            fulfillment: {
+              type: formData.get("fulfilmentmode") as Fulfilmentmode,
+              schedule: {
+                type: formData.get(
+                  "scheduledFulfilmentType",
+                ) as scheduledFulfilmentType,
+                value:
+                  (formData.get(
+                    "scheduledFulfilmentType",
+                  ) as scheduledFulfilmentType) === "DAYS_AFTER"
+                    ? 7
+                    : new Date(
+                        formData.get("fulfilmentDate") as string,
+                      ).toISOString(),
+              },
+            },
+          },
+          designFields: {
+            ...designFields,
+          },
+        }),
+      },
+    ];
+
+    const handleRes = await admin.graphql(GetCampaignId, {
+      variables: {
+        handle: { type: "preordercampaign", handle: params.id },
+      },
+    });
+
+    const handleData = await handleRes.json();
+    const metaobjectId = handleData?.data?.metaobjectByHandle?.id;
+
+    if (!metaobjectId) {
+      throw new Error("Campaign metaobject not found for handle: " + params.id);
+    }
+
+    await admin.graphql(updateCampaignDataMutation, {
+      variables: {
+        id: metaobjectId,
+        metaobjectUpdate: { fields: campaignFields },
+      },
+    });
+
+    await updateCampaignStatus(
+      campaign.id,
+      campaignCurrentStatus as CampaignStatus,
+      shopId,
+    );
+    const removedVarients = formData.get("removedVarients") as string;
+    const parsedRemovedVarients = removedVarients
+      ? JSON.parse(removedVarients)
+      : [];
+
+    if (parsedRemovedVarients.length > 0) {
+      //need to remove selling group and
+      //remove metafields
+      for (const variantId of parsedRemovedVarients) {
+        const { data }: any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
+          variables: {
+            id: variantId,
+          },
+        });
+
+        const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
+        for (const g of groups) {
+          const groupId = g.node.id;
+
+          // Step 2: remove variant from group
+          await admin.graphql(removeVariantMutation, {
             variables: {
-              id: variantId,
+              groupId,
+              variantIds: [variantId],
             },
           });
-
-          const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
-          for (const g of groups) {
-            const groupId = g.node.id;
-
-            await admin.graphql(removeVariantMutation, {
-              variables: {
-                groupId,
-                variantIds: [variantId],
-              },
-            });
-          }
         }
-
-        const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
-          {
-            ownerId: varientId,
-            namespace: "custom",
-            key: "campaign_id",
-            type: "single_line_text_field",
-            value: "null",
-          },
-          {
-            ownerId: varientId,
-            namespace: "custom",
-            key: "preorder",
-            type: "boolean",
-            value: "false",
-          },
-          {
-            ownerId: varientId,
-            namespace: "custom",
-            key: "campaign_id",
-            type: "single_line_text_field",
-            value: "null",
-          },
-          {
-            ownerId: varientId,
-            namespace: "custom",
-            key: "preorder",
-            type: "boolean",
-            value: "false",
-          },
-        ]);
-
-        try {
-          for (let i = 0; i < metafields.length; i += 20) {
-            const batch = metafields.slice(i, i + 20);
-            await admin.graphql(removeMetaFieldMutation, {
-              variables: { metafields: batch },
-            });
-          }
-        } catch (err) {
-          console.error("GraphQL mutation failed:", err);
-          throw err;
-        }
-        removeDiscountFromVariants(
-          admin,
-          parsedRemovedVarients.flatMap((varientId: any) => varientId),
-        );
       }
 
-      // return redirect(`/app/`);
-      return Response.json({ success: true, error: null }, { status: 200 });
-    } catch (err) {
-      console.error("Update Campaign Exception:", err);
-      throw err;
+      //remove metafields
+
+      const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: "null",
+        },
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: "null",
+        },
+        {
+          ownerId: varientId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+      ]);
+
+      try {
+        await admin.graphql(removeMetaFieldMutation, {
+          variables: { metafields },
+        });
+      } catch (err) {
+        console.error("GraphQL mutation failed:", err);
+        throw err;
+      }
+      //remove discounts
+      removeDiscountFromVariants(
+        admin,
+        parsedRemovedVarients.flatMap((varientId: any) => varientId),
+      );
     }
+
+    // return redirect("/app");
+    return Response.json(
+      { success: true, error: null, message: "Campaign updated successfully" },
+      { status: 200 },
+    );
   }
 
   if (intent === "publish-campaign") {
@@ -673,9 +676,10 @@ const storeId = store?.id;
         namespace: "custom",
         key: "preorder_max_units",
         type: "number_integer",
-        value: campaignType == "IN_STOCK"
-                  ? String(product.variantInventory)
-                  : String(product?.maxUnit || "0"),
+        value:
+          campaignType == "IN_STOCK"
+            ? String(product.variantInventory)
+            : String(product?.maxUnit || "0"),
       },
       {
         ownerId: product.variantId,
@@ -728,9 +732,10 @@ const storeId = store?.id;
         namespace: "custom",
         key: "preorder_max_units",
         type: "number_integer",
-        value: campaignType == "IN_STOCK"
-                  ? String(product.variantInventory)
-                  : String(product?.maxUnit || "0"),
+        value:
+          campaignType == "IN_STOCK"
+            ? String(product.variantInventory)
+            : String(product?.maxUnit || "0"),
       },
       {
         ownerId: product.productId,
@@ -745,16 +750,16 @@ const storeId = store?.id;
       for (let i = 0; i < metafields.length; i += 20) {
         const batch = metafields.slice(i, i + 20);
         await admin.graphql(SET_PREORDER_METAFIELDS, {
-          variables: { metafields : batch },
+          variables: { metafields: batch },
         });
       }
 
-     for(let i = 0; i < productMetafields.length; i += 20){
-       const batch = productMetafields.slice(i, i + 20);
-      await admin.graphql(SET_PREORDER_METAFIELDS, {
-        variables: { metafields: batch },
-      });
-    }
+      for (let i = 0; i < productMetafields.length; i += 20) {
+        const batch = productMetafields.slice(i, i + 20);
+        await admin.graphql(SET_PREORDER_METAFIELDS, {
+          variables: { metafields: batch },
+        });
+      }
     } catch (err) {
       console.error("❌ GraphQL mutation failed:", err);
       throw err;
@@ -797,7 +802,7 @@ const storeId = store?.id;
 
     await updateCampaignStatus(params.id!, "PUBLISHED", shopId);
     // return redirect(`/app/`);
-    return Response.json({ success: true, error: null }, { status: 200 });
+    return Response.json({ success: true, error: null, message: "Campaign Published Successfully" }, { status: 200 });
   }
 
   if (intent === "unpublish-campaign") {
@@ -851,7 +856,6 @@ const storeId = store?.id;
 
         if (response.data?.metafieldsSet?.userErrors?.length) {
           console.error(
-            "///////////////////////",
             response.data.metafieldsSet.userErrors,
           );
         }
@@ -874,7 +878,7 @@ const storeId = store?.id;
       const errors = [];
 
       for (const group of groups) {
-      const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
+        const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
           variables: { id: group.id },
         });
         const deleteData = await deleteResp.json();
@@ -893,362 +897,27 @@ const storeId = store?.id;
           );
         }
       }
-      // const response = await admin.graphql(GET_SHOP);
-      // const data = await response.json();
-      // const shopId = data.data.shop.id;
+   
 
       await updateCampaignStatus(params.id!, "UNPUBLISH", shopId);
-      // if (secondaryIntent === "NONE" || secondaryIntent === "delete-campaign") {
       removeDiscountFromVariants(
         admin,
         products.map((product: any) => product.variantId),
       );
-      // }
 
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!, shopId);
-        return Response.json({ success: true, error: null ,message: "Campaign deleted successfully" }, { status: 200 });
-      }
-      if (secondaryIntent === "delete-campaign-create-new") {
-        const campaign = await updateCampaign({
-          id: params.id!,
-          name: formData.get("name") as string,
-          depositPercent: Number(formData.get("depositPercent")),
-          balanceDueDate: new Date(formData.get("balanceDueDate") as string),
-          refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
-          releaseDate: formData.get("campaignEndDate")
-            ? new Date(formData.get("campaignEndDate") as string)
-            : undefined,
-          orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
-          customerTags: JSON.parse(
-            (formData.get("customerTags") as string) || "[]",
-          ),
-          discountType: formData.get("discountType") as DiscountType,
-          discountValue: Number(formData.get("discountValue") || "0"),
-          campaignType: formData.get("campaignType") as CampaignType,
-          shopId: shopId,
-          getDueByValt: (formData.get("getDueByValt") as string) === "true",
-          status: campaignCurrentStatus,
-          fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
-          scheduledFulfilmentType: formData.get(
-            "scheduledFulfilmentType",
-          ) as scheduledFulfilmentType,
-          fulfilmentDaysAfter: Number(formData.get("fulfilmentDaysAfter")),
-          fulfilmentExactDate: new Date(
-            formData.get("fulfilmentExactDate") as string,
-          ),
-          paymentType: formData.get("paymentMode") as string,
-          campaignEndDate: new Date(formData.get("campaignEndDate") as string),
-        });
-
-        const products = JSON.parse(
-          (formData.get("products") as string) || "[]",
-        );
-
-
-        // console.log(products, "products");
-
-        if (products.length > 0) {
-          await replaceProductsInCampaign(String(params.id!), products,storeId as string,formData.get("campaignType") as CampaignType);
-
-          const campaignType = formData.get("campaignType") as CampaignType;
-          //if campaign type === 3 then inventory quantity need to update
-          const metafields = products.flatMap((product: any) => [
-            {
-              ownerId: product.variantId,
-              namespace: "custom",
-              key: "campaign_id",
-              type: "single_line_text_field",
-              value: String(campaign.id),
-            },
-            {
-              ownerId: product.productId,
-              namespace: "custom",
-              key: "campaign_id",
-              type: "single_line_text_field",
-              value: String(campaign.id),
-            },
-            {
-              ownerId: product.variantId,
-              namespace: "custom",
-              key: "preorder",
-              type: "boolean",
-              value: "true",
-            },
-            {
-              ownerId: product.variantId,
-              namespace: "custom",
-              key: "preorder_end_date",
-              type: "date_time",
-              value: new Date(
-                formData.get("campaignEndDate") as string,
-              ).toISOString(),
-            },
-            {
-              ownerId: product.variantId,
-              namespace: "custom",
-              key: "deposit_percent",
-              type: "number_integer",
-              value: String(formData.get("depositPercent") || "0"),
-            },
-            {
-              ownerId: product.variantId,
-              namespace: "custom",
-              key: "balance_due_date",
-              type: "date",
-              value: new Date(
-                formData.get("balanceDueDate") as string,
-              ).toISOString(),
-            },
-            {
-              ownerId: product.variantId,
-              namespace: "custom",
-              key: "preorder_max_units",
-              type: "number_integer",
-              value:
-                campaignType == "IN_STOCK"
-                  ? String(product.variantInventory)
-                  : String(product?.maxUnit || "0"),
-            },
-          ]);
-
-          try {
-            for (let i = 0; i < metafields.length; i += 20) {
-              const batch = metafields.slice(i, i + 20);
-              await admin.graphql(SET_PREORDER_METAFIELDS, {
-                variables: { metafields: batch },
-              });
-            }
-          } catch (err) {
-            console.error("GraphQL mutation failed:", err);
-            throw err;
-          }
-        }
-
-        // if the payment option is partial
-        const discountType = formData.get("discountType") as DiscountType;
-        const variantIds = products.map((p: any) => p.variantId);
-        await applyDiscountToVariants(
-          admin,
-          variantIds,
-          discountType,
-          Number(formData.get("discountValue") || 0),
-        );
-
-        await createSellingPlan(
-          admin,
-          formData.get("paymentMode") as "partial" | "full",
-          products,
-          formData,
+        return Response.json(
           {
-            fulfillmentMode: formData.get("fulfilmentmode") as Fulfilmentmode,
-            collectionMode: formData.get(
-              "collectionMode",
-            ) as scheduledFulfilmentType,
-            fulfillmentDate: new Date(
-              formData.get("fulfilmentDate") as string,
-            ).toISOString(),
-            customDays: Number(formData.get("paymentAfterDays") as string),
-            balanceDueDate: new Date(
-              formData.get("balanceDueDate") as string,
-            ).toISOString(),
+            success: true,
+            error: null,
+            message: "Campaign Deleted ",
           },
+          { status: 200 },
         );
-        if (
-          formData.get("campaignType") == "OUT_OF_STOCK" ||
-          formData.get("campaignType") == "ALLWAYS"
-        ) {
-          allowOutOfStockForVariants(admin, products);
-        }
-        const designFields = JSON.parse(formData.get("designFields") as string);
-
-        const campaignFields = [
-          {
-            key: "object",
-            value: JSON.stringify({
-              campaignData: {
-                campaign_id: String(campaign.id),
-                name: (formData.get("name") as string) || "Untitled Campaign",
-                status: "publish",
-                button_text:
-                  (formData.get("buttonText") as string) || "Preorder",
-                shipping_message:
-                  (formData.get("shippingMessage") as string) ||
-                  "Ship as soon as possible",
-                payment_type: (formData.get("paymentMode") as string) || "Full",
-                payment_schedule: {
-                  type: formData.get(
-                    "collectionMode",
-                  ) as scheduledFulfilmentType,
-                  value:
-                    (formData.get(
-                      "collectionMode",
-                    ) as scheduledFulfilmentType) === "DAYS_AFTER"
-                      ? formData.get("paymentAfterDays")
-                      : new Date(
-                          formData.get("balanceDueDate") as string,
-                        ).toISOString(),
-                },
-                ppercent: String(formData.get("depositPercent") || "0"),
-                paymentduedate: new Date(
-                  (formData.get("balanceDueDate") as string) || Date.now(),
-                ).toISOString(),
-                campaign_end_date: new Date(
-                  (formData.get("campaignEndDate") as string) || Date.now(),
-                ).toISOString(),
-                discount_type: formData.get("discountType") as DiscountType,
-                discountValue:
-                  (formData.get("discountValue") as string) || "0",
-                campaigntags: JSON.parse(
-                  (formData.get("orderTags") as string) || "[]",
-                ).join(","),
-                customerTags: JSON.parse(
-                  (formData.get("customerTags") as string) || "[]",
-                ).join(","),
-                campaigntype: formData.get("campaignType") as CampaignType,
-                fulfillment: {
-                  type: formData.get("fulfilmentmode") as Fulfilmentmode,
-                  schedule: {
-                    type: formData.get(
-                      "scheduledFulfilmentType",
-                    ) as scheduledFulfilmentType,
-                    value:
-                      (formData.get(
-                        "scheduledFulfilmentType",
-                      ) as scheduledFulfilmentType) === "DAYS_AFTER"
-                        ? 7
-                        : new Date(
-                            formData.get("fulfilmentDate") as string,
-                          ).toISOString(),
-                  },
-                },
-              },
-              designFields: {
-                ...designFields,
-              },
-            }),
-          },
-        ];
-
-
-        const handleRes = await admin.graphql(GetCampaignId, {
-          variables: {
-            handle: { type: "preordercampaign", handle: params.id },
-          },
-        });
-
-        const handleData = await handleRes.json();
-        const metaobjectId = handleData?.data?.metaobjectByHandle?.id;
-
-        if (!metaobjectId) {
-          throw new Error(
-            "Campaign metaobject not found for handle: " + params.id,
-          );
-        }
-
-        await admin.graphql(updateCampaignDataMutation, {
-          variables: {
-            id: metaobjectId,
-            metaobjectUpdate: { fields: campaignFields },
-          },
-        });
-
-        await updateCampaignStatus(
-          campaign.id,
-          campaignCurrentStatus as CampaignStatus,
-          shopId,
-        );
-        const removedVarients = formData.get("removedVarients") as string;
-        const parsedRemovedVarients = removedVarients
-          ? JSON.parse(removedVarients)
-          : [];
-
-        if (parsedRemovedVarients.length > 0) {
-          //need to remove selling group and
-          //remove metafields
-          for (const variantId of parsedRemovedVarients) {
-            const { data }: any = await admin.graphql(
-              GET_VARIANT_SELLING_PLANS,
-              {
-                variables: {
-                  id: variantId,
-                },
-              },
-            );
-
-            const groups = data?.productVariant?.sellingPlanGroups?.edges || [];
-            for (const g of groups) {
-              const groupId = g.node.id;
-
-              // Step 2: remove variant from group
-              await admin.graphql(removeVariantMutation, {
-                variables: {
-                  groupId,
-                  variantIds: [variantId],
-                },
-              });
-            }
-          }
-
-          //remove metafields
-
-          const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
-            {
-              ownerId: varientId,
-              namespace: "custom",
-              key: "campaign_id",
-              type: "single_line_text_field",
-              value: "null",
-            },
-            {
-              ownerId: varientId,
-              namespace: "custom",
-              key: "preorder",
-              type: "boolean",
-              value: "false",
-            },
-            {
-              ownerId: varientId,
-              namespace: "custom",
-              key: "campaign_id",
-              type: "single_line_text_field",
-              value: "null",
-            },
-            {
-              ownerId: varientId,
-              namespace: "custom",
-              key: "preorder",
-              type: "boolean",
-              value: "false",
-            },
-          ]);
-
-          try {
-            await admin.graphql(removeMetaFieldMutation, {
-              variables: { metafields },
-            });
-          } catch (err) {
-            console.error("GraphQL mutation failed:", err);
-            throw err;
-          }
-          //remove discounts
-          removeDiscountFromVariants(
-            admin,
-            parsedRemovedVarients.flatMap((varientId: any) => varientId),
-          );
-        }
-
-        // return redirect("/app");
-        return Response.json({ success: true, error: null  , message: "Campaign updated successfully"}, { status: 200 });
       }
 
-      if (secondaryIntent === "save-as-draft") {
-        const campaignId = (formData.get("id") ?? "") as string;
-        await updateCampaignStatus(campaignId, "DRAFT", shopId);
-        return redirect("/app");
-      }
-
-      return Response.json({ success: true, error: null }, { status: 200 });
+      return Response.json({ success: true, error: null  , message: "Campaign Unpublished"}, { status: 200 });
     } catch (error) {
       console.log(error);
     }
@@ -1322,7 +991,7 @@ export default function CampaignDetail() {
 
   const [productRadio, setproductRadio] = useState("option1");
   const [selectedProducts, setSelectedProducts] = useState(products || []);
-  const initialProducts = useRef(selectedProducts);
+  const initialProducts = useRef(products);
   const [searchTerm, setSearchTerm] = useState("");
   const [campaignEndPicker, setCampaignEndPicker] = useState({
     month: selectedDates.campaignEndDate?.getMonth(),
@@ -1571,38 +1240,11 @@ export default function CampaignDetail() {
     }
   };
 
-  const handleSubmit = () => {
-    const formData = new FormData();
-    formData.append("intent", "update-campaign");
-    formData.append("name", campaignData.campaignName!);
-    formData.append(
-      "depositPercent",
-      String(campaignData.partialPaymentPercentage),
-    );
-    formData.append(
-      "balanceDueDate",
-      selectedDates.duePaymentDate.toISOString(),
-    );
-    formData.append("refundDeadlineDays", "0");
-    formData.append(
-      "campaignEndDate",
-      selectedDates.campaignEndDate.toISOString(),
-    );
-    formData.append("products", JSON.stringify(selectedProducts));
-    formData.append("campaignType", String(campaignData.campaignType));
-    formData.append("buttonText", String(campaignData.buttonText));
-    formData.append("shippingMessage", String(campaignData.shippingMessage));
-    formData.append("paymentMode", String(campaignData.paymentMode));
-    formData.append("designFields", JSON.stringify(designFields));
-    submit(formData, { method: "post" });
-  };
-
   const handleMaxUnitChange = (id: string, value: number) => {
-    //if value is alphabet dont get typed
     if (isNaN(value)) return;
     setSelectedProducts((prev: any) =>
       prev.map((product: any) =>
-        product.variantId === id ? { ...product, maxUnit: value } : product,
+        product.variantId === id ? { ...product, maxUnit: String(value) } : product,
       ),
     );
   };
@@ -1640,12 +1282,11 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
-  function handleCriticalChange(id: string): void {
+  function handleSubmit(id: string): void {
     const formData = new FormData();
-    formData.append("intent", "unpublish-campaign");
+    formData.append("intent", "update-campaign");
     formData.append("products", JSON.stringify(selectedProducts));
     formData.append("removedVarients", JSON.stringify(removedVarients));
-    formData.append("secondaryIntent", "delete-campaign-create-new");
     formData.append("id", id);
     formData.append("name", String(campaignData.campaignName));
     formData.append(
@@ -1665,10 +1306,7 @@ export default function CampaignDetail() {
     formData.append("paymentMode", String(campaignData.paymentMode));
     formData.append("designFields", JSON.stringify(designFields));
     formData.append("discountType", campaignData.discountType);
-    formData.append(
-      "discountValue",
-      String(campaignData.discountValue),
-    );
+    formData.append("discountValue", String(campaignData.discountValue));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
     formData.append(
@@ -1688,16 +1326,16 @@ export default function CampaignDetail() {
         ? "DAYS_AFTER"
         : "EXACT_DATE",
     );
-  formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
-  formData.append("fulfilmentDate", selectedDates.fullfillmentSchedule);
-  formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
-  formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
-  formData.append("fullPaymentText", campaignData.fullPaymentText);
-  formData.append("partialPaymentText", campaignData.partialPaymentText);
-  formData.append(
-    "partialPaymentInfoText",
-    campaignData.partialPaymentInfoText,
-  );
+    formData.append("fulfilmentDaysAfter", String(campaignData.scheduledDays));
+    formData.append("fulfilmentDate", selectedDates.fullfillmentSchedule);
+    formData.append("preOrderNoteKey", campaignData.preOrderNoteKey);
+    formData.append("preOrderNoteValue", campaignData.preOrderNoteValue);
+    formData.append("fullPaymentText", campaignData.fullPaymentText);
+    formData.append("partialPaymentText", campaignData.partialPaymentText);
+    formData.append(
+      "partialPaymentInfoText",
+      campaignData.partialPaymentInfoText,
+    );
 
     submit(formData, { method: "post" });
   }
@@ -1716,14 +1354,7 @@ export default function CampaignDetail() {
 
     setButtonLoading((prev) => ({ ...prev, save: true }));
     try {
-      if (criticalChange === true) {
-        await handleCriticalChange(String(campaign?.id));
-      } else {
-        await handleSubmit();
-      }
-
-      // shopify.saveBar.hide("my-save-bar");
-      // setSaveBarActive(false);
+       handleSubmit(String(campaign?.id));
     } catch (error) {
       console.error("Save error:", error);
     }
@@ -1749,9 +1380,6 @@ export default function CampaignDetail() {
       return;
     }
 
-    // if(errors.length > 0){
-    //   return;
-    // }
     if (selectedProducts.length === 0) {
       setNoProductWarning(true);
       return;
@@ -1772,10 +1400,7 @@ export default function CampaignDetail() {
       selectedDates.campaignEndDate.toISOString(),
     );
     formData.append("discountType", campaignData.discountType);
-    formData.append(
-      "discountValue",
-      String(campaignData.discountValue),
-    );
+    formData.append("discountValue", String(campaignData.discountValue));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
     formData.append("id", id);
@@ -1798,7 +1423,7 @@ export default function CampaignDetail() {
     submit(formData, { method: "post" });
   }
 
-    useEffect(() => {
+  useEffect(() => {
     if (navigation.state === "idle" && actionData?.success) {
       shopify.saveBar.hide("my-save-bar");
       setSaveBarActive(false);
@@ -1817,7 +1442,6 @@ export default function CampaignDetail() {
       navigate("/app");
     }
   }, [navigation.state, actionData]);
-
 
   useEffect(() => {
     const noChanges =
@@ -1856,17 +1480,15 @@ export default function CampaignDetail() {
       removedVarients.length === 0 &&
       JSON.stringify(selectedDates) === JSON.stringify(initialDates.current);
 
-    if (noChanges ) {
-        shopify.saveBar.hide("my-save-bar");
-        setSaveBarActive(false);
-    }
-    else if(removedVarients.length > 0 && actionData?.success){
-        shopify.saveBar.hide("my-save-bar");
-        setSaveBarActive(false);
-    }
-     else {
-        shopify.saveBar.show("my-save-bar");
-        setSaveBarActive(true);
+    if (noChanges) {
+      shopify.saveBar.hide("my-save-bar");
+      setSaveBarActive(false);
+    } else if (removedVarients.length > 0 && actionData?.success) {
+      shopify.saveBar.hide("my-save-bar");
+      setSaveBarActive(false);
+    } else {
+      shopify.saveBar.show("my-save-bar");
+      setSaveBarActive(true);
     }
   }, [
     designFields,
@@ -1875,14 +1497,17 @@ export default function CampaignDetail() {
     removedVarients,
     selectedDates,
     saveBarActive,
-    actionData
+    actionData,
   ]);
 
   const handleButtonClick = useCallback(
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
-      handleCampaignDataChange("discountType", index === 0 ? "PERCENTAGE" : "FIXED");
+      handleCampaignDataChange(
+        "discountType",
+        index === 0 ? "PERCENTAGE" : "FIXED",
+      );
     },
     [activeButtonIndex],
   );
@@ -1917,16 +1542,6 @@ export default function CampaignDetail() {
     }
   }, [selectedProducts, campaignData, criticalChange]);
 
-  // function handleSaveAsDraft(id: string) {
-  //   setButtonLoading((prev) => ({ ...prev, saveAsDraft: true }));
-  //   const formData = new FormData();
-  //   formData.append("intent", "unpublish-campaign");
-  //   formData.append("secondaryIntent", "save-as-draft");
-  //   formData.append("products", JSON.stringify(selectedProducts));
-  //   formData.append("id", id);
-
-  //   submit(formData, { method: "post" });
-  // }
 
   const selectAllProducts = async () => {
     setButtonLoading(() => ({ ...buttonLoading, addAll: true }));
@@ -1951,7 +1566,6 @@ export default function CampaignDetail() {
     let flag = false;
     if (!productsWithPreorder) return;
     for (let i = 0; i < productsWithPreorder.length; i++) {
-      console.log(productsWithPreorder[i]);
       if (productsWithPreorder[i]?.associatedWithOtherCampaign == true) {
         flag = true;
         break;
@@ -2066,17 +1680,6 @@ export default function CampaignDetail() {
               buttonLoading.delete ||
               buttonLoading.save,
           },
-          // ...(campaign.status !== "DRAFT"
-          //   ? [
-          //       {
-          //         content: "Save as Draft",
-          //         onAction: () => {
-          //           handleSaveAsDraft(String(campaign?.id));
-          //         },
-          //         loading: buttonLoading.saveAsDraft,
-          //       },
-          //     ]
-          //   : []),
         ]}
       >
         <SaveBar id="my-save-bar">
@@ -2153,35 +1756,7 @@ export default function CampaignDetail() {
         </Modal>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
 
-        <form method="post" onSubmit={handleSubmit}>
-          <input type="hidden" name="intent" value="create-campaign" />
-          <input
-            type="hidden"
-            name="products"
-            value={JSON.stringify(selectedProducts)}
-          />
-          <input type="hidden" name="name" value={campaignData.campaignName} />
-          <input
-            type="hidden"
-            name="depositPercent"
-            value={String(campaignData.partialPaymentPercentage)}
-          />
-          <input
-            type="hidden"
-            name="balanceDueDate"
-            value={String(selectedDates.duePaymentDate)}
-          />
-          <input type="hidden" name="refundDeadlineDays" value="0" />
-          <input
-            type="hidden"
-            name="campaignEndDate"
-            value={selectedDates.campaignEndDate.toISOString()}
-          />
-          <input
-            type="hidden"
-            name="designFields"
-            value={JSON.stringify(designFields)}
-          />
+        <form method="post" onSubmit={()=>handleSubmit(String(campaign?.id))}>
 
           <div
             // style={{
@@ -2244,7 +1819,7 @@ export default function CampaignDetail() {
                   designFields={designFields}
                   formatDate={formatDate}
                   selectedDates={selectedDates}
-                  />
+                />
               </div>
             )}
           </div>
@@ -2372,7 +1947,7 @@ export default function CampaignDetail() {
                         placeholder="Search by product name"
                       />
                     </div>
-                    <div style={{marginLeft:'10px'}}>
+                    <div style={{ marginLeft: "10px" }}>
                       <ButtonGroup noWrap>
                         <Button onClick={openResourcePicker}>
                           Add More Products

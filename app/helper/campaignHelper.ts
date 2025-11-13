@@ -212,7 +212,7 @@ export const publishCampaign = async (
       namespace: "custom",
       key: "balance_due_date",
       type: "date",
-      value: campaignData?.balanceDueDate,
+      value: new Date(campaignData?.balanceDueDate || new Date()).toISOString(),
     },
     {
       ownerId: product.variantId,
@@ -675,16 +675,23 @@ export const handleCampaignStatusChange = async (
         status: "DRAFT",
       },
     });
+
+    return { success: true, message: "Campaign Drafted " };
   }
   if (newStatus === "PUBLISHED") {
     await publishCampaign(admin, campaignId, shopId);
+    return { success: true, message: "Campaign Published " };
   }
   if (newStatus === "UNPUBLISHED") {
     await unPublishCampaign(admin, campaignId,newStatus, shopId );
+
+    return { success: true, message: "Campaign Unpublished" };
   }
   if (newStatus === "DELETE") {
     await unPublishCampaign(admin, campaignId,newStatus, shopId );
 
     await deleteCampaign(campaignId, shopId);
+
+    return { success: true, message: "Campaign Deleted " };
   }
 };

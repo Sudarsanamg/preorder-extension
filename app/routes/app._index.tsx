@@ -178,8 +178,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const campaignId = formData.get("campaignId") as string;
     const newStatus = formData.get("newStatus") as string;
     try {
-      await handleCampaignStatusChange(admin, campaignId, newStatus,shopId);
-      return json({ success: true, message: "Campaign status updated" });
+     const response = await handleCampaignStatusChange(admin, campaignId, newStatus,shopId);
+      return json({ success: true, message: response?.message });
     } catch (error) {
       console.error("Error updating campaign status:", error);
       return json(
@@ -240,7 +240,7 @@ export default function Index() {
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
-      shopify?.toast?.show?.("Action Completed");
+      shopify?.toast?.show?.(fetcher.data.message);
       setIsChangingStatus(false);
       setIsModalOpen(false);
       setActivePopoverId(null);

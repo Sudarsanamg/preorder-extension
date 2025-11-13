@@ -136,6 +136,7 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
               borderStyle: "solid",
               paddingTop: designFields.spacingIT + "px",
               paddingBottom: designFields.spacingIB + "px",
+              fontFamily: designFields.fontFamily,
             }}
           >
             <span
@@ -172,7 +173,8 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
 
         {/* Partial payment message */}
         {campaignData.paymentMode === "partial" && (
-          <div style={{ textAlign: "center" }}>
+          <div style={{ textAlign: "center" , fontFamily: designFields.fontFamily,
+}}>
             <Text as="h1" variant="headingMd">
               Pay $3.92 now and $35.28 will be charged on{" "}
               {formatDate(selectedDates.duePaymentDate)}
