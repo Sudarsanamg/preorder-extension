@@ -767,7 +767,6 @@ const storeId = store?.id;
       variantIds,
       discountType,
       Number(formData.get("discountValue") || 0),
-      Number(formData.get("discountValue") || 0),
     );
 
     await createSellingPlan(
@@ -1033,7 +1032,6 @@ const storeId = store?.id;
           admin,
           variantIds,
           discountType,
-          Number(formData.get("discountValue") || 0),
           Number(formData.get("discountValue") || 0),
         );
 
