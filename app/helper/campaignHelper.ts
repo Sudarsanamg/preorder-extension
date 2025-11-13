@@ -162,7 +162,7 @@ export const publishCampaign = async (
   }
 
   const store = await getStoreIdByShopId(shopId);
-  const campaignRecords = await prisma.preorderCampaign.findMany({
+  const campaignRecords = await prisma.preorderCampaign.findFirst({
     where: {
       id: campaignId,
       storeId: store?.id,
@@ -171,7 +171,7 @@ export const publishCampaign = async (
       products: true,
     },
   });
-  const products = campaignRecords[0].products;
+  const products = campaignRecords?.products || [];
 
   const campaignData = await prisma.preorderCampaign.findUnique({
     where: {
@@ -343,8 +343,8 @@ export const publishCampaign = async (
     admin,
     variantIds,
     campaignData?.discountType as DiscountType,
-    Number(campaignData?.discountPercent || 0),
-    Number(campaignData?.discountFixed || 0),
+    Number(campaignData?.discountValue || 0),
+    Number(campaignData?.discountValue || 0),
   );
 };
 
@@ -370,8 +370,7 @@ export const createCampaign = async (
     orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
     customerTags: JSON.parse((formData.get("customerTags") as string) || "[]"),
     discountType: formData.get("discountType") as DiscountType,
-    discountPercent: Number(formData.get("discountPercentage") || "0"),
-    discountFixed: Number(formData.get("flatDiscount") || "0"),
+    discountValue: Number(formData.get("discountValue") || "0"),
     campaignType: formData.get("campaignType") as CampaignType,
     getDueByValt: formData.get("getDueByValt") == "true" ? true : false,
     totalOrders: 0,
@@ -538,8 +537,8 @@ export const createCampaign = async (
       admin,
       varientIds,
       discountType,
-      Number(formData.get("discountPercentage") || 0),
-      Number(formData.get("flatDiscount") || 0),
+      Number(formData.get("discountValue") || 0),
+      Number(formData.get("discountValue") || 0),
     );
 
     await createSellingPlan(
@@ -601,9 +600,8 @@ export const createCampaign = async (
             (formData.get("campaignEndDate") as string) || Date.now(),
           ).toISOString(),
           discount_type: (formData.get("discountType") as string) || "none",
-          discountpercent:
-            (formData.get("discountPercentage") as string) || "0",
-          discountfixed: (formData.get("flatDiscount") as string) || "0",
+          discountValue:
+            (formData.get("discountValue") as string) || "0",
           campaigntags: JSON.parse(
             (formData.get("orderTags") as string) || "[]",
           ).join(","),

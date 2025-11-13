@@ -83,8 +83,7 @@ model PreorderCampaign {
   orderTags               Json?
   customerTags            Json?
   discountType            DiscountType              @default(NONE)
-  discountPercent         Int?
-  discountFixed           Int?
+  discountValue           Float?
   getDueByValt            Boolean                   @default(false)
   fulfilmentmode          Fulfilmentmode?
   scheduledFulfilmentType scheduledFulfilmentType?

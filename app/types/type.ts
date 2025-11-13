@@ -44,8 +44,7 @@ export interface CampaignFields {
   partialPaymentText: string;
   partialPaymentInfoText: string;
   discountType: DiscountType;
-  discountPercentage: number;
-  flatDiscount: number;
+  discountValue : number;
   getPaymentsViaValtedPayments: boolean;
 }
 

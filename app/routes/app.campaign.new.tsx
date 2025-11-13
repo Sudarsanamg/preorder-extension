@@ -262,8 +262,7 @@ export default function Newcampaign() {
     partialPaymentInfoText:
       "Pay {payment} now and {remaining} will be charged on {date}",
     discountType: "PERCENTAGE",
-    discountPercentage: 0,
-    flatDiscount: 0,
+    discountValue: 0,
     getPaymentsViaValtedPayments: shopifyPaymentsEnabled,
   });
   const [designFields, setDesignFields] = useState<DesignFields>({
@@ -569,11 +568,9 @@ export default function Newcampaign() {
     formData.append("designFields", JSON.stringify(designFields));
     formData.append("discountType", campaignData.discountType);
     formData.append(
-      "discountPercentage",
-      String(campaignData.discountPercentage),
+      "discountValue",
+      String(campaignData.discountValue),
     );
-    formData.append("flatDiscount", String(campaignData.flatDiscount));
-
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
 
@@ -774,10 +771,9 @@ export default function Newcampaign() {
     formData.append("designFields", JSON.stringify(designFields));
     formData.append("discountType", campaignData.discountType);
     formData.append(
-      "discountPercentage",
-      String(campaignData.discountPercentage),
+      "discountValue",
+      String(campaignData.discountValue),
     );
-    formData.append("flatDiscount", String(campaignData.flatDiscount));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
     formData.append(

@@ -273,8 +273,7 @@ const storeId = store?.id;
           (formData.get("customerTags") as string) || "[]",
         ),
         discountType: formData.get("discountType") as DiscountType,
-        discountPercent: Number(formData.get("discountPercentage") || "0"),
-        discountFixed: Number(formData.get("flatDiscount") || "0"),
+        discountValue: Number(formData.get("discountValue") || "0"),
         campaignType: formData.get("campaignType") as CampaignType,
         getDueByValt: (formData.get("getDueByValt") as string) === "true",
         status: campaignCurrentStatus,
@@ -291,7 +290,7 @@ const storeId = store?.id;
       const updatedProducts = JSON.parse(
         (formData.get("products") as string) || "[]",
       );
-      await replaceProductsInCampaign(String(params.id!), updatedProducts, storeId as string);
+      await replaceProductsInCampaign(String(params.id!), updatedProducts, storeId as string, formData.get("campaignType") as CampaignType);
 
       const handleRes = await admin.graphql(GetCampaignId, {
         variables: {
@@ -340,9 +339,8 @@ const storeId = store?.id;
                 (formData.get("campaignEndDate") as string) || Date.now(),
               ).toISOString(),
               discount_type: (formData.get("discountType") as string) || "none",
-              discountpercent:
-                (formData.get("discountPercentage") as string) || "0",
-              discountfixed: (formData.get("flatDiscount") as string) || "0",
+              discountValue:
+                (formData.get("discountValue") as string) || "0",
               campaigntags: JSON.parse(
                 (formData.get("orderTags") as string) || "[]",
               ).join(","),
@@ -543,8 +541,6 @@ const storeId = store?.id;
         : [];
 
       if (parsedRemovedVarients.length > 0) {
-        //need to remove selling group and
-        //remove metafields
         for (const variantId of parsedRemovedVarients) {
           const { data }: any = await admin.graphql(GET_VARIANT_SELLING_PLANS, {
             variables: {
@@ -770,8 +766,8 @@ const storeId = store?.id;
       admin,
       variantIds,
       discountType,
-      Number(formData.get("discountPercentage") || 0),
-      Number(formData.get("flatDiscount") || 0),
+      Number(formData.get("discountValue") || 0),
+      Number(formData.get("discountValue") || 0),
     );
 
     await createSellingPlan(
@@ -929,8 +925,7 @@ const storeId = store?.id;
             (formData.get("customerTags") as string) || "[]",
           ),
           discountType: formData.get("discountType") as DiscountType,
-          discountPercent: Number(formData.get("discountPercentage") || "0"),
-          discountFixed: Number(formData.get("flatDiscount") || "0"),
+          discountValue: Number(formData.get("discountValue") || "0"),
           campaignType: formData.get("campaignType") as CampaignType,
           shopId: shopId,
           getDueByValt: (formData.get("getDueByValt") as string) === "true",
@@ -952,10 +947,10 @@ const storeId = store?.id;
         );
 
 
-        console.log(products, "products");
+        // console.log(products, "products");
 
         if (products.length > 0) {
-          await replaceProductsInCampaign(String(params.id!), products,storeId as string);
+          await replaceProductsInCampaign(String(params.id!), products,storeId as string,formData.get("campaignType") as CampaignType);
 
           const campaignType = formData.get("campaignType") as CampaignType;
           //if campaign type === 3 then inventory quantity need to update
@@ -1038,8 +1033,8 @@ const storeId = store?.id;
           admin,
           variantIds,
           discountType,
-          Number(formData.get("discountPercentage") || 0),
-          Number(formData.get("flatDiscount") || 0),
+          Number(formData.get("discountValue") || 0),
+          Number(formData.get("discountValue") || 0),
         );
 
         await createSellingPlan(
@@ -1104,9 +1099,8 @@ const storeId = store?.id;
                   (formData.get("campaignEndDate") as string) || Date.now(),
                 ).toISOString(),
                 discount_type: formData.get("discountType") as DiscountType,
-                discountpercent:
-                  (formData.get("discountPercentage") as string) || "0",
-                discountfixed: (formData.get("flatDiscount") as string) || "0",
+                discountValue:
+                  (formData.get("discountValue") as string) || "0",
                 campaigntags: JSON.parse(
                   (formData.get("orderTags") as string) || "[]",
                 ).join(","),
@@ -1404,8 +1398,7 @@ export default function CampaignDetail() {
     partialPaymentInfoText:
       "Pay {payment} now and {remaining} will be charged on {date}",
     discountType: parsedCampaignData?.discount_type,
-    discountPercentage: parsedCampaignData?.discountpercent,
-    flatDiscount: parsedCampaignData?.discountfixed,
+    discountValue: parsedCampaignData?.discountValue,
     getPaymentsViaValtedPayments: getDueByValt,
   });
   const initialCampaignRef = useRef(campaignData);
@@ -1428,16 +1421,13 @@ export default function CampaignDetail() {
   const [saveBarActive, setSaveBarActive] = useState(false);
 
   const [activeButtonIndex, setActiveButtonIndex] = useState(-1);
-  const [discountType, setDiscountType] = useState<DiscountType>(
-    parsedCampaignData?.discount_type,
-  );
   useEffect(() => {
-    if (discountType === "PERCENTAGE") {
+    if (campaignData.discountType === "PERCENTAGE") {
       setActiveButtonIndex(0);
-    } else if (discountType === "FIXED") {
+    } else if (campaignData.discountType === "FIXED") {
       setActiveButtonIndex(1);
     }
-  }, [discountType]);
+  }, [campaignData.discountType]);
 
   const handleCampaignEndMonthChange = useCallback(
     (newMonth: any, newYear: any) => {
@@ -1676,12 +1666,11 @@ export default function CampaignDetail() {
     formData.append("shippingMessage", String(campaignData.shippingMessage));
     formData.append("paymentMode", String(campaignData.paymentMode));
     formData.append("designFields", JSON.stringify(designFields));
-    formData.append("discountType", discountType);
+    formData.append("discountType", campaignData.discountType);
     formData.append(
-      "discountPercentage",
-      String(campaignData.discountPercentage),
+      "discountValue",
+      String(campaignData.discountValue),
     );
-    formData.append("flatDiscount", String(campaignData.flatDiscount));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
     formData.append(
@@ -1784,12 +1773,11 @@ export default function CampaignDetail() {
       "campaignEndDate",
       selectedDates.campaignEndDate.toISOString(),
     );
-    formData.append("discountType", discountType);
+    formData.append("discountType", campaignData.discountType);
     formData.append(
-      "discountPercentage",
-      String(campaignData.discountPercentage),
+      "discountValue",
+      String(campaignData.discountValue),
     );
-    formData.append("flatDiscount", String(campaignData.flatDiscount));
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
     formData.append("id", id);
@@ -1896,7 +1884,7 @@ export default function CampaignDetail() {
     (index: number) => {
       if (activeButtonIndex === index) return;
       setActiveButtonIndex(index);
-      setDiscountType(index === 0 ? "PERCENTAGE" : "FIXED");
+      handleCampaignDataChange("discountType", index === 0 ? "PERCENTAGE" : "FIXED");
     },
     [activeButtonIndex],
   );

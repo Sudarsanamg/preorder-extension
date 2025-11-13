@@ -19,14 +19,15 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
   activeButtonIndex = 0,
   formatDate,
 }) => {
+  const discountType = campaignData.discountType;
   const basePrice = 499.0;
   const hasDiscount =
-    campaignData.discountPercentage !== 0 || campaignData.flatDiscount !== 0;
+    campaignData.discountValue !== 0;
 
   const discountedPrice =
-    activeButtonIndex === 0 && campaignData.discountPercentage !== 0
-      ? basePrice - (basePrice * campaignData.discountPercentage) / 100
-      : Math.max(basePrice - campaignData.flatDiscount, 0);
+    discountType === "PERCENTAGE" && campaignData.discountValue !== 0
+      ? basePrice - (basePrice * campaignData.discountValue) / 100
+      : Math.max(basePrice - campaignData.discountValue, 0);
 
   return (
     <div
