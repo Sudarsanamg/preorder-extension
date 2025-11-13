@@ -254,7 +254,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                   <Button
                     pressed={activeButtonIndex === 1}
                     onClick={() =>{ 
-                      handleCampaignDataChange("discountPercentage", 0);
+                      handleCampaignDataChange("discountValue", 0);
                       handleButtonClick(1)}}
                     icon={CashDollarIcon}
                   ></Button>
@@ -267,38 +267,28 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                 labelHidden
                 id="discount"
                 type="text"
-                value={
-                  activeButtonIndex === 0
-                    ? campaignData.discountPercentage.toString()
-                    : campaignData.flatDiscount.toString()
-                }
+                value={campaignData.discountValue.toString()}
                 onChange={(val) => {
                   if (isNaN(Number(val))) return;
-                  if (activeButtonIndex === 0) {
-                    // if(Number(val) > 99) return
-                    handleCampaignDataChange("discountPercentage", Number(val));
-                  } else {
-                    // if(String(val).length > 6) return
-                    handleCampaignDataChange("flatDiscount", Number(val));
-                  }
+                    handleCampaignDataChange("discountValue", Number(val));
                 }}
                 error={
-                  activeButtonIndex === 0
-                    ? campaignData.discountPercentage < 0 ||
-                      campaignData.discountPercentage > 99
-                    : activeButtonIndex === 1
-                      ? String(campaignData.flatDiscount).length > 6
+                  campaignData.discountType === 'PERCENTAGE'
+                    ? campaignData.discountValue < 0 ||
+                      campaignData.discountValue > 99
+                    : campaignData.discountType === 'FIXED'
+                      ? String(campaignData.discountValue).length > 6
                       : ""
                 }
               />
             </InlineStack>
-            {(activeButtonIndex === 0 && campaignData.discountPercentage < 0) ||
-            campaignData.discountPercentage >= 100 ? (
+            {(campaignData.discountType === 'PERCENTAGE') && (campaignData.discountValue < 0 ||
+            campaignData.discountValue >= 100) ? (
               <Text as="p" variant="bodyMd" tone="critical">
                 Please enter valid discount percentage between 0 and 99
               </Text>
-            ) : activeButtonIndex === 1 &&
-              String(campaignData.flatDiscount).length > 6 ? (
+            ) : campaignData.discountType === 'FIXED'  &&
+              String(campaignData.discountValue).length > 6 ? (
               <Text as="p" variant="bodyMd" tone="critical">
                 Please enter valid discount amount less than 6 digits
               </Text>

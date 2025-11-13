@@ -84,8 +84,7 @@ export async function createPreorderCampaign(data: {
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
   discountType: DiscountType;
-  discountPercent?: number;
-  discountFixed?: number;
+  discountValue?: number;
   campaignType?: CampaignType;
   shopId?: string;
   getDueByValt: boolean;
@@ -114,8 +113,7 @@ export async function createPreorderCampaign(data: {
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
       discountType: data.discountType,
-      discountPercent: data.discountPercent,
-      discountFixed: data.discountFixed,
+      discountValue: data.discountValue,
       campaignType: data.campaignType,
       getDueByValt: data.getDueByValt,
       totalOrders: data.totalOrders,
@@ -142,8 +140,7 @@ export async function updateCampaign(data: {
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
   discountType: DiscountType;
-  discountPercent?: number;
-  discountFixed?: number;
+  discountValue?: number;
   campaignType?: CampaignType;
   shopId: string;
   getDueByValt: boolean;
@@ -174,8 +171,7 @@ export async function updateCampaign(data: {
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
       discountType: data.discountType,
-      discountPercent: data.discountPercent,
-      discountFixed: data.discountFixed,
+      discountValue: data.discountValue,
       campaignType: data.campaignType,
       getDueByValt: data.getDueByValt,
       fulfilmentmode: data.fulfilmentmode,
@@ -213,8 +209,9 @@ export async function addProductsToCampaign(
 
 export async function replaceProductsInCampaign(
   campaignId: string,
-  products: { productId: string; variantId?: string; totalInventory: number }[],
-  storeId: string
+  products: { productId: string; variantTitle?: string, variantId?: string; totalInventory: number ,variantInventory: number ,maxUnit?: number ,variantPrice?: number ,productImage?: string}[],
+  storeId: string,
+  campaignType: CampaignType
 ) {
   return prisma.$transaction([
     // 1. Delete all existing products for this campaign
@@ -232,7 +229,12 @@ export async function replaceProductsInCampaign(
         campaignId,
         productId: p.productId,
         variantId: p.variantId,
-        maxQuantity: p.totalInventory,
+        variantTitle: p.variantTitle,
+        price: Number(p.variantPrice),
+        imageUrl: p.productImage,
+        maxQuantity:campaignType == "IN_STOCK"
+                  ? Number(p.variantInventory)
+                  : Number(p?.maxUnit || 0) ,
         storeId: storeId,
         updatedAt: BigInt(Date.now()),
         createdAt: BigInt(Date.now())
