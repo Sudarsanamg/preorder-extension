@@ -1,6 +1,7 @@
 import { Card, Text, InlineStack } from "@shopify/polaris";
-import { CampaignFields, DesignFields } from "app/types/type";
+import type { CampaignFields, DesignFields } from "app/types/type";
 import React from "react";
+import '../styles/campaign.new.css';
 
 interface CampaignPreviewProps {
   campaignData: CampaignFields;
@@ -26,21 +27,17 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
 
   const discountedPrice =
     discountType === "PERCENTAGE" && campaignData.discountValue !== 0
-      ? basePrice - (basePrice * campaignData.discountValue) / 100
+      ? Math.max(basePrice - (basePrice * campaignData.discountValue) / 100,0)
       : Math.max(basePrice - campaignData.discountValue, 0);
 
   return (
     <div
-      style={{
-        position: "sticky",
-        top: 20,
-        maxWidth: "400px",
-        minWidth: "400px",
-        justifySelf: "flex-end",
-      }}
+     style={{ position: "sticky", top: 20 }}
+     className="preview-sticky"
+
     >
       <Card>
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center"  }}>
           <Text as="h4" variant="headingSm">
             Preview
           </Text>
@@ -137,6 +134,7 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
               paddingTop: designFields.spacingIT + "px",
               paddingBottom: designFields.spacingIB + "px",
               fontFamily: designFields.fontFamily,
+              overflow: "hidden",
             }}
           >
             <span

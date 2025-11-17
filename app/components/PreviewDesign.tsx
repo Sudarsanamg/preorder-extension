@@ -341,7 +341,7 @@ export default function PreviewDesign({
                 }
               />
 
-              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+              {/* <div style={{ display: "flex", gap: 10, flexShrink: 0 }}> */}
                 <Popover
                   active={activePopover === "buttonTextColor"}
                   activator={
@@ -374,7 +374,7 @@ export default function PreviewDesign({
                   autoComplete="off"
                   value={designFields.buttonTextColor}
                 />
-              </div>
+              {/* </div> */}
             </div>
             <Divider />
             <Text as="h3">Spacing</Text>

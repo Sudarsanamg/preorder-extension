@@ -494,7 +494,7 @@ export default function Index() {
               </Modal.Section>
             </Modal>
 
-            {uniqueRows.length > 0 && (
+            {campaigns.length > 0 && (
               <div style={{ padding: "1rem" }}>
                 <TextField
                   label="Search"
@@ -504,7 +504,7 @@ export default function Index() {
                   autoComplete="off"
                 />
               </div>
-            )}
+            )} 
 
             {uniqueRows.length > 0 ? (
               <DataTable

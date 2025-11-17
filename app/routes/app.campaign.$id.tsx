@@ -1798,7 +1798,7 @@ export default function CampaignDetail() {
               />
             )}
             {selected === 1 && (
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1.5 }}>
                 <PreviewDesign
                   designFields={designFields}
                   setDesignFields={setDesignFields}

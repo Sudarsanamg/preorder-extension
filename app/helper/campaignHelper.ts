@@ -607,6 +607,8 @@ export const createCampaign = async (
             (formData.get("customerTags") as string) || "[]",
           ).join(","),
           campaigntype: formData.get("campaignType") as CampaignType,
+          preOrderNoteKey: formData.get("preOrderNoteKey") as string,
+          preOrderNoteValue: formData.get("preOrderNoteValue") as string,
           fulfillment: {
             type: formData.get("fulfilmentmode") as Fulfilmentmode,
             schedule: {
@@ -622,7 +624,7 @@ export const createCampaign = async (
                       formData.get("fulfilmentDate") as string,
                     ).toISOString(),
             },
-          },
+          },      
         },
         designFields: {
           ...designFields,

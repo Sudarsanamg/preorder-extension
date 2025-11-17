@@ -126,7 +126,7 @@ async function createCampaignOrder(
   const schedules = payload?.payment_terms?.payment_schedules || [];
   const secondSchedule = schedules[1];
   const customerEmail = payload.email || payload.customer?.email;
-  const remaining = Number(secondSchedule?.amount);
+  const remaining = Number(secondSchedule?.amount) || 0;
 
   const campaignOrder = await createOrder({
     orderNumber,

@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://arena-economy-scale-termination.trycloudflare.com"
+application_url = "https://has-marina-codes-fur.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -13,24 +13,24 @@ automatically_update_urls_on_dev = true
 api_version = "2025-07"
 
   [[webhooks.subscriptions]]
-  topics = [ "products/update" ]
-  uri = "/webhooks/products_update"
-
-  [[webhooks.subscriptions]]
-  topics = [ "orders/create" ]
-  uri = "/webhooks/order_create"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks"
+  topics = [ "orders/paid" ]
+  uri = "/webhooks/order_paid"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/updated" ]
   uri = "/webhooks/order_update"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/paid" ]
-  uri = "/webhooks/order_paid"
+  topics = [ "products/update" ]
+  uri = "/webhooks/products_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create" ]
+  uri = "/webhooks/order_create"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -40,13 +40,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://arena-economy-scale-termination.trycloudflare.com/auth/callback",
-  "https://arena-economy-scale-termination.trycloudflare.com/auth/shopify/callback",
-  "https://arena-economy-scale-termination.trycloudflare.com/api/auth/callback"
+  "https://has-marina-codes-fur.trycloudflare.com/auth/callback",
+  "https://has-marina-codes-fur.trycloudflare.com/auth/shopify/callback",
+  "https://has-marina-codes-fur.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://arena-economy-scale-termination.trycloudflare.com/apps/cancel-order"
+url = "https://has-marina-codes-fur.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

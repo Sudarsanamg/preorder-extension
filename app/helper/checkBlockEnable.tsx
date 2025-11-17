@@ -64,7 +64,7 @@ export const checkAppEmbedEnabled = async (admin: any) => {
 
     const appEnabled = embedEnabled || blockEnabled;
 
-    console.log("✅ App Embed/Block Enabled:", appEnabled);
+    // console.log("✅ App Embed/Block Enabled:", appEnabled);
     return appEnabled;
   } catch (error) {
     console.error("An error occurred in checkAppEmbedEnabled:", error);
