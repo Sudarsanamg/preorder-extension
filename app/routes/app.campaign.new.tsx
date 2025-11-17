@@ -883,13 +883,15 @@ export default function Newcampaign() {
         </SaveBar>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
         {errors.length > 0 && (
-          <Banner title="Please fix the following errors" tone="critical">
-            <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
-              {errors.map((err, i) => (
-                <li key={i}>{err}</li>
-              ))}
-            </ul>
-          </Banner>
+          <div style={{ margin: 1 }}>
+            <Banner title="Please fix the following errors" tone="critical">
+              <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                {errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </Banner>
+          </div>
         )}
         {noProductWarning && errors.length === 0 && (
           <Banner

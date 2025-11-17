@@ -20,7 +20,6 @@ import { authenticate } from "app/shopify.server";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import EmailDesignEditor from "app/components/EmailDesignEditor";
 import { EmailSettingsSchema } from "app/utils/validator/zodValidateSchema";
-import "../tailwind.css";
 import { Knob } from "app/utils/sharedComponents/knob/Knob";
 
 export async function loader({ request }: { request: Request }) {

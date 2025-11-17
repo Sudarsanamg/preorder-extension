@@ -88,8 +88,8 @@ import {
   CampaignSchema,
   DesignSchema,
 } from "app/utils/validator/zodValidateSchema";
-import "../tailwind.css";
 import { PreviewComponent } from "app/components/PreviewComponent";
+import "../styles/campaign.new.css";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -1651,7 +1651,6 @@ export default function CampaignDetail() {
         backAction={{
           content: "Back",
           onAction: () => {
-            console.log(saveBarActive);
             if (saveBarActive) {
               shopify.saveBar.leaveConfirmation();
             } else {
@@ -1756,8 +1755,7 @@ export default function CampaignDetail() {
         </Modal>
         <Tabs tabs={tabs} selected={selected} onSelect={setSelected} />
 
-        <form method="post" onSubmit={()=>handleSubmit(String(campaign?.id))}>
-
+        <form method="post" onSubmit={() => handleSubmit(String(campaign?.id))}>
           <div
             // style={{
             //   display: "flex",
@@ -1765,7 +1763,7 @@ export default function CampaignDetail() {
             //   paddingBottom: 20,
             //   paddingTop: 20,
             // }}
-            className="form-parent  gap-5 md:flex  m-3"
+            className="form-parent"
           >
             {/* left */}
             {selected === 0 && (
@@ -1811,7 +1809,7 @@ export default function CampaignDetail() {
             {(selected === 0 || selected === 1) && (
               <div
                 style={{ flex: 1, marginLeft: 20 }}
-                className="right mt-10 md:mt-0"
+                className="preview-component"
               >
                 {/* preview */}
                 <PreviewComponent
@@ -1823,9 +1821,9 @@ export default function CampaignDetail() {
               </div>
             )}
           </div>
-          <div className="flex md:hidden justify-end mt-3">
+          <div className="mobile-navigation-actions">
             {selected === 1 && (
-              <div className=" flex md:hidden justify-start mt-5 mb-5 mr-3">
+              <div className="mobile-navigation-actions__back">
                 <Button
                   onClick={() => setSelected(selected - 1)}
                   variant="secondary"
@@ -1836,7 +1834,7 @@ export default function CampaignDetail() {
             )}
 
             {(selected === 0 || selected === 1) && (
-              <div className=" flex md:hidden justify-end mt-5 mb-5">
+              <div className="mobile-navigation-actions__next">
                 <Button
                   onClick={() => {
                     setSelected(selected + 1);
@@ -1855,7 +1853,7 @@ export default function CampaignDetail() {
           <div>
             {selectedProducts.length === 0 && (
               <div>
-                <Card padding={"3200"}>
+                <Card padding={"1000"}>
                   <div
                     style={{
                       display: "flex",

@@ -22,7 +22,7 @@ import {
   // CalendarIcon,
 } from "@shopify/polaris-icons";
 import type { CampaignFields } from "app/types/type";
-import "../tailwind.css"
+import '../styles/campaign.new.css';
 
 interface CampaignFormProps {
   campaignData: CampaignFields;
@@ -929,7 +929,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           </BlockStack>
         </Card>
       </div>
-      <div className="hidden md:flex justify-end mt-5">
+      <div className="campaign-form-footer">
         <Button onClick={() => setSelected(1)} variant="primary">
           Next
         </Button>

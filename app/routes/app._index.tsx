@@ -262,6 +262,7 @@ export default function Index() {
       content: "Create a campaign",
       props: {
         loading: loading.create, 
+        disabled: loading.create,
         onClick: () => {
           setLoading((prev) => ({ ...prev, create: true }));
           setTimeout(() => {
@@ -284,7 +285,7 @@ export default function Index() {
         props: {
           onClick: () =>
             window.open(
-              `https://${shop}/admin/themes/current/editor`,
+              `https://${shop}/admin/themes/current/editor?context=apps&activateAppId=409fb8e80f3145241daeff0fccc04a8c/preorder-embed`,
               "_blank",
             ),
 
@@ -292,12 +293,6 @@ export default function Index() {
         },
       },
 
-      secondaryButton: {
-        content: "I have done it",
-        props: {
-          onClick: () => onStepComplete(1),
-        },
-      },
     },
     {
       id: 2,
@@ -319,13 +314,6 @@ export default function Index() {
               action: "",
             });
           },
-        },
-      },
-
-      secondaryButton: {
-        content: "Need help",
-        props: {
-          onClick: () => setShowGuide(true),
         },
       },
     },
@@ -422,11 +410,12 @@ export default function Index() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <p style={{ fontSize: "26px" }}>Preorder Settings</p>
+          <p style={{ fontSize: "26px" , lineHeight: "25px" }}>Preorder Settings</p>
         </div>
         <Button
           variant="primary"
-          loading={loading.create}
+            loading={loading.create}
+            disabled={loading.create}
           onClick={() => {
             setLoading((prev) => ({ ...prev, create: true }));
             navigate("/app/campaign/new");
@@ -508,7 +497,8 @@ export default function Index() {
 
             {uniqueRows.length > 0 ? (
               <DataTable
-                columnContentTypes={["text", "text", "numeric", "text"]}
+                  columnContentTypes={["text", "text", "numeric", "text"]}
+                  hideScrollIndicator
                 headings={[
                   "Name",
                   "Status",
@@ -516,7 +506,6 @@ export default function Index() {
                     key="actions"
                     style={{
                       textAlign: "center",
-                      width: "100%",
                       paddingRight: "1rem",
                     }}
                   >
@@ -526,7 +515,6 @@ export default function Index() {
                     key="actions"
                     style={{
                       textAlign: "right",
-                      width: "100%",
                       paddingRight: "1rem",
                     }}
                   >
@@ -620,7 +608,7 @@ export default function Index() {
                             cursor: "pointer",
                           }}
                         >
-                          <InlineStack gap="100">
+                          <InlineStack gap="100" wrap={false}>
                             <Badge tone={statusTone}>{statusLabel}</Badge>
                             <Icon source={SelectIcon} tone="base" />
                           </InlineStack>
@@ -653,7 +641,7 @@ export default function Index() {
                         flexShrink: 0,
                       }}
                     >
-                      <ButtonGroup>
+                      <ButtonGroup noWrap>
                         <Button
                           onClick={() => {
                             navigate(`/app/campaign/${campaignId}`);
@@ -754,7 +742,7 @@ export default function Index() {
                     justifyContent: "space-between",
                   }}
                 >
-                  <div>
+                  <div >
                     <Text as="h3" variant="bodyMd" fontWeight="medium">
                       Preorder confirmation email{" "}
                       {emailCampaignStatus == true ? (
@@ -769,14 +757,15 @@ export default function Index() {
                       order.
                     </Text>
                   </div>
-                  <div>
+                  <div style={{padding:5}}>
                     <Button
                       size="slim"
                       onClick={() => {
                         setLoading((prev) => ({ ...prev, orderEmail: true }));
                         navigate("/app/settings/email-preorder-confirmation");
                       }}
-                      loading={loading.orderEmail}
+                        loading={loading.orderEmail}
+                        disabled={loading.orderEmail}
                       // icon={EditIcon}
                     >
                       Customize
@@ -804,7 +793,7 @@ export default function Index() {
                       Customize template for shipping updates.
                     </Text>
                   </div>
-                  <div>
+                  <div style={{marginLeft:'10px'}}>
                     <Button
                       size="slim"
                       onClick={() => {
@@ -816,7 +805,8 @@ export default function Index() {
                           "/app/settings/email-preorder-shipping-update",
                         );
                       }}
-                      loading={loading.shippingEmail}
+                        loading={loading.shippingEmail}
+                        disabled={loading.shippingEmail}
                       // icon={EditIcon}
                     >
                       Customize
