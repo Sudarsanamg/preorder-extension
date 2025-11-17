@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // const campaignType = campaignData ? parseInt(campaignData.dataset.campaignType, 10) : null;
   const enumToIntMap = {
     OUT_OF_STOCK: 1,
-    ALLWAYS: 2,
+    ALWAYS: 2,
     IN_STOCK: 3,
   };
 

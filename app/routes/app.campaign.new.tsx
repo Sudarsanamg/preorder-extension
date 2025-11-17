@@ -239,7 +239,7 @@ export default function Newcampaign() {
   });
   const [campaignData, setCampaignData] = useState<CampaignFields>({
     campaignName: "",
-    campaignType: "ALLWAYS",
+    campaignType: "ALWAYS",
     productTags: ["Preorder"],
     customerTags: ["Preorder-Customer"],
     preOrderNoteKey: "Note",

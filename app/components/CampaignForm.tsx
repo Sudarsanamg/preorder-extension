@@ -140,15 +140,15 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         )}
         <RadioButton
           label="Always show Preorder button"
-          checked={campaignData.campaignType === "ALLWAYS"}
+          checked={campaignData.campaignType === "ALWAYS"}
           id="always-preorder"
           name="always-preorder"
           onChange={() => {
             // setSelectedOption(2);
-            handleCampaignDataChange("campaignType", "ALLWAYS");
+            handleCampaignDataChange("campaignType", "ALWAYS");
           }}
         />
-        {campaignData.campaignType === "ALLWAYS" && (
+        {campaignData.campaignType === "ALWAYS" && (
           <ol>
             <li>
               The Preorder button is displayed at all times, regardless of

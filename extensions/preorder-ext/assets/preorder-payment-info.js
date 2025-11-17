@@ -44,11 +44,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const enumToIntMap = {
     OUT_OF_STOCK: 1,
-    ALLWAYS: 2,
+    ALWAYS: 2,
     IN_STOCK: 3,
   };
 
-  // Default to ALLWAYS if missing
+  // Default to ALWAYS if missing
   const campaignType = campaignData?.dataset.campaignType
     ? enumToIntMap[campaignData.dataset.campaignType] || 2
     : 2;

@@ -322,7 +322,7 @@ export const publishCampaign = async (
   );
   if (
     campaignData?.campaignType == "OUT_OF_STOCK" ||
-    campaignData?.campaignType == "ALLWAYS"
+    campaignData?.campaignType == "ALWAYS"
   ) {
     // const arr = products.map((product: any) => {
     //   return {
@@ -560,7 +560,7 @@ export const createCampaign = async (
     );
     if (
       formData.get("campaignType") == "OUT_OF_STOCK" ||
-      formData.get("campaignType") == "ALLWAYS"
+      formData.get("campaignType") == "ALWAYS"
     ) {
       allowOutOfStockForVariants(admin, products);
     }

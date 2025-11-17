@@ -442,7 +442,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     );
     if (
       formData.get("campaignType") == "OUT_OF_STOCK" ||
-      formData.get("campaignType") == "ALLWAYS"
+      formData.get("campaignType") == "ALWAYS"
     ) {
       allowOutOfStockForVariants(admin, products);
     }
@@ -795,7 +795,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     );
     if (
       formData.get("campaignType") == "OUT_OF_STOCK" ||
-      formData.get("campaignType") == "ALLWAYS"
+      formData.get("campaignType") == "ALWAYS"
     ) {
       allowOutOfStockForVariants(admin, products);
     }

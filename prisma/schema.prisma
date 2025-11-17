@@ -71,7 +71,7 @@ model PreorderCampaign {
   id                      String                    @id @default(uuid())
   storeId                 String
   name                    String
-  campaignType            CampaignType              @default(ALLWAYS)
+  campaignType            CampaignType              @default(ALWAYS)
   paymentType             PaymentMode?
   depositPercent          Int?
   balanceDueDate          DateTime?
@@ -181,6 +181,6 @@ enum FulfillmentStatus {
 
 enum CampaignType {
   OUT_OF_STOCK
-  ALLWAYS
+  ALWAYS
   IN_STOCK
 }

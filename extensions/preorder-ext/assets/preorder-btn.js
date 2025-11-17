@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const campaignData = document.getElementById("campaign-data");
   const enumToIntMap = {
   OUT_OF_STOCK: 1,
-  ALLWAYS: 2,
+  ALWAYS: 2,
   IN_STOCK: 3,
 };
 

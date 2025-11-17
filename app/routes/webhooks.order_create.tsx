@@ -124,7 +124,7 @@ async function createCampaignOrder(
   const orderId = payload.admin_graphql_api_id;
   const orderNumber = payload.order_number;
   const schedules = payload?.payment_terms?.payment_schedules || [];
-  const secondSchedule = schedules[1];
+  const secondSchedule = schedules.find((s: any) => s.completed_at === null && Number(s.amount) > 0);
   const customerEmail = payload.email || payload.customer?.email;
   const remaining = Number(secondSchedule?.amount) || 0;
 
