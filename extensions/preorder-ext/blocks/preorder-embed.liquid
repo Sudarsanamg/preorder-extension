@@ -127,6 +127,12 @@
         font-family: {{ designSettings.fontFamily }};">
       {{ campaignData.button_text }}
     </p>
+  <span class="loader-spinner" style="
+      display:none;
+      border: 3px solid {{ designSettings.buttonTextColor }};
+      border-top-color: transparent;
+    ">
+  </span>
   </div>
   
   {% endfor %}

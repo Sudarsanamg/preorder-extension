@@ -1,8 +1,6 @@
 .preorder-button {
   width: 100%;
-  border: 2px solid black; 
-  padding: 10px 5px;
-   font-size: larger;
+  position: relative;
 }
 
 
@@ -27,17 +25,21 @@ product-subscriptions,
 }
 
 
-.spinner {
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top: 3px solid white;
+.loader-spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid;
+  border-top-color: transparent;
   border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  animation: spin 1s linear infinite;
-  padding: auto;
+  animation: spin 0.7s linear infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateY(-50%) rotate(0deg);
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
 }

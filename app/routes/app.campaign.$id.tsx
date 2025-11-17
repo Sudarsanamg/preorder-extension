@@ -90,6 +90,7 @@ import {
 } from "app/utils/validator/zodValidateSchema";
 import { PreviewComponent } from "app/components/PreviewComponent";
 import "../styles/campaign.new.css";
+import { removeProductsFromOldCampagin } from "app/helper/campaignHelper";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -296,6 +297,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         );
       }
     }
+    
+    await removeProductsFromOldCampagin(products,storeId)
 
     const campaign = await updateCampaign({
       id: params.id!,

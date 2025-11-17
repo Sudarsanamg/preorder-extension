@@ -88,3 +88,13 @@ export interface EmailSettings {
   cancelButtonBorderRadius: string;
 
 }
+
+export interface CampaignProduct {
+  productId: string;
+  variantId: string;
+  variantTitle?: string;
+  price?: number;
+  imageUrl?: string;
+  maxQuantity?: number;
+  soldQuantity?: number;
+}

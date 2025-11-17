@@ -101,9 +101,9 @@ model PreorderCampaignProduct {
   campaignId   String
   storeId      String           @default("Invalid store")
   productId    String
-  variantId    String?
-  variantTitle String?
-  price        Decimal?
+  variantId    String
+  variantTitle String
+  price        Decimal
   imageUrl     String?
   maxQuantity  Int?
   soldQuantity Int              @default(0)

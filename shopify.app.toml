@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://lanes-heard-rough-lights.trycloudflare.com"
+application_url = "https://pink-appearance-messages-living.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -40,13 +40,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://lanes-heard-rough-lights.trycloudflare.com/auth/callback",
-  "https://lanes-heard-rough-lights.trycloudflare.com/auth/shopify/callback",
-  "https://lanes-heard-rough-lights.trycloudflare.com/api/auth/callback"
+  "https://pink-appearance-messages-living.trycloudflare.com/auth/callback",
+  "https://pink-appearance-messages-living.trycloudflare.com/auth/shopify/callback",
+  "https://pink-appearance-messages-living.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://lanes-heard-rough-lights.trycloudflare.com/apps/cancel-order"
+url = "https://pink-appearance-messages-living.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

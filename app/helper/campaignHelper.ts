@@ -18,8 +18,7 @@ import {
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import { removeDiscountFromVariants } from "./removeDiscountFromVariants";
 import { applyDiscountToVariants } from "./applyDiscountToVariants";
-// import { success } from "zod";
-// import { GET_SHOP } from "app/graphql/queries/shop";
+import { CampaignProduct } from "app/types/type";
 
 export const unPublishCampaign = async (
   admin: any,
@@ -60,6 +59,13 @@ export const unPublishCampaign = async (
           type: "boolean",
           value: "false",
         },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
       ]);
     }
 
@@ -70,14 +76,32 @@ export const unPublishCampaign = async (
           ownerId: product.variantId,
           namespace: "custom",
           key: "campaign_id",
+          type: "single_line_text_field",
           value: "null",
         },
         {
           ownerId: product.variantId,
           namespace: "custom",
           key: "preorder",
+          type: "boolean",
           value: "false",
         },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: "null",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "custom",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+        
+
       ]);
     }
 
@@ -356,6 +380,9 @@ export const createCampaign = async (
 ) => {
   const intent = formData.get("intent");
   try {
+    const products = JSON.parse((formData.get("products") as string) || "[]");
+    const storeId = await getStoreIdByShopId(formData.get("shopId") as string)
+    await removeProductsFromOldCampagin(products,storeId?.id)
 
   const campaign = await createPreorderCampaign({
     name: formData.get("name") as string,
@@ -383,7 +410,6 @@ export const createCampaign = async (
     campaignEndDate: new Date(formData.get("campaignEndDate") as string),
   });
 
-  const products = JSON.parse((formData.get("products") as string) || "[]");
 
   if (products.length > 0) {
     await addProductsToCampaign(
@@ -655,6 +681,39 @@ export const createCampaign = async (
   } catch (error) {
     console.error("Error creating campaign:", error);
     return {success : false , error: "Error creating campaign" };
+  }
+};
+
+export const removeProductsFromOldCampagin = async (
+  products: CampaignProduct[],
+  storeId: string | undefined,
+) => {
+  if (!storeId) return;
+
+  const variantId = products.map((p: any) => p.variantId);
+
+  try {
+    const conflicts = await prisma.preorderCampaignProduct.findMany({
+      where: {
+        storeId,
+        variantId: { in: variantId },
+      },
+      include: {
+        campaign: true,
+      },
+    });
+
+    if (conflicts.length === 0) return;
+
+    await prisma.preorderCampaignProduct.deleteMany({
+      where: {
+        id: {
+          in: conflicts.map((c) => c.id),
+        },
+      },
+    });
+  } catch (error) {
+    console.log(error);
   }
 };
 

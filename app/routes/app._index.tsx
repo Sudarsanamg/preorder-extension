@@ -163,7 +163,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({
         success: true,
         SetupGuide: true,
-        message: "Setup guide completed",
+        message: "Setup completed",
       });
     } catch (error) {
       console.error("Error updating setup guide:", error);

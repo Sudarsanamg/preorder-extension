@@ -58,6 +58,9 @@ export async function getAllCampaign(shopId?: string) {
         not: "ARCHIVED",
       },
     },
+    orderBy: {
+      createdAt : 'asc'
+    }
   });
 }
 
