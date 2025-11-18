@@ -1,7 +1,10 @@
 import prisma from "app/db.server";
 import { decrypt } from "app/utils/crypto.server";
 
-export async function incrementUnitsSold(store: string,variantData: { id: string; quantity: number }) {
+export async function incrementUnitsSold(store: string, variantData: { id: string; quantity: number, campaignId?: string }) {
+  if(!variantData.campaignId){ 
+    return;
+  }
 
   const accessToken = await prisma.store.findUnique({
     where: { shopifyDomain: store },
@@ -45,6 +48,25 @@ export async function incrementUnitsSold(store: string,variantData: { id: string
 
   // Step 2: Increment value
   const newValue = currentValue + variantData.quantity;
+
+  const campaignProduct = await prisma.preorderCampaignProduct.findFirst({
+    where: {
+      variantId: `gid://shopify/ProductVariant/${variantData.id}`,
+    },
+  });
+
+  if (campaignProduct) {
+    await prisma.preorderCampaignProduct.update({
+      where: {
+        id: campaignProduct.id,
+      },
+      data: {
+        soldQuantity: {
+          increment : variantData.quantity
+        }
+      },
+    });
+  }
 
   // Step 3: Update metafield using metafieldsSet
   const SET_METAFIELD = `

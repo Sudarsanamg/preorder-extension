@@ -1,144 +1,111 @@
-// document.addEventListener("DOMContentLoaded", function () {
-//   const variantSelect = document.querySelector('[name="id"]');
-//   const variantPrices = document.querySelectorAll(".variant-price");
-//   const campaignData = document.getElementById("campaign-data");
+document.addEventListener("DOMContentLoaded", () => {
 
-//   if (!variantSelect || !variantPrices.length) return;
+  const productForm = document.querySelector("form[action*='/cart/add']");
+  const variantSelector = productForm?.querySelector("[name='id']");
 
-//   const campaignType = campaignData ? parseInt(campaignData.dataset.campaignType, 10) : null;
+  if (!productForm || !variantSelector) return;
 
-//   function hideAllPrices() {
-//     variantPrices.forEach(el => el.style.display = "none");
-//   }
-
-//   function showVariantPrice(variantId) {
-//     hideAllPrices();
-
-//     const el = document.getElementById(`variant-${variantId}`);
-//     if (!el) return;
-
-//     const inStock = el.dataset.instock === "true";
-
-//     // Determine if we should show campaign prices
-//     let showCampaignPrice = false;
-//     if (campaignType) {
-//       if (campaignType === 1 && !inStock) showCampaignPrice = true;
-//       else if (campaignType === 2) showCampaignPrice = true;
-//       else if (campaignType === 3 && inStock) showCampaignPrice = true;
-//     }
-
-//     el.style.display = "block";
-
-//     const campaignPrice = el.querySelector(".campaign-price");
-//     const campaignCompare = el.querySelector(".campaign-compare");
-//     const fallbackPrice = el.querySelector(".fallback-price");
-
-//     if (showCampaignPrice && campaignPrice) {
-//       // Show campaign prices
-//       campaignPrice.style.display = "inline-block";
-//       if (campaignCompare) campaignCompare.style.display = "inline-block";
-//       if (fallbackPrice) fallbackPrice.style.display = "none";
-//     } else {
-//       // Show fallback/normal price
-//       if (campaignPrice) campaignPrice.style.display = "none";
-//       if (campaignCompare) campaignCompare.style.display = "none";
-//       if (fallbackPrice) fallbackPrice.style.display = "inline-block";
-//     }
-//   }
-
-//   // Initial load
-//   showVariantPrice(variantSelect.value);
-
-//   // On variant change
-//   variantSelect.addEventListener("change", function (e) {
-//     showVariantPrice(e.target.value);
-//   });
-// });
-
-
-
-document.addEventListener("DOMContentLoaded", function () {
-  const campaignData = document.getElementById("campaign-data");
-  // const campaignType = campaignData ? parseInt(campaignData.dataset.campaignType, 10) : null;
   const enumToIntMap = {
     OUT_OF_STOCK: 1,
     ALWAYS: 2,
     IN_STOCK: 3,
   };
 
-  const campaignType =
-    campaignData && campaignData.dataset.campaignType
-      ? enumToIntMap[campaignData.dataset.campaignType]
-      : null;
+  const campaignDataEl = document.getElementById("campaign-data");
+  const campaignType = enumToIntMap[
+    campaignDataEl?.dataset?.campaignType
+  ] || null;
 
+  function replaceThemePrices() {
+    document.querySelectorAll(
+      ".price, .product__price, .product-price, price-element, [data-product-price]"
+    ).forEach((el) => {
+      if (!el.classList.contains("preorder-wrapper")) {
+        el.style.display = "none";
+        el.insertAdjacentHTML(
+          "afterend",
+          `<div class="preorder-wrapper"><span class="preorder-price"></span></div>`
+        );
+      }
+    });
+  }
 
-  function hideAllPrices() {
-    document.querySelectorAll(".variant-price").forEach(el => {
+  function hideAll() {
+    document.querySelectorAll(".variant-price").forEach((el) => {
       el.style.display = "none";
     });
   }
 
-  function showVariantPrice(variantId) {
-    hideAllPrices();
 
-    const el = document.getElementById(`variant-${variantId}`);
-    if (!el) return;
+  function resolveVariantBlock(variantId) {
+    let block =
+      document.getElementById(`variant-${variantId}`) ||
+      document.querySelector(`[id="variant-${Number(variantId)}"]`) ||
+      [...document.querySelectorAll(".variant-price")].find((el) =>
+        el.id.includes(variantId)
+      );
 
-    const inStock = el.dataset.instock === "true";
+    return block;
+  }
+
+
+  function updatePrice(variantId) {
+    hideAll();
+
+    const block = resolveVariantBlock(variantId);
+    if (!block) return;
+
+    const inStock = block.dataset.instock == "true";
+
     let showCampaignPrice = false;
 
+
     if (campaignType) {
-      if (campaignType === 1 && !inStock) showCampaignPrice = true;
-      else if (campaignType === 2) showCampaignPrice = true;
-      else if (campaignType === 3 && inStock) showCampaignPrice = true;
+      if (campaignType === 1 && !inStock) showCampaignPrice = true;   
+      else if (campaignType === 2) showCampaignPrice = true;          
+      else if (campaignType === 3 ) showCampaignPrice = true; 
     }
 
-    el.style.display = "block";
 
-    const campaignPrice = el.querySelector(".campaign-price");
-    const campaignCompare = el.querySelector(".campaign-compare");
-    const fallbackPrice = el.querySelector(".fallback-price");
+    let html = "";
 
-    if (showCampaignPrice && campaignPrice) {
-      campaignPrice.style.display = "inline-block";
-      if (campaignCompare) campaignCompare.style.display = "inline-block";
-      if (fallbackPrice) fallbackPrice.style.display = "none";
-    } else {
-      if (campaignPrice) campaignPrice.style.display = "none";
-      if (campaignCompare) campaignCompare.style.display = "none";
-      if (fallbackPrice) fallbackPrice.style.display = "inline-block";
+    if (showCampaignPrice) {
+      const sp = block.querySelector(".sp-price");
+      const spCmp = block.querySelector(".sp-compare");
+
+      if (sp) {
+        html += sp.outerHTML;
+        if (spCmp) html += spCmp.outerHTML;
+      } else {
+        const fallback = block.querySelector(".fallback-price");
+        html += `<span style="font-size: large;">${fallback.textContent.trim()}</span>`;
+      }
     }
-  }
 
-  function attachVariantListener() {
-    const variantSelect = document.querySelector('[name="id"]');
-    if (!variantSelect) return;
+    else {
+      const fallback = block.querySelector(".fallback-price");
+      const fallbackCmp = block.querySelector(".fallback-compare");
 
-    // Initial load
-    showVariantPrice(variantSelect.value);
+      if (fallback) {
+        html += `<span style="font-size: large;">${fallback.textContent.trim()}</span>`;
+      }
+      if (fallbackCmp) {
+        html += fallbackCmp.outerHTML;
+      }
+    }
 
-    // Native <select> change
-    variantSelect.addEventListener("change", e => {
-      showVariantPrice(e.target.value);
+
+    document.querySelectorAll(".preorder-price").forEach((node) => {
+      node.innerHTML = html;
     });
+
+    block.style.display = "block";
   }
 
-  attachVariantListener();
+  replaceThemePrices();
+  updatePrice(variantSelector.value);
 
-  // 🧩 Listen to Shopify theme variant events (for dynamic themes like Dawn)
-  document.addEventListener("variant:change", function (event) {
-    const variant = event.detail?.variant;
-    if (variant?.id) {
-      showVariantPrice(variant.id);
-    }
+  variantSelector.addEventListener("change", (e) => {
+    updatePrice(e.target.value);
   });
-
-  // 🩹 In some themes, product form is re-rendered — reattach listener
-  const observer = new MutationObserver(() => {
-    if (!document.querySelector('[name="id"]')) return;
-    attachVariantListener();
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
 });
-

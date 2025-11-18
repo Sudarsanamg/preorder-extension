@@ -1,12 +1,16 @@
+import type { DiscountType } from "@prisma/client";
 export const CREATE_SELLING_PLAN_BASE = (
   paymentMode: "partial" | "full",
   fulfillmentMode: "ONHOLD" | "UNFULFILED" | "SCHEDULED" = "UNFULFILED",
   collectionMode: "DAYS_AFTER" | "EXACT_DATE" = "DAYS_AFTER",
-  formData: FormData
+  formData: FormData,
+
 ) => {
   const isPartial = paymentMode === "partial";
   const isScheduledFulfillment = fulfillmentMode === "SCHEDULED";
   const isExactDateCollection = collectionMode === "EXACT_DATE";
+  const discountType = formData.get("discountType") as DiscountType;
+  const discountValue = Number(formData.get("discountValue")) || 0;
 
   let billingFixedFields;
   if (isPartial) {
@@ -33,6 +37,27 @@ export const CREATE_SELLING_PLAN_BASE = (
   }
 
   let pricingPolicies = "";
+  if (discountType === "PERCENTAGE") {
+    pricingPolicies = `
+      pricingPolicies: [
+        {
+          fixed: {
+            adjustmentType: PERCENTAGE
+            adjustmentValue: { percentage: ${discountValue} }
+          }
+        }
+      ]`;
+  } else if (discountType === "FIXED") {
+    pricingPolicies = `
+      pricingPolicies: [
+        {
+          fixed: {
+            adjustmentType: FIXED_AMOUNT
+            adjustmentValue: { amount: ${discountValue} }
+          }
+        }
+      ]`;
+  }
   const variableDeclarations = [
     "$variantIds: [ID!]!",
     isPartial ? "$percentage: Float!" : "",
@@ -45,8 +70,6 @@ export const CREATE_SELLING_PLAN_BASE = (
 
   const paramList = variableDeclarations.trim().length > 0 ? `(${variableDeclarations})` : "";
   const billingPolicyBlock = `billingPolicy: { fixed: { ${billingFixedFields} } }`;
-  console.log(formData.get('partialPaymentText'),'>>>>>>>>>>>>>>>>>');
-  console.log(formData.get('fullPaymentText'),'>>>>>>>>>>>>>>>>>');
 
   return `
     mutation CreateSellingPlan${paramList} {

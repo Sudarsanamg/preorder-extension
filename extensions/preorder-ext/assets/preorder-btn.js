@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      const isPreorder = btn.dataset.preorder === "true";
+      const isPreorder = btn.dataset.preorder == "true";
       const maxUnits = parseInt(btn.dataset.maxUnits || "0", 10);
       const unitsSold = parseInt(btn.dataset.unitsSold || "0", 10);
 
@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Campaign Logic
       if (campaignType === 1 && !isVariantAvailable && inStock) shouldShow = true;
       else if (campaignType === 2) shouldShow = true;
-      else if (campaignType === 3 && isVariantAvailable) shouldShow = true;
+      else if (campaignType === 3 ) shouldShow = true;
 
       if (isPreorder && shouldShow) {
         btn.style.display = "flex";

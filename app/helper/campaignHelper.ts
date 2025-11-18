@@ -16,9 +16,7 @@ import {
   updateCampaignStatus,
 } from "app/models/campaign.server";
 import { createSellingPlan } from "app/services/sellingPlan.server";
-import { removeDiscountFromVariants } from "./removeDiscountFromVariants";
-import { applyDiscountToVariants } from "./applyDiscountToVariants";
-import { CampaignProduct } from "app/types/type";
+import type { CampaignProduct } from "app/types/type";
 
 export const unPublishCampaign = async (
   admin: any,
@@ -153,11 +151,6 @@ export const unPublishCampaign = async (
 
     await updateCampaignStatus(campaignId!, "UNPUBLISH", shopId!);
 
-    removeDiscountFromVariants(
-      admin,
-      products.map((product: any) => product.variantId),
-    );
-
     return {
       success: true,
       message: "Campaign unpublished successfully",
@@ -209,12 +202,14 @@ export const publishCampaign = async (
       ownerId: product.variantId,
       namespace: "custom",
       key: "campaign_id",
+      type: "single_line_text_field",
       value: id,
     },
     {
       ownerId: product.variantId,
       namespace: "custom",
       key: "preorder",
+      type: "boolean",
       value: "true",
     },
     {
@@ -324,12 +319,11 @@ export const publishCampaign = async (
     throw err;
   }
 
-  //  const campaignData = await prisma.preorderCampaign.findUnique({
-  //    where: { id: campaignId },
-  //  });
   const formData = new FormData();
   formData.append("depositPercent", String(campaignData?.depositPercent));
   formData.append("balanceDueDate", String(campaignData?.balanceDueDate));
+  formData.append("discountType", String(campaignData?.discountType));
+  formData.append("discountValue", String(campaignData?.discountValue));
 
   await createSellingPlan(
     admin,
@@ -359,16 +353,6 @@ export const publishCampaign = async (
 
   updateCampaignStatus(campaignId, "PUBLISHED", shopId);
 
-  const variantIds = products.map((product: any) => {
-    return product.variantId;
-  });
-
-  await applyDiscountToVariants(
-    admin,
-    variantIds,
-    campaignData?.discountType as DiscountType,
-    Number(campaignData?.discountValue || 0),
-  );
 };
 
 
@@ -555,15 +539,6 @@ export const createCampaign = async (
   // }
 
   if (intent !== "SAVE") {
-    const discountType = formData.get("discountType") as DiscountType;
-
-    const varientIds = products.map((p: any) => p.variantId);
-    await applyDiscountToVariants(
-      admin,
-      varientIds,
-      discountType,
-      Number(formData.get("discountValue") || 0),
-    );
 
     await createSellingPlan(
       admin,

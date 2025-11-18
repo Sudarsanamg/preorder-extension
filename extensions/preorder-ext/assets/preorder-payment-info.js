@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function () {
       else if (campaignType === 2) show = true;
       else if (campaignType === 3 && inStock) show = true;
 
-      console.log(show, 'show');
+      // console.log(show, 'show');
 
       if (div.dataset.variantId === variantId && isPreorder && show) {
         div.style.display = "block";

@@ -78,8 +78,6 @@ import type {
   Fulfilmentmode,
   scheduledFulfilmentType,
 } from "@prisma/client";
-import { applyDiscountToVariants } from "app/helper/applyDiscountToVariants";
-import { removeDiscountFromVariants } from "app/helper/removeDiscountFromVariants";
 import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
@@ -414,15 +412,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       }
     }
 
-    // if the payment option is partial
-    const discountType = formData.get("discountType") as DiscountType;
-    const variantIds = products.map((p: any) => p.variantId);
-    await applyDiscountToVariants(
-      admin,
-      variantIds,
-      discountType,
-      Number(formData.get("discountValue") || 0),
-    );
 
     await createSellingPlan(
       admin,
@@ -609,11 +598,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         console.error("GraphQL mutation failed:", err);
         throw err;
       }
-      //remove discounts
-      removeDiscountFromVariants(
-        admin,
-        parsedRemovedVarients.flatMap((varientId: any) => varientId),
-      );
     }
 
     // return redirect("/app");
@@ -768,14 +752,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       throw err;
     }
 
-    const discountType = formData.get("discountType") as DiscountType;
-    const variantIds = products.map((p: any) => p.variantId);
-    await applyDiscountToVariants(
-      admin,
-      variantIds,
-      discountType,
-      Number(formData.get("discountValue") || 0),
-    );
+    // const discountType = formData.get("discountType") as DiscountType;
+    // const variantIds = products.map((p: any) => p.variantId);
+    // await applyDiscountToVariants(
+    //   admin,
+    //   variantIds,
+    //   discountType,
+    //   Number(formData.get("discountValue") || 0),
+    // );
 
     await createSellingPlan(
       admin,
@@ -835,6 +819,21 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
             ownerId: product.variantId,
             namespace: "custom",
             key: "preorder",
+            type: "boolean",
+            value: "false",
+          },
+          {
+            ownerId: product.productId,
+            namespace: "custom",
+            key: "campaign_id",
+            type: "single_line_text_field",
+            value: "null",
+          },
+          {
+            ownerId: product.productId,
+            namespace: "custom",
+            key: "preorder",
+            type: "boolean",
             value: "false",
           },
         ]);
@@ -842,6 +841,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         metafields = products.flatMap((product: any) => [
           {
             ownerId: product.variantId,
+            namespace: "custom",
+            key: "preorder",
+            type: "boolean",
+            value: "false",
+          },
+          {
+            ownerId: product.productId,
             namespace: "custom",
             key: "preorder",
             type: "boolean",
@@ -903,10 +909,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
    
 
       await updateCampaignStatus(params.id!, "UNPUBLISH", shopId);
-      removeDiscountFromVariants(
-        admin,
-        products.map((product: any) => product.variantId),
-      );
 
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!, shopId);

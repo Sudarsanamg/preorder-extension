@@ -6,15 +6,12 @@ import {
   Button,
   ButtonGroup,
   Text,
-  TextField,
   Page,
   RadioButton,
   Card,
-  Icon,
   Tabs,
   Banner,
   InlineStack,
-  // Grid,
 } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
@@ -24,7 +21,6 @@ import {
   useActionData,
   useLoaderData,
 } from "@remix-run/react";
-import { DeleteIcon } from "@shopify/polaris-icons";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { ResourcePicker } from "@shopify/app-bridge/actions";
 import { Modal, TitleBar, SaveBar } from "@shopify/app-bridge-react";
@@ -41,7 +37,6 @@ import {
   // GET_PRODUCTS_WITH_PREORDER,
   GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID,
 } from "app/graphql/mutation/metafields";
-import type { CampaignType } from "@prisma/client";
 import { formatCurrency } from "app/helper/currencyFormatter";
 import { formatDate } from "app/utils/formatDate";
 import CampaignForm from "app/components/CampaignForm";
@@ -52,8 +47,9 @@ import {
 } from "app/utils/validator/zodValidateSchema";
 import { createCampaign } from "app/helper/campaignHelper";
 import { PreviewComponent } from "app/components/PreviewComponent";
-import { TableSkeleton } from "app/utils/loader/TableSkeleton";
+// import { TableSkeleton } from "app/utils/loader/TableSkeleton";
 import '../styles/campaign.new.css'
+import { CampaignProductTable } from "app/components/CampaignProductTable";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -1070,248 +1066,19 @@ export default function Newcampaign() {
                   </div>
                 )}
 
-                <Card>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "10px",
-                    }}
-                  >
-                    <div>
-                      <TextField
-                        label="Search products"
-                        labelHidden
-                        value={searchTerm}
-                        onChange={setSearchTerm}
-                        autoComplete="off"
-                        placeholder="Search by product name"
-                      />
-                    </div>
-                    <div style={{ marginLeft: "10px" }}>
-                      <ButtonGroup noWrap={true}>
-                        <Button onClick={openResourcePicker}>
-                          Add More Products
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setSelectedProducts([]);
-                          }}
-                        >
-                          Remove all Products
-                        </Button>
-                      </ButtonGroup>
-                    </div>
-                  </div>
-                  <div style={{ overflowX: "auto" }}>
-                    <table
-                      style={{ width: "100%", borderCollapse: "collapse" }}
-                    >
-                      <thead>
-                        <tr>
-                          <th
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            Image
-                          </th>
-                          <th
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            Product
-                          </th>
-                          <th
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            Inventory
-                          </th>
-                          {campaignData.campaignType !== "IN_STOCK" && (
-                            <th
-                              style={{
-                                padding: "8px",
-                                borderBottom: "1px solid #eee",
-                              }}
-                            >
-                              Inventory limit
-                            </th>
-                          )}
-                          <th
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            Price
-                          </th>
-                          <th
-                            style={{
-                              padding: "8px",
-                              borderBottom: "1px solid #eee",
-                            }}
-                          >
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredProducts.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan={6}
-                              style={{
-                                padding: "8px",
-                                alignSelf: "center",
-                              }}
-                            >
-                              No products found
-                            </td>
-                          </tr>
-                        )}
-                        {productsWithPreorderLoader === true ? (
-                          <TableSkeleton />
-                        ) : (
-                          filteredProducts.map((product: any) => (
-                            <tr
-                              key={product.variantId}
-                              style={{
-                                backgroundColor: handleDuplication(
-                                  product.variantId,
-                                )
-                                  ? "#ea9898ff"
-                                  : "",
-                              }}
-                            >
-                              <td
-                                style={{
-                                  padding: "8px",
-                                  borderBottom: "1px solid #eee",
-                                  textAlign: "center",
-                                }}
-                              >
-                                {product.productImage || product.image ? (
-                                  <img
-                                    src={product.productImage || product.image}
-                                    alt={product.variantTitle}
-                                    style={{
-                                      width: 50,
-                                      height: 50,
-                                      objectFit: "cover",
-                                      borderRadius: "6px",
-                                    }}
-                                  />
-                                ) : (
-                                  <div
-                                    style={{
-                                      width: 50,
-                                      height: 50,
-                                      borderRadius: "6px",
-                                      background: "#f0f0f0",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      fontSize: "12px",
-                                      color: "#999",
-                                      border: "1px solid #ddd",
-                                    }}
-                                  >
-                                    No Image
-                                  </div>
-                                )}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "8px",
-                                  borderBottom: "1px solid #eee",
-                                  textAlign: "center",
-                                }}
-                              >
-                                {product.variantTitle}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "8px",
-                                  borderBottom: "1px solid #eee",
-                                  textAlign: "center",
-                                }}
-                              >
-                                {product.variantInventory
-                                  ? product.variantInventory
-                                  : (product.inventory ?? "0")}
-                              </td>
-                              {campaignData.campaignType !== "IN_STOCK" && (
-                                <td
-                                  style={{
-                                    padding: "8px",
-                                    borderBottom: "1px solid #eee",
-                                    width: "100px",
-                                  }}
-                                >
-                                  <TextField
-                                    type="text"
-                                    min={0}
-                                    label="Inventory limit"
-                                    labelHidden
-                                    autoComplete="off"
-                                    value={
-                                      campaignData.campaignType ===
-                                      ("IN_STOCK" as CampaignType)
-                                        ? product.variantInventory
-                                          ? product.variantInventory
-                                          : product.inventory
-                                        : product?.maxUnit.toString()
-                                    }
-                                    onChange={(value) =>
-                                      handleMaxUnitChange(
-                                        product.variantId,
-                                        Number(value),
-                                      )
-                                    }
-                                  />
-                                </td>
-                              )}
-                              <td
-                                style={{
-                                  padding: "8px",
-                                  borderBottom: "1px solid #eee",
-                                  textAlign: "center",
-                                }}
-                              >
-                                {formatCurrency(
-                                  product.variantPrice,
-                                  storeCurrency ?? "USD",
-                                )}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "8px",
-                                  borderBottom: "1px solid #eee",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                <div
-                                  onClick={() => {
-                                    handleRemoveProduct(product.variantId);
-                                  }}
-                                >
-                                  <Icon source={DeleteIcon} />
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
+                <CampaignProductTable
+                  products={selectedProducts}
+                  setProducts={setSelectedProducts}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  campaignType={campaignData.campaignType}
+                  mode="create"
+                  openResourcePicker={openResourcePicker}
+                  handleMaxUnitChange={handleMaxUnitChange}
+                  handleRemoveProduct={handleRemoveProduct}
+                  handleDuplication={handleDuplication}
+                  formatCurrency={formatCurrency}
+                />
               </div>
             )}
             <div style={{ margin: 10 }}>

@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://pink-appearance-messages-living.trycloudflare.com"
+application_url = "https://extended-day-adopted-london.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -13,20 +13,20 @@ automatically_update_urls_on_dev = true
 api_version = "2025-07"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks"
+  topics = [ "orders/paid" ]
+  uri = "/webhooks/order_paid"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/create" ]
-  uri = "/webhooks/order_create"
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks"
 
   [[webhooks.subscriptions]]
   topics = [ "products/update" ]
   uri = "/webhooks/products_update"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/paid" ]
-  uri = "/webhooks/order_paid"
+  topics = [ "orders/create" ]
+  uri = "/webhooks/order_create"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/updated" ]
@@ -40,13 +40,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://pink-appearance-messages-living.trycloudflare.com/auth/callback",
-  "https://pink-appearance-messages-living.trycloudflare.com/auth/shopify/callback",
-  "https://pink-appearance-messages-living.trycloudflare.com/api/auth/callback"
+  "https://extended-day-adopted-london.trycloudflare.com/auth/callback",
+  "https://extended-day-adopted-london.trycloudflare.com/auth/shopify/callback",
+  "https://extended-day-adopted-london.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://pink-appearance-messages-living.trycloudflare.com/apps/cancel-order"
+url = "https://extended-day-adopted-london.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

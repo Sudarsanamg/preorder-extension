@@ -238,7 +238,7 @@ async function processOrderCreate({
     const storeId = store.id;
     const orderId = payload.admin_graphql_api_id;
     const existing = await prisma.campaignOrders.findUnique({
-      where: { orderId },
+      where: { orderId , storeId },
     });
 
     if (existing) {
@@ -255,6 +255,7 @@ async function processOrderCreate({
       await incrementUnitsSold(shop, {
         id: item.variant_id,
         quantity: item.quantity,
+        campaignId: item.properties?.find((p: any) => p.name === "_campaignId")?.value,
       });
     }
 
