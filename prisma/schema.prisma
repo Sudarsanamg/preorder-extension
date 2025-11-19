@@ -30,9 +30,6 @@ model Store {
   shopId                    String                    @unique
   currencyCode              String
   offlineToken              String?
-  webhookRegistered         Boolean                   @default(false)
-  metaobjectsCreated        Boolean                   @default(false)
-  metaFieldsCreated         Boolean                   @default(false)
   shopifyDomain             String                    @unique
   sendCustomEmail           Boolean                   @default(false)
   appInstalled              Boolean                   @default(true)
@@ -75,8 +72,6 @@ model PreorderCampaign {
   paymentType             PaymentMode?
   depositPercent          Int?
   balanceDueDate          DateTime?
-  refundDeadlineDays      Int?
-  releaseDate             DateTime?
   status                  CampaignStatus            @default(DRAFT)
   campaignEndDate         DateTime
   totalOrders             Int                       @default(0)
@@ -93,7 +88,7 @@ model PreorderCampaign {
   updatedAt               BigInt
   products                PreorderCampaignProduct[]
   store                   Store                     @relation(fields: [storeId], references: [id])
-  campaignOrders          CampaignOrders[]
+  orders                  OrderCampaignMapping[]
 }
 
 model PreorderCampaignProduct {
@@ -114,27 +109,35 @@ model PreorderCampaignProduct {
 }
 
 model CampaignOrders {
-  id               String             @id @default(uuid())
+  id               String                 @id @default(uuid())
   storeId          String
-  campaignId       String
   orderNumber      Int
-  orderId          String             @unique
-  draftOrderId     String?            @unique
-  customerEmail    String             @default("")
+  orderId          String                 @unique
+  draftOrderId     String?                @unique
+  customerEmail    String                 @default("")
   dueDate          DateTime?
   totalAmount      Decimal?
   balanceAmount    Decimal?
   currency         String?
   paymentStatus    PaymentStatus
   fulfilmentStatus FulfillmentStatus?
-  store            Store              @relation(fields: [storeId], references: [id])
+  store            Store                  @relation(fields: [storeId], references: [id])
   createdAt        BigInt
   updatedAt        BigInt
-  vaultedPayment   VaultedPayment?    @relation("OrderVaultedPayment")
-  campaign         PreorderCampaign   @relation(fields: [campaignId], references: [id])
+  vaultedPayment   VaultedPayment?        @relation("OrderVaultedPayment")
+  campaigns        OrderCampaignMapping[]
 
   @@unique([storeId, orderId])
   @@unique([storeId, draftOrderId])
+}
+model OrderCampaignMapping {
+  id         String @id @default(uuid())
+  orderId    String
+  campaignId String
+  order    CampaignOrders   @relation(fields: [orderId], references: [id])
+  campaign PreorderCampaign @relation(fields: [campaignId], references: [id])
+
+  @@unique([orderId, campaignId])
 }
 
 enum PaymentStatus {

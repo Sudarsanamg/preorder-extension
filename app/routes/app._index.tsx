@@ -93,9 +93,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       await createStore({
         shopId: shopId,
         offlineToken: encrypt(accessToken),
-        webhookRegistered: true,
-        metaobjectsCreated: true,
-        metaFieldsCreated: true,
         shopifyDomain: storeDomain,
         ConfrimOrderEmailSettings: confrimOrderTemplate,
         ShippingEmailSettings: ShippingEmailTemplate,

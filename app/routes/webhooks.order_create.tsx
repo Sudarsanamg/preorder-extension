@@ -139,7 +139,7 @@ async function createCampaignOrder(
     totalAmount: new Decimal(payload.total_price),
     currency: payload.currency,
     fulfilmentStatus: mapFulfillmentStatus(payload.fulfillment_status),
-    campaignId: campaignIds[0],
+    campaignIds: campaignIds,
   });
 
   return { campaignOrder, remaining, secondSchedule, customerEmail };

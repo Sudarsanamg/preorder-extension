@@ -4,7 +4,7 @@ import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }: { request: Request }) => {
   try {
-    const { shop, payload , topic } = await authenticate.webhook(request);
+    const { shop, payload, topic } = await authenticate.webhook(request);
 
     if(topic !== "ORDERS_UPDATED"){
       return Response.json({ error: "Invalid topic" }, { status: 200 });
@@ -61,6 +61,20 @@ export const action = async ({ request }: { request: Request }) => {
       }
     };
 
+    const mapPaymentStatus = (status: string | null) => {
+      switch (status) {
+        case "paid":
+          return "PAID";
+        case "pending":
+          return "PENDING";
+        case "refunded":
+        case "voided":
+          return "CANCELLED";
+        default:
+          return "PENDING";
+      }
+    };
+
     if (
       body.fulfillment_status &&
       mapFulfillmentStatus(body.fulfillment_status) !==
@@ -77,6 +91,21 @@ export const action = async ({ request }: { request: Request }) => {
       });
 
     }
+
+const newPaymentStatus = mapPaymentStatus(body.financial_status);
+
+if (newPaymentStatus !== existingOrder.paymentStatus) {
+  await prisma.campaignOrders.update({
+    where: {
+      orderId: `gid://shopify/Order/${body.id}`,
+      storeId,
+    },
+    data: {
+      paymentStatus: newPaymentStatus,
+      updatedAt: BigInt(Date.now()),
+    },
+  });
+}
 
     return new Response("OK", { status: 200 });
   } catch (error) {

@@ -9,9 +9,6 @@ import { decrypt } from "app/utils/crypto.server";
 export async function createStore(data: {
   shopId: string;
   offlineToken: string;
-  webhookRegistered: boolean;
-  metaobjectsCreated: boolean;
-  metaFieldsCreated: boolean;
   shopifyDomain: string;
   currencyCode: string;
   ConfrimOrderEmailSettings: Prisma.InputJsonValue;
@@ -23,9 +20,6 @@ export async function createStore(data: {
     data: {
       shopId: data.shopId,
       offlineToken: data.offlineToken,
-      webhookRegistered: data.webhookRegistered,
-      metaobjectsCreated: data.metaobjectsCreated,
-      metaFieldsCreated: data.metaFieldsCreated,
       currencyCode: data.currencyCode,
       shopifyDomain: data.shopifyDomain,
       ConfrimOrderEmailSettings: data.ConfrimOrderEmailSettings,
@@ -107,8 +101,6 @@ export async function createPreorderCampaign(data: {
       storeId: store.id,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
-      refundDeadlineDays: data.refundDeadlineDays,
-      releaseDate: data.releaseDate,
       status: data.status ,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
@@ -165,8 +157,6 @@ export async function updateCampaign(data: {
       name: data.name,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
-      refundDeadlineDays: data.refundDeadlineDays,
-      releaseDate: data.releaseDate,
       status: data.status,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
@@ -198,11 +188,11 @@ export async function addProductsToCampaign(
     data: products.map((p) => ({
       campaignId,
       productId: p.productId,
-      variantId: p.variantId,
-      variantTitle: p.variantTitle,
-      maxQuantity: Number(p.maxUnit),
-      price: p.variantPrice,
-      imageUrl: p.productImage,
+      variantId: p.variantId ?? "",
+      variantTitle: p.variantTitle ?? "",
+      maxQuantity: Number(p.maxUnit || 0),
+      price: Number(p.variantPrice || 0),
+      imageUrl: p.productImage ?? null,
       storeId: storeId,
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
@@ -231,10 +221,10 @@ export async function replaceProductsInCampaign(
       data: products.map((p) => ({
         campaignId,
         productId: p.productId,
-        variantId: p.variantId,
-        variantTitle: p.variantTitle,
-        price: Number(p.variantPrice),
-        imageUrl: p.productImage,
+        variantId: p.variantId ?? "",
+        variantTitle: p.variantTitle ?? "",
+        price: Number(p.variantPrice || 0),
+        imageUrl: p.productImage ?? null,
         maxQuantity:campaignType == "IN_STOCK"
                   ? Number(p.variantInventory)
                   : Number(p?.maxUnit || 0) ,
@@ -426,7 +416,7 @@ export async function createOrder({
   totalAmount,
   currency,
   fulfilmentStatus,
-  campaignId
+  campaignIds,   
 }: {
   orderNumber: number;
   orderId: string;
@@ -436,18 +426,17 @@ export async function createOrder({
   paymentStatus: PaymentStatus;
   storeId: string;
   customerEmail: string;
-  totalAmount: string,
-  currency?: string,
-  fulfilmentStatus ?: FulfillmentStatus,
-  campaignId : string
+  totalAmount: string;
+  currency?: string;
+  fulfilmentStatus?: FulfillmentStatus;
+  campaignIds: string[];   
 }) {
   try {
-  
     const newOrder = await prisma.campaignOrders.create({
       data: {
-        orderNumber: orderNumber,
-        storeId : storeId,
-        orderId : orderId,
+        orderNumber,
+        storeId,
+        orderId,
         draftOrderId,
         dueDate,
         balanceAmount,
@@ -455,12 +444,18 @@ export async function createOrder({
         customerEmail,
         createdAt: BigInt(Date.now()),
         updatedAt: BigInt(Date.now()),
-        totalAmount :totalAmount ?? new Decimal(totalAmount),
+        totalAmount: new Decimal(totalAmount),
         currency,
         fulfilmentStatus,
-        campaignId,
       },
     });
+       await prisma.orderCampaignMapping.createMany({
+        data: campaignIds.map((campaignId) => ({
+          orderId: newOrder.id,
+          campaignId,
+        })),
+        skipDuplicates: true,
+      });
 
     return newOrder;
   } catch (error) {
@@ -593,7 +588,6 @@ export async function createDuePayment(
 
 
 export async function getAllVariants(shopId: string) {
-  // Get stored access token for this shop
   const store = await prisma.store.findUnique({
     where: { shopId: shopId },
     select: { offlineToken: true ,
