@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://extended-day-adopted-london.trycloudflare.com"
+application_url = "https://prophet-transparency-essence-sofa.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -11,6 +11,14 @@ automatically_update_urls_on_dev = true
 
 [webhooks]
 api_version = "2025-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/updated" ]
+  uri = "/webhooks/order_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create" ]
+  uri = "/webhooks/order_create"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/paid" ]
@@ -24,14 +32,6 @@ api_version = "2025-07"
   topics = [ "products/update" ]
   uri = "/webhooks/products_update"
 
-  [[webhooks.subscriptions]]
-  topics = [ "orders/create" ]
-  uri = "/webhooks/order_create"
-
-  [[webhooks.subscriptions]]
-  topics = [ "orders/updated" ]
-  uri = "/webhooks/order_update"
-
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_customers,read_metaobjects,read_orders,read_payment_mandate,read_shopify_payments_accounts,read_themes,unauthenticated_read_customers,write_draft_orders,write_metaobject_definitions,write_metaobjects,write_orders,write_payment_mandate,write_products,write_publications,write_purchase_options"
@@ -40,13 +40,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://extended-day-adopted-london.trycloudflare.com/auth/callback",
-  "https://extended-day-adopted-london.trycloudflare.com/auth/shopify/callback",
-  "https://extended-day-adopted-london.trycloudflare.com/api/auth/callback"
+  "https://prophet-transparency-essence-sofa.trycloudflare.com/auth/callback",
+  "https://prophet-transparency-essence-sofa.trycloudflare.com/auth/shopify/callback",
+  "https://prophet-transparency-essence-sofa.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://extended-day-adopted-london.trycloudflare.com/apps/cancel-order"
+url = "https://prophet-transparency-essence-sofa.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 

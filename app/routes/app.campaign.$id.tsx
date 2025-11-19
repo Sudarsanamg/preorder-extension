@@ -159,7 +159,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     let campaignSettingsResponse = await fetchMetaobject(
       admin,
       params.id!,
-      "preordercampaign",
+      "$app:preordercampaign",
     );
     let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
     const metaobject = parsedCampaignSettingsResponse.data.metaobjectByHandle;
@@ -505,7 +505,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
     const handleRes = await admin.graphql(GetCampaignId, {
       variables: {
-        handle: { type: "preordercampaign", handle: params.id },
+        handle: { type: "$app:preordercampaign", handle: params.id },
       },
     });
 
@@ -612,7 +612,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     try {
       await admin.graphql(publishMutation, {
         variables: {
-          handle: { type: "preordercampaign", handle: id },
+          handle: { type: "$app:preordercampaign", handle: id },
           status: "ACTIVE",
         },
       });
@@ -797,7 +797,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     try {
       await admin.graphql(unpublishMutation, {
         variables: {
-          handle: { type: "preordercampaign", handle: id },
+          handle: { type: "$app:preordercampaign", handle: id },
           status: "DRAFT",
         },
       });

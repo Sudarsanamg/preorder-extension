@@ -28,7 +28,7 @@ export const unPublishCampaign = async (
   try {
     await admin.graphql(unpublishMutation, {
       variables: {
-        handle: { type: "preordercampaign", handle: id },
+        handle: { type: "$app:preordercampaign", handle: id },
         status: "DRAFT",
       },
     });
@@ -170,7 +170,7 @@ export const publishCampaign = async (
   try {
     await admin.graphql(publishMutation, {
       variables: {
-        handle: { type: "preordercampaign", handle: id },
+        handle: { type: "$app:preordercampaign", handle: id },
         status: "ACTIVE",
       },
     });

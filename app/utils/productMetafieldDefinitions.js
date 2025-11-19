@@ -6,6 +6,9 @@ const productMetafieldDefinitions = [
     type: "single_line_text_field",
     description: "ID of the preorder campaign",
     ownerType: "PRODUCT",
+    access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "preorder_units_sold",
@@ -14,6 +17,9 @@ const productMetafieldDefinitions = [
     type: "number_integer",
     description: "Units sold for preorder",
     ownerType: "PRODUCT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "deposit_percent",
@@ -22,6 +28,9 @@ const productMetafieldDefinitions = [
     type: "number_integer",
     description: "Deposit percentage for preorder",
     ownerType: "PRODUCT",
+    access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "balance_due_date",
@@ -30,6 +39,9 @@ const productMetafieldDefinitions = [
     type: "date",
     description: "Date when remaining balance is due",
     ownerType: "PRODUCT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "preorder_end_date",
@@ -38,6 +50,9 @@ const productMetafieldDefinitions = [
     type: "date_time",
     description: "Preorder end date and time",
     ownerType: "PRODUCT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "preorder_max_units",
@@ -46,6 +61,9 @@ const productMetafieldDefinitions = [
     type: "number_integer",
     description: "Maximum units available for preorder",
     ownerType: "PRODUCT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "preorder",
@@ -54,6 +72,9 @@ const productMetafieldDefinitions = [
     type: "boolean",
     description: "Whether the product is available for preorder",
     ownerType: "PRODUCT",
+    access: {
+      admin: "MERCHANT_READ"
+    }
   }
 ];
 
@@ -68,6 +89,9 @@ export const variantMetafieldDefinitions = [
     type: "single_line_text_field",
     description: "ID of the preorder campaign (per variant)",
     ownerType: "PRODUCTVARIANT",
+    access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "preorder_units_sold",
@@ -76,6 +100,9 @@ export const variantMetafieldDefinitions = [
     type: "number_integer",
     description: "Units sold for preorder (per variant)",
     ownerType: "PRODUCTVARIANT",
+    access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "deposit_percent",
@@ -84,6 +111,9 @@ export const variantMetafieldDefinitions = [
     type: "number_integer",
     description: "Deposit percentage for preorder (per variant)",
     ownerType: "PRODUCTVARIANT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "balance_due_date",
@@ -92,6 +122,9 @@ export const variantMetafieldDefinitions = [
     type: "date",
     description: "Date when remaining balance is due (per variant)",
     ownerType: "PRODUCTVARIANT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
 
   {
@@ -101,6 +134,9 @@ export const variantMetafieldDefinitions = [
     type: "date_time",
     description: "Preorder end date and time (per variant)",
     ownerType: "PRODUCTVARIANT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "preorder_max_units",
@@ -109,6 +145,9 @@ export const variantMetafieldDefinitions = [
     type: "number_integer",
     description: "Maximum units available for preorder (per variant)",
     ownerType: "PRODUCTVARIANT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   },
   {
     name: "preorder",
@@ -117,6 +156,9 @@ export const variantMetafieldDefinitions = [
     type: "boolean",
     description: "Whether the variant is available for preorder",
     ownerType: "PRODUCTVARIANT",
+     access: {
+      admin: "MERCHANT_READ"
+    }
   }
 ];
 
