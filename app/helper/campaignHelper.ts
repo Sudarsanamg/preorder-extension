@@ -572,15 +572,15 @@ export const createCampaign = async (
       key: "object",
       value: JSON.stringify({
         campaignData: {
-          campaign_id: String(campaign.id),
+          campaignId: String(campaign.id),
           name: (formData.get("name") as string) || "Untitled Campaign",
           status: "publish",
-          button_text: (formData.get("buttonText") as string) || "Preorder",
-          shipping_message:
+          buttonText: (formData.get("buttonText") as string) || "Preorder",
+          shippingMessage:
             (formData.get("shippingMessage") as string) ||
             "Ship as soon as possible",
-          payment_type: (formData.get("paymentMode") as string) || "Full",
-          payment_schedule: {
+          paymentType: (formData.get("paymentMode") as string) || "Full",
+          paymentSchedule: {
             type: formData.get("collectionMode") as scheduledFulfilmentType,
             value:
               (formData.get("collectionMode") as scheduledFulfilmentType) ===
@@ -590,23 +590,23 @@ export const createCampaign = async (
                     formData.get("balanceDueDate") as string,
                   ).toISOString(),
           },
-          ppercent: String(formData.get("depositPercent") || "0"),
-          paymentduedate: new Date(
+          depositPercent: String(formData.get("depositPercent") || "0"),
+          paymentDueDate: new Date(
             (formData.get("balanceDueDate") as string) || Date.now(),
           ).toISOString(),
-          campaign_end_date: new Date(
+          campaignEndDate: new Date(
             (formData.get("campaignEndDate") as string) || Date.now(),
           ).toISOString(),
-          discount_type: (formData.get("discountType") as string) || "none",
+          discountType: (formData.get("discountType") as string) || "none",
           discountValue:
             (formData.get("discountValue") as string) || "0",
-          campaigntags: JSON.parse(
+          campaignTags: JSON.parse(
             (formData.get("orderTags") as string) || "[]",
           ).join(","),
           customerTags: JSON.parse(
             (formData.get("customerTags") as string) || "[]",
           ).join(","),
-          campaigntype: formData.get("campaignType") as CampaignType,
+          campaignType: formData.get("campaignType") as CampaignType,
           preOrderNoteKey: formData.get("preOrderNoteKey") as string,
           preOrderNoteValue: formData.get("preOrderNoteValue") as string,
           fulfillment: {

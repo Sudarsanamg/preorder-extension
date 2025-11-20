@@ -1,23 +1,23 @@
 {
   "campaignData": {
-    "campaign_id": "string",
+    "campaignId": "string",
     "name": "string",
     "status": "string",
-    "button_text": "string",
-    "shipping_message": "string",
-    "payment_type": "string",
-    "payment_schedule": {
+    "buttonText": "string",
+    "shippingMessage": "string",
+    "paymentType": "string",
+    "paymentSchedule": {
       "type": "string",
       "value": "string | number"
     },
-    "ppercent": "string",
-    "paymentduedate": "string",
-    "campaign_end_date": "string",
-    "discount_type": "string",
+    "initialPaymentPercentage": "string",
+    "paymentDueDate": "string",
+    "campaignEndDate": "string",
+    "discountType": "string",
     "discountValue": "string or number",
-    "campaigntags": "string ( , separated)",
+    "campaignTags": "string ( , separated)",
     "customerTags": "string ( , separated)",
-    "campaigntype": "string",
+    "campaignType": "string",
     "fulfillment": {
       "type": "string",
       "schedule": {

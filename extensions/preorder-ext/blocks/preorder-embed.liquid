@@ -96,7 +96,7 @@
   </div>
   <div id="selling-plan-data" data-selling-plan="{{ product.selling_plan_groups.first.selling_plans.first.id }}">
   </div>
-  <div id="campaign-data" data-campaign-type="{{ campaignprops.object.value.campaignData.campaigntype }}">
+  <div id="campaign-data" data-campaign-type="{{ campaignprops.object.value.campaignData.campaignType }}">
   </div>
 
 
@@ -131,7 +131,7 @@
         color: {{ designSettings.buttonTextColor }};
         font-size: {{ designSettings.buttonFontSize }}px;
         font-family: {{ designSettings.fontFamily }};">
-      {{ campaignData.button_text }}
+      {{ campaignData.buttonText }}
     </p>
     <span class="loader-spinner" style="
       display:none;
@@ -143,7 +143,7 @@
 
   {% endfor %}
   <div id="campaign-data"
-    data-campaign-type="{{ campaignprops.object.value.campaignData.campaigntype | upcase | default: 'IN_STOCK' }}">
+    data-campaign-type="{{ campaignprops.object.value.campaignData.campaignType | upcase | default: 'IN_STOCK' }}">
   </div>
 
 
@@ -152,7 +152,7 @@
   {% assign deposit_percent = variant.metafields["$app:preorder-extension"].deposit_percent.value | default: 0 %}
   {% assign selected_selling_plan_allocation = variant.selling_plan_allocations.first %}
   {% assign price = selected_selling_plan_allocation.price %}
-  {% assign payment_type = parsedCampaignData.payment_type %}
+  {% assign payment_type = parsedCampaignData.paymentType %}
   {% if variant.inventory_management and variant.inventory_quantity > 0 %}
   {% assign instock = true %}
   {% else %}
@@ -163,7 +163,7 @@
   %} {% endcomment %}
   {% assign initial_payment = price | times: deposit_percent | divided_by: 100 %}
   {% assign balance_payment = price | minus: initial_payment %}
-  {% assign payment_schedule = campaignprops.object.value.campaignData.payment_schedule %}
+  {% assign payment_schedule = campaignprops.object.value.campaignData.paymentSchedule %}
   {% assign due_payment_type = payment_schedule.type %}
   {% assign due_payment_value = payment_schedule.value %}
 
@@ -202,7 +202,7 @@
           font-family: {{ designSettings.fontFamily }};
           text-align:center;
         ">
-      {{ parsedCampaignData.shipping_message }}
+      {{ parsedCampaignData.shippingMessage }}
     </p>
   </div>
   {% endfor %}

@@ -442,15 +442,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         key: "object",
         value: JSON.stringify({
           campaignData: {
-            campaign_id: String(campaign.id),
+            campaignId: String(campaign.id),
             name: (formData.get("name") as string) || "Untitled Campaign",
             status: "publish",
-            button_text: (formData.get("buttonText") as string) || "Preorder",
-            shipping_message:
+            buttonText: (formData.get("buttonText") as string) || "Preorder",
+            shippingMessage:
               (formData.get("shippingMessage") as string) ||
               "Ship as soon as possible",
-            payment_type: (formData.get("paymentMode") as string) || "Full",
-            payment_schedule: {
+            paymentType: (formData.get("paymentMode") as string) || "Full",
+            paymentSchedule: {
               type: formData.get("collectionMode") as scheduledFulfilmentType,
               value:
                 (formData.get("collectionMode") as scheduledFulfilmentType) ===
@@ -460,22 +460,22 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
                       formData.get("balanceDueDate") as string,
                     ).toISOString(),
             },
-            ppercent: String(formData.get("depositPercent") || "0"),
-            paymentduedate: new Date(
+            depositPercent: String(formData.get("depositPercent") || "0"),
+            paymentDueDate: new Date(
               (formData.get("balanceDueDate") as string) || Date.now(),
             ).toISOString(),
-            campaign_end_date: new Date(
+            campaignEndDate: new Date(
               (formData.get("campaignEndDate") as string) || Date.now(),
             ).toISOString(),
-            discount_type: formData.get("discountType") as DiscountType,
+            discountType: formData.get("discountType") as DiscountType,
             discountValue: (formData.get("discountValue") as string) || "0",
-            campaigntags: JSON.parse(
+            campaignTags: JSON.parse(
               (formData.get("orderTags") as string) || "[]",
             ).join(","),
             customerTags: JSON.parse(
               (formData.get("customerTags") as string) || "[]",
             ).join(","),
-            campaigntype: formData.get("campaignType") as CampaignType,
+            campaignType: formData.get("campaignType") as CampaignType,
             fulfillment: {
               type: formData.get("fulfilmentmode") as Fulfilmentmode,
               schedule: {
@@ -975,7 +975,7 @@ export default function CampaignDetail() {
   });
   const discarding = useRef(false);
 
-  const MetaObjectDuePaymentData = parsedCampaignData.payment_schedule;
+  const MetaObjectDuePaymentData = parsedCampaignData.paymentSchedule;
   const MetaObjectFullfillmentSchedule = parsedCampaignData.fulfillment;
   const [selectedDates, setSelectedDates] = useState({
     start: new Date(),
@@ -984,7 +984,7 @@ export default function CampaignDetail() {
       MetaObjectDuePaymentData.type === "DAYS_AFTER"
         ? new Date()
         : new Date(MetaObjectDuePaymentData.value),
-    campaignEndDate: new Date(parsedCampaignData.campaign_end_date),
+    campaignEndDate: new Date(parsedCampaignData.campaignEndDate),
     fullfillmentSchedule:
       MetaObjectFullfillmentSchedule.schedule.type === "DAYS_AFTER"
         ? new Date()
@@ -1030,23 +1030,23 @@ export default function CampaignDetail() {
   });
   const [campaignData, setCampaignData] = useState<CampaignFields>({
     campaignName: campaign?.name,
-    campaignType: parsedCampaignData?.campaigntype,
-    productTags: parsedCampaignData?.campaigntags
-      ? parsedCampaignData?.campaigntags.split(",")
+    campaignType: parsedCampaignData?.campaignType,
+    productTags: parsedCampaignData?.campaignTags
+      ? parsedCampaignData?.campaignTags.split(",")
       : [],
     customerTags: parsedCampaignData?.customerTags
       ? parsedCampaignData?.customerTags.split(",")
       : [],
     preOrderNoteKey: "Note",
     preOrderNoteValue: "Preorder",
-    buttonText: parsedCampaignData?.button_text,
-    shippingMessage: parsedCampaignData?.shipping_message,
+    buttonText: parsedCampaignData?.buttonText,
+    shippingMessage: parsedCampaignData?.shippingMessage,
     partialPaymentPercentage: campaign?.depositPercent,
     paymentMode:
-      parsedCampaignData?.payment_type === "full" ? "full" : "partial",
+      parsedCampaignData?.paymentType === "full" ? "full" : "partial",
     partialPaymentType: "percent",
     duePaymentType:
-      parsedCampaignData?.payment_schedule.type === "DAYS_AFTER" ? 1 : 2,
+      parsedCampaignData?.paymentSchedule.type === "DAYS_AFTER" ? 1 : 2,
     campaignEndTime: "00:00",
     fulfilmentMode: parsedCampaignData?.fulfillment.type,
     scheduledFullfillmentType:
@@ -1060,14 +1060,14 @@ export default function CampaignDetail() {
         ? 0
         : parsedCampaignData?.fulfillment.schedule.value,
     paymentAfterDays:
-      parsedCampaignData?.payment_schedule?.type === "DAYS_AFTER"
-        ? parsedCampaignData?.payment_schedule.value
+      parsedCampaignData?.paymentSchedule?.type === "DAYS_AFTER"
+        ? parsedCampaignData?.paymentSchedule.value
         : 0,
     fullPaymentText: "Full Payment",
     partialPaymentText: "Partial Payment",
     partialPaymentInfoText:
       "Pay {payment} now and {remaining} will be charged on {date}",
-    discountType: parsedCampaignData?.discount_type,
+    discountType: parsedCampaignData?.discountType,
     discountValue: parsedCampaignData?.discountValue,
     getPaymentsViaValtedPayments: getDueByValt,
   });
