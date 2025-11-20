@@ -1,6 +1,6 @@
 const preorderCampaignDef = {
   name: "preorderCampaign",   
-  type: "$app:preordercampaign",
+  type: "$app:preorder-extension",
   displayNameKey: "campaign_id",
   access: {
     storefront: "PUBLIC_READ",

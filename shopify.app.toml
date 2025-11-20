@@ -13,28 +13,28 @@ automatically_update_urls_on_dev = true
 api_version = "2025-07"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/updated" ]
-  uri = "/webhooks/order_update"
+  topics = [ "orders/paid" ]
+  uri = "/webhooks/order_paid"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/create" ]
   uri = "/webhooks/order_create"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/paid" ]
-  uri = "/webhooks/order_paid"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks"
+  topics = [ "orders/updated" ]
+  uri = "/webhooks/order_update"
 
   [[webhooks.subscriptions]]
   topics = [ "products/update" ]
   uri = "/webhooks/products_update"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_customers,read_metaobjects,read_orders,read_payment_mandate,read_shopify_payments_accounts,read_themes,unauthenticated_read_customers,write_draft_orders,write_metaobject_definitions,write_metaobjects,write_orders,write_payment_mandate,write_products,write_publications,write_purchase_options,unauthenticated_read_selling_plans"
+scopes = "read_customers,read_metaobjects,read_orders,read_payment_mandate,read_shopify_payments_accounts,read_themes,unauthenticated_read_customers,unauthenticated_read_selling_plans,write_draft_orders,write_metaobject_definitions,write_metaobjects,write_orders,write_payment_mandate,write_products,write_publications,write_purchase_options"
 optional_scopes = [ ]
 use_legacy_install_flow = false
 

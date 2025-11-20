@@ -74,7 +74,7 @@
   {% assign compare_at_price = selected_selling_plan_allocation.compare_at_price %}
   {% assign price = selected_selling_plan_allocation.price %}
   {% assign campaignid = product.metafields.custom.campaign_id %}
-  {% assign campaignprops = shop.metaobjects["$app:preordercampaign"][campaignid] %}
+  {% assign campaignprops = shop.metaobjects["$app:preorder-extension"][campaignid] %}
   {% comment %} {% assign campaignType = campaignprops.object.value.campaignData.campaigntype %} {% endcomment %}
   {% assign parsedCampaignData = campaignprops.object.value.campaignData %}
 
@@ -101,7 +101,7 @@
 
 
   {% for variant in product.variants %}
-{% assign settings = shop.metaobjects["$app:preordercampaign"][variant.metafields.custom.campaign_id] %}
+{% assign settings = shop.metaobjects["$app:preorder-extension"][variant.metafields.custom.campaign_id] %}
   {% assign designSettings = settings.object.value.designFields %}
   {% assign campaignData = settings.object.value.campaignData %}
 

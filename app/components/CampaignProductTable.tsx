@@ -35,7 +35,8 @@ interface Props {
   handleDuplication: (variantId: string) => boolean;
   isLoading?: boolean;
   formatCurrency: (value: number, currency: string) => string;
-  productsWithPreorderLoader :Boolean;
+  productsWithPreorderLoader: Boolean;
+  storeCurrency?: string;
 }
 
 export function CampaignProductTable({
@@ -53,7 +54,8 @@ export function CampaignProductTable({
   handleDuplication,
   isLoading,
   formatCurrency,
-  productsWithPreorderLoader
+  productsWithPreorderLoader,
+  storeCurrency,
 
 }: Props) {
   const filteredProducts = products.filter((p) =>
@@ -211,7 +213,7 @@ export function CampaignProductTable({
                 )}
 
                 <td style={{ padding: 8, textAlign: "center" }}>
-                  {formatCurrency(product.variantPrice, "USD")}
+                  {formatCurrency(product.variantPrice, storeCurrency || 'USD')}
                 </td>
 
                 <td style={{ padding: 8, cursor: "pointer" }}>

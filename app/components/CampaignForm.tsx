@@ -9,7 +9,6 @@ import {
   BlockStack,
   InlineStack,
   Tag,
-  Checkbox,
   Popover,
   DatePicker,
   // Link,
@@ -539,20 +538,6 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                         </div>
                       )}
                     </div>
-                  </div>
-                  <div style={{ marginTop: 10, marginBottom: 10 }}>
-                    {shopifyPaymentsEnabled && (
-                      <Checkbox
-                        label="Get Due payments via Valted credit cards Note:Works only with Shopify Payments"
-                        checked={campaignData.getPaymentsViaValtedPayments}
-                        onChange={() =>
-                          handleCampaignDataChange(
-                            "getPaymentsViaValtedPayments",
-                            !campaignData.getPaymentsViaValtedPayments,
-                          )
-                        }
-                      />
-                    )}
                   </div>
                   <TextField
                     autoComplete="off"

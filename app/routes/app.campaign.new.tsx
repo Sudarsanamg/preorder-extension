@@ -185,12 +185,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  let { prod, shopId, plusStore, shopifyPaymentsEnabled } =
+  let { prod, shopId, plusStore, shopifyPaymentsEnabled ,storeCurrency} =
     useLoaderData<typeof loader>() as {
       prod: any[];
       shopId: string;
       plusStore: boolean;
       shopifyPaymentsEnabled: boolean;
+      storeCurrency: string;
     };
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
@@ -562,11 +563,6 @@ export default function Newcampaign() {
     );
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
-
-    formData.append(
-      "getDueByValt",
-      String(campaignData.getPaymentsViaValtedPayments),
-    );
     formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
     formData.append(
       "collectionMode",
@@ -763,10 +759,6 @@ export default function Newcampaign() {
     );
     formData.append("orderTags", JSON.stringify(campaignData.productTags));
     formData.append("customerTags", JSON.stringify(campaignData.customerTags));
-    formData.append(
-      "getDueByValt",
-      String(campaignData.getPaymentsViaValtedPayments),
-    );
     formData.append("fulfilmentmode", String(campaignData.fulfilmentMode));
     formData.append(
       "scheduledFulfilmentType",
@@ -1078,6 +1070,7 @@ export default function Newcampaign() {
                   handleDuplication={handleDuplication}
                   formatCurrency={formatCurrency}
                   productsWithPreorderLoader={productsWithPreorderLoader}
+                  storeCurrency={storeCurrency}
                 />
               </div>
             )}
