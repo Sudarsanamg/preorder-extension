@@ -15,7 +15,7 @@ export const GET_PRODUCTS_BY_IDS = `#graphql
             }
           }
         }
-        metafield(namespace: "custom", key: "preorder_max_units") {
+        metafield(namespace: "$app:preorder-extension", key: "preorder_max_units") {
         value
       }
       }
@@ -38,7 +38,7 @@ query getVariantsByIds($ids: [ID!]!) {
           url
         }
       }
-      metafield(namespace: "custom", key: "preorder_max_units") {
+      metafield(namespace: "$app:preorder-extension", key: "preorder_max_units") {
         value
       }
     }
@@ -52,7 +52,7 @@ export const GET_PRODUCTS_WITH_PREORDER_WITH_ID = `#graphql
       ... on ProductVariant {
         id
         title
-        metafield(namespace: "custom", key: "campaign_id") {
+        metafield(namespace: "$app:preorder-extension", key: "campaign_id") {
           value
         }
       }

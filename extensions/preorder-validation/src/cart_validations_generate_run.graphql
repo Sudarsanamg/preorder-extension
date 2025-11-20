@@ -8,10 +8,10 @@ query CartValidationsGenerateRunInput {
         ... on ProductVariant {
           id
           sku
-          preorderMax: metafield(namespace: "custom", key: "preorder_max_units") {
+          preorderMax: metafield(namespace: "$app:preorder-extension", key: "preorder_max_units") {
             value
           }
-          preorderSold: metafield(namespace: "custom", key: "preorder_units_sold") {
+          preorderSold: metafield(namespace: "$app:preorder-extension", key: "preorder_units_sold") {
             value
           }
         }

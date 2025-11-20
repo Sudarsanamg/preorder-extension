@@ -1,7 +1,7 @@
 const productMetafieldDefinitions = [
   {
     name: "campaign_id",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "campaign_id",
     type: "single_line_text_field",
     description: "ID of the preorder campaign",
@@ -12,7 +12,7 @@ const productMetafieldDefinitions = [
   },
   {
     name: "preorder_units_sold",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder_units_sold",
     type: "number_integer",
     description: "Units sold for preorder",
@@ -23,7 +23,7 @@ const productMetafieldDefinitions = [
   },
   {
     name: "deposit_percent",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "deposit_percent",
     type: "number_integer",
     description: "Deposit percentage for preorder",
@@ -34,7 +34,7 @@ const productMetafieldDefinitions = [
   },
   {
     name: "balance_due_date",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "balance_due_date",
     type: "date",
     description: "Date when remaining balance is due",
@@ -45,7 +45,7 @@ const productMetafieldDefinitions = [
   },
   {
     name: "preorder_end_date",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder_end_date",
     type: "date_time",
     description: "Preorder end date and time",
@@ -56,7 +56,7 @@ const productMetafieldDefinitions = [
   },
   {
     name: "preorder_max_units",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder_max_units",
     type: "number_integer",
     description: "Maximum units available for preorder",
@@ -67,7 +67,7 @@ const productMetafieldDefinitions = [
   },
   {
     name: "preorder",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder",
     type: "boolean",
     description: "Whether the product is available for preorder",
@@ -84,7 +84,7 @@ export default productMetafieldDefinitions;
 export const variantMetafieldDefinitions = [
   {
     name: "campaign_id",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "campaign_id",
     type: "single_line_text_field",
     description: "ID of the preorder campaign (per variant)",
@@ -95,7 +95,7 @@ export const variantMetafieldDefinitions = [
   },
   {
     name: "preorder_units_sold",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder_units_sold",
     type: "number_integer",
     description: "Units sold for preorder (per variant)",
@@ -106,7 +106,7 @@ export const variantMetafieldDefinitions = [
   },
   {
     name: "deposit_percent",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "deposit_percent",
     type: "number_integer",
     description: "Deposit percentage for preorder (per variant)",
@@ -117,7 +117,7 @@ export const variantMetafieldDefinitions = [
   },
   {
     name: "balance_due_date",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "balance_due_date",
     type: "date",
     description: "Date when remaining balance is due (per variant)",
@@ -129,7 +129,7 @@ export const variantMetafieldDefinitions = [
 
   {
     name: "preorder_end_date",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder_end_date",
     type: "date_time",
     description: "Preorder end date and time (per variant)",
@@ -140,7 +140,7 @@ export const variantMetafieldDefinitions = [
   },
   {
     name: "preorder_max_units",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder_max_units",
     type: "number_integer",
     description: "Maximum units available for preorder (per variant)",
@@ -151,7 +151,7 @@ export const variantMetafieldDefinitions = [
   },
   {
     name: "preorder",
-    namespace: "custom",
+    namespace: "$app:preorder-extension",
     key: "preorder",
     type: "boolean",
     description: "Whether the variant is available for preorder",

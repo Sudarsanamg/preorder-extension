@@ -340,28 +340,28 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const metafields = products.flatMap((product: any) => [
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "campaign_id",
           type: "single_line_text_field",
           value: String(campaign.id),
         },
         {
           ownerId: product.productId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "campaign_id",
           type: "single_line_text_field",
           value: String(campaign.id),
         },
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "preorder",
           type: "boolean",
           value: "true",
         },
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "preorder_end_date",
           type: "date_time",
           value: new Date(
@@ -370,14 +370,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         },
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "deposit_percent",
           type: "number_integer",
           value: String(formData.get("depositPercent") || "0"),
         },
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "balance_due_date",
           type: "date",
           value: new Date(
@@ -386,7 +386,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         },
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "preorder_max_units",
           type: "number_integer",
           value:
@@ -559,28 +559,28 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       const metafields = parsedRemovedVarients.flatMap((varientId: any) => [
         {
           ownerId: varientId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "campaign_id",
           type: "single_line_text_field",
           value: "null",
         },
         {
           ownerId: varientId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "preorder",
           type: "boolean",
           value: "false",
         },
         {
           ownerId: varientId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "campaign_id",
           type: "single_line_text_field",
           value: "null",
         },
         {
           ownerId: varientId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "preorder",
           type: "boolean",
           value: "false",
@@ -622,19 +622,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const metafields = products.flatMap((product: any) => [
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "campaign_id",
         value: id,
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder",
         value: "true",
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_end_date",
         type: "date_time",
         value: new Date(
@@ -643,21 +643,21 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "deposit_percent",
         type: "number_integer",
         value: String(formData.get("depositPercent") || "0"),
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "balance_due_date",
         type: "date",
         value: new Date(formData.get("balanceDueDate") as string).toISOString(),
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_max_units",
         type: "number_integer",
         value:
@@ -667,7 +667,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_units_sold",
         type: "number_integer",
         value: String(product?.unitsSold || "0"),
@@ -676,21 +676,21 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const productMetafields = products.flatMap((product: any) => [
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "campaign_id",
         type: "single_line_text_field",
         value: String(id),
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder",
         type: "boolean",
         value: "true",
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_end_date",
         type: "date_time",
         value: new Date(
@@ -699,21 +699,21 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "deposit_percent",
         type: "number_integer",
         value: String(formData.get("depositPercent") || "0"),
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "balance_due_date",
         type: "date",
         value: new Date(formData.get("balanceDueDate") as string).toISOString(),
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_max_units",
         type: "number_integer",
         value:
@@ -723,7 +723,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_units_sold",
         type: "number_integer",
         value: "0",
@@ -807,28 +807,28 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           metafields = products.flatMap((product: any) => [
             {
               ownerId: product.variantId,
-              namespace: "custom",
+              namespace: "$app:preorder-extension",
               key: "campaign_id",
               type: "single_line_text_field",
               value: "null",
             },
             {
               ownerId: product.variantId,
-              namespace: "custom",
+              namespace: "$app:preorder-extension",
               key: "preorder",
               type: "boolean",
               value: "false",
             },
             {
               ownerId: product.productId,
-              namespace: "custom",
+              namespace: "$app:preorder-extension",
               key: "campaign_id",
               type: "single_line_text_field",
               value: "null",
             },
             {
               ownerId: product.productId,
-              namespace: "custom",
+              namespace: "$app:preorder-extension",
               key: "preorder",
               type: "boolean",
               value: "false",
@@ -838,14 +838,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           metafields = products.flatMap((product: any) => [
             {
               ownerId: product.variantId,
-              namespace: "custom",
+              namespace: "$app:preorder-extension",
               key: "preorder",
               type: "boolean",
               value: "false",
             },
             {
               ownerId: product.productId,
-              namespace: "custom",
+              namespace: "$app:preorder-extension",
               key: "preorder",
               type: "boolean",
               value: "false",

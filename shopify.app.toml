@@ -17,20 +17,20 @@ api_version = "2025-07"
   uri = "/webhooks/order_paid"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/create" ]
-  uri = "/webhooks/order_create"
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/updated" ]
   uri = "/webhooks/order_update"
 
   [[webhooks.subscriptions]]
-  topics = [ "products/update" ]
-  uri = "/webhooks/products_update"
+  topics = [ "orders/create" ]
+  uri = "/webhooks/order_create"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks"
+  topics = [ "products/update" ]
+  uri = "/webhooks/products_update"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes

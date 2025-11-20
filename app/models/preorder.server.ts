@@ -22,7 +22,7 @@ export async function incrementUnitsSold(store: string, variantData: { id: strin
   const GET_VARIANT_METAFIELD = `
   query getVariantMetafield($id: ID!) {
     productVariant(id: $id) {
-      metafield(namespace: "custom", key: "preorder_units_sold") {
+      metafield(namespace: "$app:preorder-extension", key: "preorder_units_sold") {
         id
         value
       }
@@ -75,7 +75,7 @@ export async function incrementUnitsSold(store: string, variantData: { id: strin
         metafields: [
           {
             ownerId: $ownerId
-            namespace: "custom"
+            namespace: "$app:preorder-extension"
             key: "preorder_units_sold"
             type: "number_integer"
             value: $value

@@ -25,7 +25,7 @@ export async function updatePreorderMetafields(request :any, products:any) {
 
   const metafields = products.map((product:any) => ({
     ownerId: product.id,       
-    namespace: "custom",      
+    namespace: "$app:preorder-extension",      
     key: "preorder",          
     type: "boolean",
     value: "true",
