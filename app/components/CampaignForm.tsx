@@ -122,7 +122,6 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           id="preorder"
           name="preorder"
           onChange={() => {
-            // setSelectedOption(1);
             handleCampaignDataChange("campaignType", "OUT_OF_STOCK");
           }}
         />
@@ -166,7 +165,6 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           id="back-in-stock"
           name="back-in-stock"
           onChange={() => {
-            // setSelectedOption(3);
             handleCampaignDataChange("campaignType", "IN_STOCK");
           }}
         />

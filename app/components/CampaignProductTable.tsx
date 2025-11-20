@@ -1,5 +1,6 @@
 import { Card, Button, ButtonGroup, TextField, Icon } from "@shopify/polaris";
 import { DeleteIcon } from "@shopify/polaris-icons";
+import { TableSkeleton } from "app/utils/loader/TableSkeleton";
 
 interface Product {
   productId: string;
@@ -34,6 +35,7 @@ interface Props {
   handleDuplication: (variantId: string) => boolean;
   isLoading?: boolean;
   formatCurrency: (value: number, currency: string) => string;
+  productsWithPreorderLoader :Boolean;
 }
 
 export function CampaignProductTable({
@@ -51,6 +53,8 @@ export function CampaignProductTable({
   handleDuplication,
   isLoading,
   formatCurrency,
+  productsWithPreorderLoader
+
 }: Props) {
   const filteredProducts = products.filter((p) =>
     p.variantTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -60,7 +64,15 @@ export function CampaignProductTable({
   return (
     <Card>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", padding: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          padding: 10,
+          gap: 10,
+          alignItems: "center",
+        }}
+      >
         <TextField
           label="Search products"
           labelHidden
@@ -71,14 +83,10 @@ export function CampaignProductTable({
         />
 
         <ButtonGroup noWrap>
-          <Button onClick={openResourcePicker}>
-            Add More Products
-          </Button>
+          <Button onClick={openResourcePicker}>Add More Products</Button>
 
           {mode === "create" ? (
-            <Button onClick={() => setProducts([])}>
-              Remove all Products
-            </Button>
+            <Button onClick={() => setProducts([])}>Remove all Products</Button>
           ) : (
             <Button
               onClick={() => {
@@ -100,25 +108,48 @@ export function CampaignProductTable({
       {/* Table */}
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
+           <thead>
             <tr>
               <th style={{ padding: 8 }}>Image</th>
               <th style={{ padding: 8 }}>Product</th>
               <th style={{ padding: 8 }}>Inventory</th>
-              {campaignType !== "IN_STOCK" && <th style={{ padding: 8 }}>Inventory limit</th>}
+              {campaignType !== "IN_STOCK" && (
+                <th style={{ padding: 8 }}>Inventory limit</th>
+              )}
               <th style={{ padding: 8 }}>Price</th>
               <th style={{ padding: 8 }}>Action</th>
             </tr>
           </thead>
-
           <tbody>
-            {filteredProducts.map((product) => (
+            {(isLoading || productsWithPreorderLoader) ? (
+              
+              <TableSkeleton />
+            )  : null
+            }
+            {filteredProducts.length === 0 && (
+              <tr>
+                <td
+                  colSpan={campaignType !== "IN_STOCK" ? 6 : 5}
+                  style={{
+                    padding: 20,
+                    textAlign: "center",
+                    color: "#666",
+                    fontSize: 14,
+                  }}
+                >
+                  No products found
+                </td>
+              </tr>
+            )}
+            {!productsWithPreorderLoader && filteredProducts.map((product) => (
               <tr
                 key={product.variantId}
                 style={{
                   backgroundColor: handleDuplication(product.variantId)
                     ? "#ea9898ff"
                     : "",
+                  gap: 10,
+                  borderBottom: "1px solid #eee",
                 }}
               >
                 <td style={{ padding: 8, textAlign: "center" }}>
@@ -126,7 +157,12 @@ export function CampaignProductTable({
                     // eslint-disable-next-line jsx-a11y/alt-text
                     <img
                       src={product.productImage || product.image}
-                      style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 6 }}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                      }}
                     />
                   ) : (
                     <div
@@ -156,7 +192,7 @@ export function CampaignProductTable({
                 <td style={{ padding: 8, textAlign: "center" }}>
                   {product.variantInventory
                     ? product.variantInventory
-                    : product.inventory ?? "0"}
+                    : (product.inventory ?? "0")}
                 </td>
 
                 {campaignType !== "IN_STOCK" && (
@@ -169,6 +205,7 @@ export function CampaignProductTable({
                       onChange={(val) =>
                         handleMaxUnitChange(product.variantId, Number(val))
                       }
+                      autoSize       
                     />
                   </td>
                 )}

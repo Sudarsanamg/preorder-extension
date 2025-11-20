@@ -38,6 +38,7 @@ model Store {
   GeneralSettings           Json?
   EmailConfig               Json?
   SetupCompleted            Boolean                   @default(false)
+  getDueByVault             Boolean                   @default(false)
   createdAt                 BigInt
   updatedAt                 BigInt
   vaultedPayment            VaultedPayment[]
@@ -60,7 +61,6 @@ model VaultedPayment {
   updatedAt       BigInt
   store           Store          @relation(fields: [storeId], references: [id])
   campaignOrder   CampaignOrders @relation("OrderVaultedPayment", fields: [campaignOrderId], references: [id])
-
   @@unique([orderId, storeId])
 }
 
@@ -79,7 +79,6 @@ model PreorderCampaign {
   customerTags            Json?
   discountType            DiscountType              @default(NONE)
   discountValue           Float?
-  getDueByValt            Boolean                   @default(false)
   fulfilmentmode          Fulfilmentmode?
   scheduledFulfilmentType scheduledFulfilmentType?
   fulfilmentDaysAfter     Int?
@@ -130,12 +129,13 @@ model CampaignOrders {
   @@unique([storeId, orderId])
   @@unique([storeId, draftOrderId])
 }
+
 model OrderCampaignMapping {
-  id         String @id @default(uuid())
+  id         String           @id @default(uuid())
   orderId    String
   campaignId String
-  order    CampaignOrders   @relation(fields: [orderId], references: [id])
-  campaign PreorderCampaign @relation(fields: [campaignId], references: [id])
+  order      CampaignOrders   @relation(fields: [orderId], references: [id])
+  campaign   PreorderCampaign @relation(fields: [campaignId], references: [id])
 
   @@unique([orderId, campaignId])
 }

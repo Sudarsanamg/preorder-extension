@@ -279,11 +279,16 @@ async function processOrderCreate({
       shop,
     });
 
-    const campaign = await prisma.preorderCampaign.findFirst({
-      where: { id: campaignIds[0], storeId },
+    const storePaymentSettings = await prisma.store.findUnique({
+      where: {
+        id: storeId,
+      },
+      select: {
+        getDueByVault: true,
+      },
     });
 
-    const vaultPayment = campaign?.getDueByValt || false;
+    const vaultPayment = storePaymentSettings?.getDueByVault || false;
     const customerId = payload.customer?.admin_graphql_api_id;
 
     if (remaining > 0 && !vaultPayment) {

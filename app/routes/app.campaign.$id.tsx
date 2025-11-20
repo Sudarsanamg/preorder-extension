@@ -185,13 +185,12 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
     const shopifyPaymentsEnabled = await isShopifyPaymentsEnabled(shopDomain);
     const storeId = await getStoreIdByShopId(shopId as string);
-    const getDueByValtResponse = await prisma.preorderCampaign.findUnique({
+    const getDueByValtResponse = await prisma.store.findUnique({
       where: {
-        id: params.id!,
-        storeId: storeId?.id,
+        id: storeId?.id,
       },
       select: {
-        getDueByValt: true,
+        getDueByVault: true,
       },
     });
 
@@ -201,7 +200,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       parsedDesignSettingsResponse,
       parsedCampaignSettingsResponse,
       shopifyPaymentsEnabled,
-      getDueByValt: getDueByValtResponse?.getDueByValt,
+      getDueByValt: getDueByValtResponse?.getDueByVault,
     });
   }
 };
@@ -261,7 +260,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
   if (intent === "update-campaign") {
     const products = JSON.parse((formData.get("products") as string) || "[]");
-
     const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
       variables: { id: products[0].productId },
     });
@@ -315,7 +313,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       discountValue: Number(formData.get("discountValue") || "0"),
       campaignType: formData.get("campaignType") as CampaignType,
       shopId: shopId,
-      getDueByValt: (formData.get("getDueByValt") as string) === "true",
       status: campaignCurrentStatus,
       fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
       scheduledFulfilmentType: formData.get(
@@ -803,112 +800,113 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       });
 
       const products = JSON.parse((formData.get("products") as string) || "[]");
+      if (products.length !== 0) {
+        let metafields;
 
-      let metafields;
-
-      if (secondaryIntent === "delete-campaign") {
-        metafields = products.flatMap((product: any) => [
-          {
-            ownerId: product.variantId,
-            namespace: "custom",
-            key: "campaign_id",
-            type: "single_line_text_field",
-            value: "null",
-          },
-          {
-            ownerId: product.variantId,
-            namespace: "custom",
-            key: "preorder",
-            type: "boolean",
-            value: "false",
-          },
-          {
-            ownerId: product.productId,
-            namespace: "custom",
-            key: "campaign_id",
-            type: "single_line_text_field",
-            value: "null",
-          },
-          {
-            ownerId: product.productId,
-            namespace: "custom",
-            key: "preorder",
-            type: "boolean",
-            value: "false",
-          },
-        ]);
-      } else {
-        metafields = products.flatMap((product: any) => [
-          {
-            ownerId: product.variantId,
-            namespace: "custom",
-            key: "preorder",
-            type: "boolean",
-            value: "false",
-          },
-          {
-            ownerId: product.productId,
-            namespace: "custom",
-            key: "preorder",
-            type: "boolean",
-            value: "false",
-          },
-        ]);
-      }
-
-      try {
-        const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
-          variables: { metafields },
-        });
-
-        const response = await graphqlResponse.json();
-
-        if (response.data?.metafieldsSet?.userErrors?.length) {
-          console.error(
-            response.data.metafieldsSet.userErrors,
-          );
-        }
-      } catch (err) {
-        console.error("❌ GraphQL mutation failed:", err);
-        throw err;
-      }
-
-      const productResp = await admin.graphql(GET_PRODUCT_SELLING_PLAN_GROUPS, {
-        variables: { id: products[0].productId },
-      });
-      const productData = await productResp.json();
-
-      const groups =
-        productData.data.product.sellingPlanGroups.edges.map(
-          (edge: any) => edge.node,
-        ) || [];
-
-      const deletedGroups = [];
-      const errors = [];
-
-      for (const group of groups) {
-        const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
-          variables: { id: group.id },
-        });
-        const deleteData = await deleteResp.json();
-
-        if (
-          deleteData.data.sellingPlanGroupDelete.userErrors &&
-          deleteData.data.sellingPlanGroupDelete.userErrors.length > 0
-        ) {
-          errors.push({
-            groupId: group.id,
-            errors: deleteData.data.sellingPlanGroupDelete.userErrors,
-          });
+        if (secondaryIntent === "delete-campaign") {
+          metafields = products.flatMap((product: any) => [
+            {
+              ownerId: product.variantId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: "null",
+            },
+            {
+              ownerId: product.variantId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "campaign_id",
+              type: "single_line_text_field",
+              value: "null",
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+          ]);
         } else {
-          deletedGroups.push(
-            deleteData.data.sellingPlanGroupDelete.deletedSellingPlanGroupId,
-          );
+          metafields = products.flatMap((product: any) => [
+            {
+              ownerId: product.variantId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+            {
+              ownerId: product.productId,
+              namespace: "custom",
+              key: "preorder",
+              type: "boolean",
+              value: "false",
+            },
+          ]);
         }
-      }
-   
 
-      await updateCampaignStatus(params.id!, "UNPUBLISH", shopId);
+        try {
+          const graphqlResponse = await admin.graphql(SET_PREORDER_METAFIELDS, {
+            variables: { metafields },
+          });
+
+          const response = await graphqlResponse.json();
+
+          if (response.data?.metafieldsSet?.userErrors?.length) {
+            console.error(response.data.metafieldsSet.userErrors);
+          }
+        } catch (err) {
+          console.error("❌ GraphQL mutation failed:", err);
+          throw err;
+        }
+
+        const productResp = await admin.graphql(
+          GET_PRODUCT_SELLING_PLAN_GROUPS,
+          {
+            variables: { id: products[0].productId },
+          },
+        );
+        const productData = await productResp.json();
+
+        const groups =
+          productData.data.product.sellingPlanGroups.edges.map(
+            (edge: any) => edge.node,
+          ) || [];
+
+        const deletedGroups = [];
+        const errors = [];
+
+        for (const group of groups) {
+          const deleteResp = await admin.graphql(DELETE_SELLING_PLAN_GROUP, {
+            variables: { id: group.id },
+          });
+          const deleteData = await deleteResp.json();
+
+          if (
+            deleteData.data.sellingPlanGroupDelete.userErrors &&
+            deleteData.data.sellingPlanGroupDelete.userErrors.length > 0
+          ) {
+            errors.push({
+              groupId: group.id,
+              errors: deleteData.data.sellingPlanGroupDelete.userErrors,
+            });
+          } else {
+            deletedGroups.push(
+              deleteData.data.sellingPlanGroupDelete.deletedSellingPlanGroupId,
+            );
+          }
+        }
+
+        await updateCampaignStatus(params.id!, "UNPUBLISH", shopId);
+      }
 
       if (secondaryIntent === "delete-campaign") {
         await deleteCampaign(params.id!, shopId);
@@ -2028,6 +2026,21 @@ export default function CampaignDetail() {
                         </tr>
                       </thead>
                       <tbody>
+                        {filteredProducts.length === 0 && (
+                          <tr>
+                            <td
+                              colSpan={campaignData.campaignType !== "IN_STOCK" ? 6 : 5}
+                              style={{
+                                padding: 20,
+                                textAlign: "center",
+                                color: "#666",
+                                fontSize: 14,
+                              }}
+                            >
+                              No products found
+                            </td>
+                          </tr>
+                        )}
                         {filteredProducts.map((product) => (
                           <tr
                             key={product.varientId}

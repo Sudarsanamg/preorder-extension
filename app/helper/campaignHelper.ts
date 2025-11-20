@@ -382,7 +382,6 @@ export const createCampaign = async (
     discountType: formData.get("discountType") as DiscountType,
     discountValue: Number(formData.get("discountValue") || "0"),
     campaignType: formData.get("campaignType") as CampaignType,
-    getDueByValt: formData.get("getDueByValt") == "true" ? true : false,
     totalOrders: 0,
     fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
     scheduledFulfilmentType: formData.get(

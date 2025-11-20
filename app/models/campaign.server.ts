@@ -84,7 +84,6 @@ export async function createPreorderCampaign(data: {
   discountValue?: number;
   campaignType?: CampaignType;
   shopId?: string;
-  getDueByValt: boolean;
   totalOrders: number;
   fulfilmentmode?: Fulfilmentmode;
   scheduledFulfilmentType? :scheduledFulfilmentType;
@@ -110,7 +109,6 @@ export async function createPreorderCampaign(data: {
       discountType: data.discountType,
       discountValue: data.discountValue,
       campaignType: data.campaignType,
-      getDueByValt: data.getDueByValt,
       totalOrders: data.totalOrders,
       fulfilmentmode: data.fulfilmentmode,
       scheduledFulfilmentType: data.scheduledFulfilmentType,
@@ -138,7 +136,6 @@ export async function updateCampaign(data: {
   discountValue?: number;
   campaignType?: CampaignType;
   shopId: string;
-  getDueByValt: boolean;
   fulfilmentmode?: Fulfilmentmode;
   scheduledFulfilmentType?: scheduledFulfilmentType;
   fulfilmentDaysAfter: number;
@@ -166,7 +163,6 @@ export async function updateCampaign(data: {
       discountType: data.discountType,
       discountValue: data.discountValue,
       campaignType: data.campaignType,
-      getDueByValt: data.getDueByValt,
       fulfilmentmode: data.fulfilmentmode,
       scheduledFulfilmentType: data.scheduledFulfilmentType,
       fulfilmentDaysAfter: data.fulfilmentDaysAfter,

@@ -185,13 +185,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Newcampaign() {
-  let { prod, shopId, plusStore, shopifyPaymentsEnabled, storeCurrency } =
+  let { prod, shopId, plusStore, shopifyPaymentsEnabled } =
     useLoaderData<typeof loader>() as {
       prod: any[];
       shopId: string;
       plusStore: boolean;
       shopifyPaymentsEnabled: boolean;
-      storeCurrency: string;
     };
   const { productsWithPreorder } = useActionData<typeof action>() ?? {
     productsWithPreorder: [],
@@ -462,9 +461,9 @@ export default function Newcampaign() {
     },
   ];
 
-  const filteredProducts = selectedProducts?.filter((product: any) =>
-    product?.variantTitle.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  // const filteredProducts = selectedProducts?.filter((product: any) =>
+  //   product?.variantTitle.toLowerCase().includes(searchTerm.toLowerCase()),
+  // );
 
   function handleRemoveProduct(id: any) {
     setSelectedProducts((prev: any) =>
@@ -1078,6 +1077,7 @@ export default function Newcampaign() {
                   handleRemoveProduct={handleRemoveProduct}
                   handleDuplication={handleDuplication}
                   formatCurrency={formatCurrency}
+                  productsWithPreorderLoader={productsWithPreorderLoader}
                 />
               </div>
             )}
