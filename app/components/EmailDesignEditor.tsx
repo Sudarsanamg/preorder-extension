@@ -12,10 +12,8 @@ import {
   
 } from "@shopify/polaris";
 import React from "react";
-// import { hsbToHex, hexToHsb } from "@shopify/polaris";
-// import {hexToHsb} from "../utils/color";
-import "../tailwind.css"
 
+import './styles/previewDesisgn.css'
 import type { EmailSettings } from "app/types/type";
 import * as reactColor from "react-color";
 const SketchPicker = reactColor.SketchPicker;
@@ -59,7 +57,7 @@ export default function EmailDesignEditor({
         //   alignItems: "flex-start",
         //   marginBottom: 50,
         // }}
-        className=" gap-20 m-5 md:flex md:gap-10 md:items-start md:mb-50"
+        className="layout-block"
       >
         {/* left */}
         <div style={{ flex: 1 }}>
@@ -122,12 +120,9 @@ export default function EmailDesignEditor({
                   }
                 />
                 <InlineStack
-                  gap="200"
-                  wrap={false}
-                  align="end"
-                  blockAlign="start"
+                  gap={"100"}
                 >
-                  <div style={{ flexShrink: 0 }}>
+                  {/* <div style={{ flexShrink: 0 }}> */}
                     <Button
                       pressed={emailSettings.storeNameBold}
                       onClick={() => {
@@ -139,7 +134,7 @@ export default function EmailDesignEditor({
                     >
                       B
                     </Button>
-                  </div>
+                  {/* </div> */}
                   <TextField
                     label="Store name"
                     labelHidden
@@ -160,6 +155,7 @@ export default function EmailDesignEditor({
                             : ""
                     }
                   />
+                  </InlineStack>
                   {/* colour picker to change the text colour */}
                   <div
                     style={{
@@ -204,7 +200,6 @@ export default function EmailDesignEditor({
                       value={emailSettings.storeNameColor}
                     />
                   </div>
-                </InlineStack>
                 <TextField
                   label="Subheading"
                   value={emailSettings.subheading}
@@ -881,7 +876,7 @@ export default function EmailDesignEditor({
             maxWidth: "400px",
 
           }}
-          className="mt-5 md:mt-0"
+          className="preview"
         >
           <Card padding="800">
             <BlockStack gap="500">

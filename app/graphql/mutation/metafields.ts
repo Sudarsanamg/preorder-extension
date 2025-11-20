@@ -43,7 +43,7 @@ export const GET_PRODUCTS_WITH_PREORDER = `#graphql
       ... on ProductVariant {
         id
         title
-        metafield(namespace: "custom", key: "preorder") {
+        metafield(namespace: "$app:preorder-extension", key: "preorder") {
           value
         }
       }
@@ -57,7 +57,7 @@ export const GET_PRODUCTS_WITH_PREORDER_WITH_CAMPAIGNID = `#graphql
       ... on ProductVariant {
         id
         title
-        metafield(namespace: "custom", key: "campaign_id") {
+        metafield(namespace: "$app:preorder-extension", key: "campaign_id") {
           value
         }
       }
@@ -88,7 +88,7 @@ export const updateMaxUnitMutation = `#graphql
               metafieldsSet(metafields: [
                 {
                   ownerId: $id,
-                  namespace: "custom",
+                  namespace: "$app:preorder-extension",
                   key: "preorder_max_units",
                   type: "number_integer",
                   value: $value

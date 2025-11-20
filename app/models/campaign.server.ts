@@ -9,9 +9,6 @@ import { decrypt } from "app/utils/crypto.server";
 export async function createStore(data: {
   shopId: string;
   offlineToken: string;
-  webhookRegistered: boolean;
-  metaobjectsCreated: boolean;
-  metaFieldsCreated: boolean;
   shopifyDomain: string;
   currencyCode: string;
   ConfrimOrderEmailSettings: Prisma.InputJsonValue;
@@ -23,9 +20,6 @@ export async function createStore(data: {
     data: {
       shopId: data.shopId,
       offlineToken: data.offlineToken,
-      webhookRegistered: data.webhookRegistered,
-      metaobjectsCreated: data.metaobjectsCreated,
-      metaFieldsCreated: data.metaFieldsCreated,
       currencyCode: data.currencyCode,
       shopifyDomain: data.shopifyDomain,
       ConfrimOrderEmailSettings: data.ConfrimOrderEmailSettings,
@@ -58,6 +52,9 @@ export async function getAllCampaign(shopId?: string) {
         not: "ARCHIVED",
       },
     },
+    orderBy: {
+      createdAt : 'asc'
+    }
   });
 }
 
@@ -84,11 +81,9 @@ export async function createPreorderCampaign(data: {
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
   discountType: DiscountType;
-  discountPercent?: number;
-  discountFixed?: number;
+  discountValue?: number;
   campaignType?: CampaignType;
   shopId?: string;
-  getDueByValt: boolean;
   totalOrders: number;
   fulfilmentmode?: Fulfilmentmode;
   scheduledFulfilmentType? :scheduledFulfilmentType;
@@ -105,8 +100,6 @@ export async function createPreorderCampaign(data: {
       storeId: store.id,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
-      refundDeadlineDays: data.refundDeadlineDays,
-      releaseDate: data.releaseDate,
       status: data.status ,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
@@ -114,10 +107,8 @@ export async function createPreorderCampaign(data: {
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
       discountType: data.discountType,
-      discountPercent: data.discountPercent,
-      discountFixed: data.discountFixed,
+      discountValue: data.discountValue,
       campaignType: data.campaignType,
-      getDueByValt: data.getDueByValt,
       totalOrders: data.totalOrders,
       fulfilmentmode: data.fulfilmentmode,
       scheduledFulfilmentType: data.scheduledFulfilmentType,
@@ -142,11 +133,9 @@ export async function updateCampaign(data: {
   orderTags?: Prisma.JsonValue;
   customerTags?: Prisma.JsonValue;
   discountType: DiscountType;
-  discountPercent?: number;
-  discountFixed?: number;
+  discountValue?: number;
   campaignType?: CampaignType;
   shopId: string;
-  getDueByValt: boolean;
   fulfilmentmode?: Fulfilmentmode;
   scheduledFulfilmentType?: scheduledFulfilmentType;
   fulfilmentDaysAfter: number;
@@ -165,8 +154,6 @@ export async function updateCampaign(data: {
       name: data.name,
       depositPercent: data.depositPercent,
       balanceDueDate: data.balanceDueDate,
-      refundDeadlineDays: data.refundDeadlineDays,
-      releaseDate: data.releaseDate,
       status: data.status,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
@@ -174,10 +161,8 @@ export async function updateCampaign(data: {
       orderTags: data.orderTags ?? {},
       customerTags: data.customerTags ?? {},
       discountType: data.discountType,
-      discountPercent: data.discountPercent,
-      discountFixed: data.discountFixed,
+      discountValue: data.discountValue,
       campaignType: data.campaignType,
-      getDueByValt: data.getDueByValt,
       fulfilmentmode: data.fulfilmentmode,
       scheduledFulfilmentType: data.scheduledFulfilmentType,
       fulfilmentDaysAfter: data.fulfilmentDaysAfter,
@@ -199,11 +184,11 @@ export async function addProductsToCampaign(
     data: products.map((p) => ({
       campaignId,
       productId: p.productId,
-      variantId: p.variantId,
-      variantTitle: p.variantTitle,
-      maxQuantity: Number(p.maxUnit),
-      price: p.variantPrice,
-      imageUrl: p.productImage,
+      variantId: p.variantId ?? "",
+      variantTitle: p.variantTitle ?? "",
+      maxQuantity: Number(p.maxUnit || 0),
+      price: Number(p.variantPrice || 0),
+      imageUrl: p.productImage ?? null,
       storeId: storeId,
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
@@ -213,8 +198,9 @@ export async function addProductsToCampaign(
 
 export async function replaceProductsInCampaign(
   campaignId: string,
-  products: { productId: string; variantId?: string; totalInventory: number }[],
-  storeId: string
+  products: { productId: string; variantTitle?: string, variantId?: string; totalInventory: number ,variantInventory: number ,maxUnit?: number ,variantPrice?: number ,productImage?: string}[],
+  storeId: string,
+  campaignType: CampaignType
 ) {
   return prisma.$transaction([
     // 1. Delete all existing products for this campaign
@@ -231,8 +217,13 @@ export async function replaceProductsInCampaign(
       data: products.map((p) => ({
         campaignId,
         productId: p.productId,
-        variantId: p.variantId,
-        maxQuantity: p.totalInventory,
+        variantId: p.variantId ?? "",
+        variantTitle: p.variantTitle ?? "",
+        price: Number(p.variantPrice || 0),
+        imageUrl: p.productImage ?? null,
+        maxQuantity:campaignType == "IN_STOCK"
+                  ? Number(p.variantInventory)
+                  : Number(p?.maxUnit || 0) ,
         storeId: storeId,
         updatedAt: BigInt(Date.now()),
         createdAt: BigInt(Date.now())
@@ -349,8 +340,8 @@ export async function getOrders(shopId: string) {
       storeId: store?.id,
     },
     select: {
-      order_id: true,
-      order_number: true,
+      orderId: true,
+      orderNumber: true,
       dueDate: true,
       balanceAmount: true,
       paymentStatus: true,
@@ -359,7 +350,7 @@ export async function getOrders(shopId: string) {
       fulfilmentStatus: true
     },
     orderBy: {
-      order_number: "desc",
+      orderNumber: "desc",
     },
    
   });
@@ -372,8 +363,8 @@ export async function getOrdersByLimit(shopId: string, limit = 10, skip = 0) {
       storeId: store?.id,
     },
     select: {
-      order_id: true,
-      order_number: true,
+      orderId: true,
+      orderNumber: true,
       dueDate: true,
       balanceAmount: true,
       paymentStatus: true,
@@ -384,7 +375,7 @@ export async function getOrdersByLimit(shopId: string, limit = 10, skip = 0) {
     skip,
     take: limit,
     orderBy: {
-      order_number: "desc",
+      orderNumber: "desc",
     },
   });
 }
@@ -398,8 +389,8 @@ export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfil
       
     },
     select: {
-      order_id: true,
-      order_number: true,
+      orderId: true,
+      orderNumber: true,
       dueDate: true,
       balanceAmount: true,
       paymentStatus: true,
@@ -410,9 +401,9 @@ export async function getOrdersByFulfilmentStatus(shopId: string, status: Fulfil
 }
 
 export async function createOrder({
-  order_number,
-  order_id,
-  draft_order_id,
+  orderNumber,
+  orderId,
+  draftOrderId,
   dueDate,
   balanceAmount,
   paymentStatus,
@@ -421,41 +412,46 @@ export async function createOrder({
   totalAmount,
   currency,
   fulfilmentStatus,
-  campaignId
+  campaignIds,   
 }: {
-  order_number: number;
-  order_id: string;
-  draft_order_id?: string;
+  orderNumber: number;
+  orderId: string;
+  draftOrderId?: string;
   dueDate?: Date;
   balanceAmount?: number;
   paymentStatus: PaymentStatus;
   storeId: string;
   customerEmail: string;
-  totalAmount: string,
-  currency?: string,
-  fulfilmentStatus ?: FulfillmentStatus,
-  campaignId : string
+  totalAmount: string;
+  currency?: string;
+  fulfilmentStatus?: FulfillmentStatus;
+  campaignIds: string[];   
 }) {
   try {
-  
     const newOrder = await prisma.campaignOrders.create({
       data: {
-        order_number,
-        storeId : storeId,
-        order_id,
-        draft_order_id,
+        orderNumber,
+        storeId,
+        orderId,
+        draftOrderId,
         dueDate,
         balanceAmount,
         paymentStatus,
         customerEmail,
         createdAt: BigInt(Date.now()),
         updatedAt: BigInt(Date.now()),
-        totalAmount :totalAmount ?? new Decimal(totalAmount),
+        totalAmount: new Decimal(totalAmount),
         currency,
         fulfilmentStatus,
-        campaignId,
       },
     });
+       await prisma.orderCampaignMapping.createMany({
+        data: campaignIds.map((campaignId) => ({
+          orderId: newOrder.id,
+          campaignId,
+        })),
+        skipDuplicates: true,
+      });
 
     return newOrder;
   } catch (error) {
@@ -469,9 +465,10 @@ export async function orderStatusUpdate(
   paymentStatus: PaymentStatus,
   storeId: string
 ) {
+  if(!orderdraft_order_id) return
   return prisma.campaignOrders.update({
     where: { 
-      draft_order_id: orderdraft_order_id ,
+      draftOrderId: orderdraft_order_id ,
       storeId : storeId
     },
     data: {
@@ -587,7 +584,6 @@ export async function createDuePayment(
 
 
 export async function getAllVariants(shopId: string) {
-  // Get stored access token for this shop
   const store = await prisma.store.findUnique({
     where: { shopId: shopId },
     select: { offlineToken: true ,

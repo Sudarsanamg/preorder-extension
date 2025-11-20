@@ -14,7 +14,7 @@ const shopify = shopifyApp({
   apiVersion: ApiVersion.January25,
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
-  authPathPrefix: "/auth",
+  authPathPrefix: "/app",
   useOnlineTokens: false,
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
@@ -54,9 +54,14 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: '/webhooks/products_update'
     },
-    ORDERS_UPDATE: {
+    ORDERS_UPDATED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: '/webhooks/order_update'
+    }
+    ,
+    SHOP_UPDATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: '/webhooks/shop_update'
     }
 
   },

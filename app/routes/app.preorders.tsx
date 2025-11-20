@@ -32,6 +32,7 @@ import { generateEmailTemplate } from "app/utils/generateEmailTemplate";
 import nodemailer from "nodemailer";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import { formatDate } from "app/utils/formatDate";
+import { formatCurrency } from "app/helper/currencyFormatter";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
@@ -51,12 +52,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id
       name
       myshopifyDomain
+      currencyCode
     }
   }`;
 
   const response = await admin.graphql(shopQuery);
   const data = await response.json();
   const shopId = data.data.shop.id;
+  const currencyCode = data.data.shop.currencyCode;
 
   // Add pagination to your Prisma query
   const orders = await getOrdersByLimit(shopId, limit, (page - 1) * limit);
@@ -77,6 +80,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     totalPages: Math.ceil(totalCount / limit),
     limit,
     shopDomain: shop,
+    currencyCode
   };
 };
 
@@ -170,7 +174,7 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
 
 export default function AdditionalPage() {
   const [active, setActive] = useState(false);
-  const { orders, totalPages, currentPage, shopDomain } = useLoaderData<typeof loader>();
+  const { orders, totalPages, currentPage, shopDomain,currencyCode } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   let actionData = useActionData<typeof action>();
   const [isSending, setIsSending] = useState(false);
@@ -193,10 +197,10 @@ export default function AdditionalPage() {
   const handleChange = useCallback(() => setActive((a) => !a), []);
 
   const allOrders = orders.map((order: any) => ({
-    id: order.order_id,
-    orderNumber: `#${order.order_number}`,
+    id: order.orderId,
+    orderNumber: `#${order.orderNumber}`,
     dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
-    balanceAmount: `$${order.balanceAmount ?? 0}`,
+    balanceAmount: `${order.balanceAmount ?? 0}`,
     paymentStatus: order.paymentStatus,
     fulfilmentStatus: order.fulfilmentStatus ?order.fulfilmentStatus :"UNFULFILLED",
     customerEmail: order.customerEmail,
@@ -309,7 +313,7 @@ export default function AdditionalPage() {
         id: string;
         orderNumber: string;
         dueDate: string;
-        balanceAmount: string;
+        balanceAmount: number;
         paymentStatus?: string;
         fulfilmentStatus: string;
       },
@@ -340,7 +344,7 @@ export default function AdditionalPage() {
         <IndexTable.Cell>{formatDate(dueDate)}</IndexTable.Cell>
         <IndexTable.Cell>
           <Text as="span" alignment="end" numeric>
-            {balanceAmount}
+            {formatCurrency(balanceAmount, currencyCode || "USD")}
           </Text>
         </IndexTable.Cell>
         <IndexTable.Cell>

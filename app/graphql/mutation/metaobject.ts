@@ -43,7 +43,7 @@ export const CREATE_CAMPAIGN = `#graphql
   mutation CreateCampaign($fields: [MetaobjectFieldInput!]!) {
     metaobjectCreate(
       metaobject: {
-        type: "preordercampaign",
+        type: "$app:preorder-extension",
         fields: $fields,
         capabilities: { publishable: { status: ACTIVE } }
       }

@@ -1,8 +1,10 @@
+
+
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "app/shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
-  return null;
+  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };

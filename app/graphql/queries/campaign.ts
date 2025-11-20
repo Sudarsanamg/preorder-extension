@@ -3,7 +3,7 @@
     nodes(ids: $ids) {
       ... on Product {
         id
-        metafield(namespace: "custom", key: "campaign_id") {
+        metafield(namespace: "$app:preorder-extension", key: "campaign_id") {
           value
         }
       }
@@ -16,7 +16,7 @@ export const GetVariantCampaignIdsQuery = `
     nodes(ids: $ids) {
       ... on ProductVariant {
         id
-        metafield(namespace: "custom", key: "campaign_id") {
+        metafield(namespace: "$app:preorder-extension", key: "campaign_id") {
           value
         }
       }
@@ -59,7 +59,7 @@ export const THEME_LIST = `query ThemeList($roles: [ThemeRole!], $filenames: [St
 export const getVariantCampaignId = `#graphql
           query getMetafield($id: ID!) {
             productVariant(id: $id) {
-              metafield(namespace: "custom", key: "campaign_id") {
+              metafield(namespace: "$app:preorder-extension", key: "campaign_id") {
                 value
               }
             }

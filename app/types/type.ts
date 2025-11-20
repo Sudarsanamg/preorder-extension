@@ -44,8 +44,7 @@ export interface CampaignFields {
   partialPaymentText: string;
   partialPaymentInfoText: string;
   discountType: DiscountType;
-  discountPercentage: number;
-  flatDiscount: number;
+  discountValue : number;
   getPaymentsViaValtedPayments: boolean;
 }
 
@@ -88,4 +87,14 @@ export interface EmailSettings {
   cancelButtonGradientColor2: string;
   cancelButtonBorderRadius: string;
 
+}
+
+export interface CampaignProduct {
+  productId: string;
+  variantId: string;
+  variantTitle?: string;
+  price?: number;
+  imageUrl?: string;
+  maxQuantity?: number;
+  soldQuantity?: number;
 }

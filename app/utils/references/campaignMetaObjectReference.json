@@ -1,0 +1,49 @@
+{
+  "campaignData": {
+    "campaign_id": "string",
+    "name": "string",
+    "status": "string",
+    "button_text": "string",
+    "shipping_message": "string",
+    "payment_type": "string",
+    "payment_schedule": {
+      "type": "string",
+      "value": "string | number"
+    },
+    "ppercent": "string",
+    "paymentduedate": "string",
+    "campaign_end_date": "string",
+    "discount_type": "string",
+    "discountValue": "string or number",
+    "campaigntags": "string ( , separated)",
+    "customerTags": "string ( , separated)",
+    "campaigntype": "string",
+    "fulfillment": {
+      "type": "string",
+      "schedule": {
+        "type": "string",
+        "value": "number | string"
+      }
+    }
+  },
+  "designFields": {
+    "messageFontSize": "string",
+    "messageColor": "string",
+    "fontFamily": "string",
+    "buttonStyle": "string",
+    "buttonBackgroundColor": "string",
+    "gradientDegree": "string",
+    "gradientColor1": "string",
+    "gradientColor2": "string",
+    "borderSize": "string",
+    "borderColor": "string",
+    "spacingIT": "string",
+    "spacingIB": "string",
+    "spacingOT": "string",
+    "spacingOB": "string",
+    "borderRadius": "string",
+    "preorderMessageColor": "string",
+    "buttonFontSize": "string",
+    "buttonTextColor": "string"
+  }
+}

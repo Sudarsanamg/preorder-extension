@@ -44,11 +44,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const enumToIntMap = {
     OUT_OF_STOCK: 1,
-    ALLWAYS: 2,
+    ALWAYS: 2,
     IN_STOCK: 3,
   };
 
-  // Default to ALLWAYS if missing
+  // Default to ALWAYS if missing
   const campaignType = campaignData?.dataset.campaignType
     ? enumToIntMap[campaignData.dataset.campaignType] || 2
     : 2;
@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function () {
       else if (campaignType === 2) show = true;
       else if (campaignType === 3 && inStock) show = true;
 
-      console.log(show, 'show');
+      // console.log(show, 'show');
 
       if (div.dataset.variantId === variantId && isPreorder && show) {
         div.style.display = "block";

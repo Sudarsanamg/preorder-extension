@@ -1,6 +1,7 @@
 import { Card, Text, InlineStack } from "@shopify/polaris";
-import { CampaignFields, DesignFields } from "app/types/type";
+import type { CampaignFields, DesignFields } from "app/types/type";
 import React from "react";
+import '../styles/campaign.new.css';
 
 interface CampaignPreviewProps {
   campaignData: CampaignFields;
@@ -19,27 +20,24 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
   activeButtonIndex = 0,
   formatDate,
 }) => {
+  const discountType = campaignData.discountType;
   const basePrice = 499.0;
   const hasDiscount =
-    campaignData.discountPercentage !== 0 || campaignData.flatDiscount !== 0;
+    campaignData.discountValue !== 0;
 
   const discountedPrice =
-    activeButtonIndex === 0 && campaignData.discountPercentage !== 0
-      ? basePrice - (basePrice * campaignData.discountPercentage) / 100
-      : Math.max(basePrice - campaignData.flatDiscount, 0);
+    discountType === "PERCENTAGE" && campaignData.discountValue !== 0
+      ? Math.max(basePrice - (basePrice * campaignData.discountValue) / 100,0)
+      : Math.max(basePrice - campaignData.discountValue, 0);
 
   return (
     <div
-      style={{
-        position: "sticky",
-        top: 20,
-        maxWidth: "400px",
-        minWidth: "400px",
-        justifySelf: "flex-end",
-      }}
+     style={{ position: "sticky", top: 20 }}
+     className="preview-sticky"
+
     >
       <Card>
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center"  }}>
           <Text as="h4" variant="headingSm">
             Preview
           </Text>
@@ -135,6 +133,8 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
               borderStyle: "solid",
               paddingTop: designFields.spacingIT + "px",
               paddingBottom: designFields.spacingIB + "px",
+              fontFamily: designFields.fontFamily,
+              overflow: "hidden",
             }}
           >
             <span
@@ -171,7 +171,8 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
 
         {/* Partial payment message */}
         {campaignData.paymentMode === "partial" && (
-          <div style={{ textAlign: "center" }}>
+          <div style={{ textAlign: "center" , fontFamily: designFields.fontFamily,
+}}>
             <Text as="h1" variant="headingMd">
               Pay $3.92 now and $35.28 will be charged on{" "}
               {formatDate(selectedDates.duePaymentDate)}

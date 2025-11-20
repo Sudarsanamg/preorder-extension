@@ -1,9 +1,10 @@
 const preorderCampaignDef = {
   name: "preorderCampaign",   
-  type: "preordercampaign",   
+  type: "$app:preorder-extension",
   displayNameKey: "campaign_id",
   access: {
     storefront: "PUBLIC_READ",
+    admin: "MERCHANT_READ",
   },
   fieldDefinitions: [
     {
@@ -14,7 +15,7 @@ const preorderCampaignDef = {
     {
       name:"object",
       key:"object",
-      type:"json"
+      type: "json",
     }
   ],
    capabilities: {

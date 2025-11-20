@@ -341,40 +341,40 @@ export default function PreviewDesign({
                 }
               />
 
-              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-                <Popover
-                  active={activePopover === "buttonTextColor"}
-                  activator={
-                    <div
-                      style={{
-                        height: 30,
-                        width: 30,
-                        backgroundColor: designFields.buttonTextColor,
-                        borderRadius: "8px",
-                        border: "1px solid gray",
-                      }}
-                      onClick={() => togglePopover("buttonTextColor")}
-                    ></div>
-                  }
-                  autofocusTarget="first-node"
-                  onClose={() => togglePopover("buttonTextColor")}
-                >
-                  <div style={{ pointerEvents: "auto" }}>
-                    <SketchPicker
-                      color={designFields.buttonTextColor}
-                      onChange={(color: any) =>
-                        handleColorChange("buttonTextColor", color)
-                      }
-                    />
-                  </div>
-                </Popover>
-                <TextField
-                  label="Color"
-                  labelHidden
-                  autoComplete="off"
-                  value={designFields.buttonTextColor}
-                />
-              </div>
+              {/* <div style={{ display: "flex", gap: 10, flexShrink: 0 }}> */}
+              <Popover
+                active={activePopover === "buttonTextColor"}
+                activator={
+                  <div
+                    style={{
+                      height: 30,
+                      width: 30,
+                      backgroundColor: designFields.buttonTextColor,
+                      borderRadius: "8px",
+                      border: "1px solid gray",
+                    }}
+                    onClick={() => togglePopover("buttonTextColor")}
+                  ></div>
+                }
+                autofocusTarget="first-node"
+                onClose={() => togglePopover("buttonTextColor")}
+              >
+                <div style={{ pointerEvents: "auto" }}>
+                  <SketchPicker
+                    color={designFields.buttonTextColor}
+                    onChange={(color: any) =>
+                      handleColorChange("buttonTextColor", color)
+                    }
+                  />
+                </div>
+              </Popover>
+              <TextField
+                label="Color"
+                labelHidden
+                autoComplete="off"
+                value={designFields.buttonTextColor}
+              />
+              {/* </div> */}
             </div>
             <Divider />
             <Text as="h3">Spacing</Text>
@@ -537,14 +537,14 @@ export default function PreviewDesign({
       </Card>
       {/* )} */}
 
-      <div className="hidden md:flex justify-end ">
-        <div className=" justify-end mr-3">
+      <div className="desktop-nav-actions">
+        <div className="desktop-nav-actions__button desktop-nav-actions__button--back">
           <Button onClick={() => setTabSelected(0)} variant="secondary">
             Back
           </Button>
         </div>
 
-        <div className=" justify-end">
+        <div className="desktop-nav-actions__button desktop-nav-actions__button--next">
           <Button onClick={() => setTabSelected(2)} variant="primary">
             Next
           </Button>

@@ -9,7 +9,6 @@ import {
   BlockStack,
   InlineStack,
   Tag,
-  Checkbox,
   Popover,
   DatePicker,
   // Link,
@@ -22,7 +21,7 @@ import {
   // CalendarIcon,
 } from "@shopify/polaris-icons";
 import type { CampaignFields } from "app/types/type";
-import "../tailwind.css"
+import '../styles/campaign.new.css';
 
 interface CampaignFormProps {
   campaignData: CampaignFields;
@@ -84,7 +83,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
 }) => 
   {
   return (
-    <div style={{ flex: 1 }} className="left">
+    <div style={{ flex: 1.5  }} className="left" >
       <Card>
         <BlockStack>
           <Text as="h1" variant="headingLg">
@@ -115,17 +114,17 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           </Text>
         </div>
         {/* <LegacyStack vertical> */}
+        <BlockStack>
         <RadioButton
           label="Show Preorder when product is out of stock"
-          checked={campaignData.campaignType === 'OUT_OF_STOCK'}
+          checked={campaignData.campaignType === "OUT_OF_STOCK"}
           id="preorder"
           name="preorder"
           onChange={() => {
-            // setSelectedOption(1);
-            handleCampaignDataChange("campaignType", 'OUT_OF_STOCK');
+            handleCampaignDataChange("campaignType", "OUT_OF_STOCK");
           }}
         />
-        {campaignData.campaignType === 'OUT_OF_STOCK' && (
+        {campaignData.campaignType === "OUT_OF_STOCK" && (
           <ol>
             <li>
               The Preorder button appears when stock reaches 0 and switches to
@@ -139,15 +138,15 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         )}
         <RadioButton
           label="Always show Preorder button"
-          checked={campaignData.campaignType === 'ALLWAYS'}
+          checked={campaignData.campaignType === "ALWAYS"}
           id="always-preorder"
           name="always-preorder"
           onChange={() => {
             // setSelectedOption(2);
-            handleCampaignDataChange("campaignType", 'ALLWAYS');
+            handleCampaignDataChange("campaignType", "ALWAYS");
           }}
         />
-        {campaignData.campaignType === 'ALLWAYS' && (
+        {campaignData.campaignType === "ALWAYS" && (
           <ol>
             <li>
               The Preorder button is displayed at all times, regardless of
@@ -161,15 +160,14 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
         )}
         <RadioButton
           label="Show Preorder only when product in stock"
-          checked={campaignData.campaignType === 'IN_STOCK'}
+          checked={campaignData.campaignType === "IN_STOCK"}
           id="back-in-stock"
           name="back-in-stock"
           onChange={() => {
-            // setSelectedOption(3);
-            handleCampaignDataChange("campaignType", 'IN_STOCK');
+            handleCampaignDataChange("campaignType", "IN_STOCK");
           }}
         />
-        {campaignData.campaignType === 'IN_STOCK' && (
+        {campaignData.campaignType === "IN_STOCK" && (
           <ol>
             <li>
               The Preorder button appears when stock is available and disappears
@@ -181,6 +179,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
             </li>
           </ol>
         )}
+        </BlockStack>
         {/* </LegacyStack> */}
         {/* </div> */}
       </Card>
@@ -232,77 +231,55 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
             <Text as="h4" variant="headingSm">
               Discount
             </Text>
-            {/* <Text as="p" variant="bodyMd">
-                        Only works with{" "}
-                        <Link to="https://help.shopify.com/en/manual/payments/shopify-payments">
-                          Shopify Payments
-                        </Link>{" "}
-                      </Text> */}
 
-            <InlineStack gap="400">
-              <div
-                style={{
-                  flexShrink: 0,
-                }}
-              >
+            <InlineStack gap="400" wrap={false}>
+              <div style={{ flexShrink: 0 }}>
                 <ButtonGroup variant="segmented">
                   <Button
                     pressed={activeButtonIndex === 0}
                     onClick={() => handleButtonClick(0)}
                     icon={DiscountIcon}
-                  ></Button>
+                  />
                   <Button
                     pressed={activeButtonIndex === 1}
-                    onClick={() =>{ 
-                      handleCampaignDataChange("discountPercentage", 0);
-                      handleButtonClick(1)}}
+                    onClick={() => {
+                      handleCampaignDataChange("discountValue", 0);
+                      handleButtonClick(1);
+                    }}
                     icon={CashDollarIcon}
-                  ></Button>
+                  />
                 </ButtonGroup>
               </div>
-              <TextField
-                suffix={activeButtonIndex === 0 ? "%" : "$"}
-                autoComplete="off"
-                label="Discount"
-                labelHidden
-                id="discount"
-                type="text"
-                value={
-                  activeButtonIndex === 0
-                    ? campaignData.discountPercentage.toString()
-                    : campaignData.flatDiscount.toString()
-                }
-                onChange={(val) => {
-                  if (isNaN(Number(val))) return;
-                  if (activeButtonIndex === 0) {
-                    // if(Number(val) > 99) return
-                    handleCampaignDataChange("discountPercentage", Number(val));
-                  } else {
-                    // if(String(val).length > 6) return
-                    handleCampaignDataChange("flatDiscount", Number(val));
+
+              <div style={{ flex: 1 }}>
+                <TextField
+                  suffix={activeButtonIndex === 0 ? "%" : "$"}
+                  autoComplete="off"
+                  label="Discount"
+                  labelHidden
+                  id="discount"
+                  type="text"
+                  value={campaignData.discountValue.toString()}
+                  onChange={(val) => {
+                    if (String(val).length > 7) return;
+                    if (isNaN(Number(val))) return;
+                    handleCampaignDataChange("discountValue", Number(val));
+                  }}
+                  error={
+                    campaignData.discountType === "PERCENTAGE"
+                      ? campaignData.discountValue < 0 ||
+                        campaignData.discountValue > 99
+                        ? "Please enter  discount percentage between 0 and 99"
+                        : ""
+                      : campaignData.discountType === "FIXED"
+                        ? String(campaignData.discountValue).length > 6
+                          ? "Please enter valid discount amount less than 6 digits"
+                          : ""
+                        : ""
                   }
-                }}
-                error={
-                  activeButtonIndex === 0
-                    ? campaignData.discountPercentage < 0 ||
-                      campaignData.discountPercentage > 99
-                    : activeButtonIndex === 1
-                      ? String(campaignData.flatDiscount).length > 6
-                      : ""
-                }
-              />
+                />
+              </div>
             </InlineStack>
-            {(activeButtonIndex === 0 && campaignData.discountPercentage < 0) ||
-            campaignData.discountPercentage >= 100 ? (
-              <Text as="p" variant="bodyMd" tone="critical">
-                Please enter valid discount percentage between 0 and 99
-              </Text>
-            ) : activeButtonIndex === 1 &&
-              String(campaignData.flatDiscount).length > 6 ? (
-              <Text as="p" variant="bodyMd" tone="critical">
-                Please enter valid discount amount less than 6 digits
-              </Text>
-            ) : null}
 
             <Text as="p" variant="bodyMd" tone="base">
               Enter discount that to be applied on this campaign products.
@@ -313,6 +290,18 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           </BlockStack>
         </Card>
       </div>
+
+      {/* {(campaignData.discountType === 'PERCENTAGE') && (campaignData.discountValue < 0 ||
+            campaignData.discountValue >= 100) ? (
+              <Text as="p" variant="bodyMd" tone="critical">
+                Please enter valid discount percentage between 0 and 99
+              </Text>
+            ) : campaignData.discountType === 'FIXED'  &&
+              String(campaignData.discountValue).length > 6 ? (
+              <Text as="p" variant="bodyMd" tone="critical">
+                Please enter valid discount amount less than 6 digits
+              </Text>
+            ) : null} */}
 
       {/* preorder Note */}
       <div style={{ marginTop: 20 }}>
@@ -340,7 +329,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
             />
             <TextField
               id="preorderNote"
-              label="Preorder Note Key"
+              label="Preorder Note Value"
               autoComplete="off"
               value={campaignData.preOrderNoteValue}
               onChange={(e) => handleCampaignDataChange("preOrderNoteValue", e)}
@@ -441,8 +430,8 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           campaignData.partialPaymentPercentage,
                         ).toString()}
                         onChange={(val) => {
+                          if (String(val).length > 7) return;
                           if (isNaN(Number(val))) return;
-                          // if(Number(val) > 99) return
                           handleCampaignDataChange(
                             "partialPaymentPercentage",
                             val,
@@ -497,9 +486,10 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           value={Number(
                             campaignData.paymentAfterDays,
                           ).toString()}
-                          onChange={(e) =>
-                            handleCampaignDataChange("paymentAfterDays", e)
-                          }
+                          onChange={(e) => {
+                            if (String(e).length > 7) return;
+                            handleCampaignDataChange("paymentAfterDays", e);
+                          }}
                           label="Payment after days"
                           labelHidden
                         />
@@ -548,20 +538,6 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                         </div>
                       )}
                     </div>
-                  </div>
-                  <div style={{ marginTop: 10, marginBottom: 10 }}>
-                    {shopifyPaymentsEnabled && (
-                      <Checkbox
-                        label="Get Due payments via Valted credit cards Note:Works only with Shopify Payments"
-                        checked={campaignData.getPaymentsViaValtedPayments}
-                        onChange={() =>
-                          handleCampaignDataChange(
-                            "getPaymentsViaValtedPayments",
-                            !campaignData.getPaymentsViaValtedPayments,
-                          )
-                        }
-                      />
-                    )}
                   </div>
                   <TextField
                     autoComplete="off"
@@ -735,7 +711,6 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                     Automatically change to unfulfiled:
                   </Text>
                   <InlineStack gap="200" wrap={false}>
-
                     <ButtonGroup variant="segmented">
                       <Button
                         pressed={campaignData.scheduledFullfillmentType === 1}
@@ -760,7 +735,13 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                         icon={CalendarCheckIcon}
                       ></Button>
                     </ButtonGroup>
-                    <div style={{flexShrink:0, display: 'flex', alignItems: 'center', }}>
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
                       {campaignData.scheduledFullfillmentType === 1 && (
                         <TextField
                           label="Set to unfulfilled"
@@ -769,9 +750,10 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                           autoComplete="off"
                           suffix="days after checkout"
                           value={Number(campaignData.scheduledDays).toString()}
-                          onChange={(value) =>
-                            handleCampaignDataChange("scheduledDays", value)
-                          }
+                          onChange={(value) => {
+                            if (String(value).length > 5) return;
+                            handleCampaignDataChange("scheduledDays", value);
+                          }}
                         />
                       )}
                       {campaignData.scheduledFullfillmentType === 2 && (
@@ -780,20 +762,20 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
                             active={popoverActive.fullfillmentSchedule}
                             activator={
                               <div style={{ flex: 1 }}>
-                              <TextField
-                                label="Select date for fullfillment"
-                                value={formatDate(
-                                  selectedDates.fullfillmentSchedule,
-                                )}
-                                type="text"
-                                onFocus={() => {
-                                  togglePopover("fullfillmentSchedule");
-                                }}
-                                onChange={() => {}}
-                                autoComplete="off"
-                                labelHidden
-                              />
-                             </div>
+                                <TextField
+                                  label="Select date for fullfillment"
+                                  value={formatDate(
+                                    selectedDates.fullfillmentSchedule,
+                                  )}
+                                  type="text"
+                                  onFocus={() => {
+                                    togglePopover("fullfillmentSchedule");
+                                  }}
+                                  onChange={() => {}}
+                                  autoComplete="off"
+                                  labelHidden
+                                />
+                              </div>
                             }
                             onClose={() => {
                               togglePopover("fullfillmentSchedule");
@@ -930,12 +912,11 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({
           </BlockStack>
         </Card>
       </div>
-      <div className="hidden md:flex justify-end mt-5">
-  <Button onClick={() => setSelected(1)} variant="primary">
-    Next
-  </Button>
-</div>
-
+      <div className="campaign-form-footer">
+        <Button onClick={() => setSelected(1)} variant="primary">
+          Next
+        </Button>
+      </div>
     </div>
   );
 };

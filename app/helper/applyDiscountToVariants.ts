@@ -4,7 +4,6 @@ export async function applyDiscountToVariants(
   variantIds: string[],
   discountType: DiscountType,
   discountValue: number,
-  flatDiscount: number,
   keepCompareAt = true
 ) {
   const updatedVariants: any[] = [];
@@ -39,7 +38,7 @@ export async function applyDiscountToVariants(
       // console.log({ basePrice, discountType, discountValue });
 
       if (discountType === "FIXED" && discountValue < basePrice) {
-        newPrice = basePrice - flatDiscount;
+        newPrice = basePrice - discountValue;
       } else if (discountType === "PERCENTAGE") {
         newPrice = basePrice - (discountValue / 100) * basePrice;
       }

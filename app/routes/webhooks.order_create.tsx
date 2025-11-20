@@ -47,13 +47,13 @@ async function sendCustomEmail({
   storeId,
   customerEmail,
   orderId,
-  order_number,
+  orderNumber,
   shop,
 }: {
   storeId: string;
   customerEmail: string;
   orderId: string;
-  order_number: number;
+  orderNumber: number;
   shop: string;
 }) {
   const emailSettings = await prisma.store.findFirst({
@@ -70,7 +70,7 @@ async function sendCustomEmail({
   const emailTemplate = generateEmailTemplate(
     emailSettings.ConfrimOrderEmailSettings,
     templateData,
-    order_number.toString(),
+    orderNumber.toString(),
   );
 
   const transporter = nodemailer.createTransport({
@@ -122,15 +122,15 @@ async function createCampaignOrder(
   campaignIds: string[],
 ) {
   const orderId = payload.admin_graphql_api_id;
-  const order_number = payload.order_number;
+  const orderNumber = payload.order_number;
   const schedules = payload?.payment_terms?.payment_schedules || [];
-  const secondSchedule = schedules[1];
+  const secondSchedule = schedules.find((s: any) => s.completed_at === null && Number(s.amount) > 0);
   const customerEmail = payload.email || payload.customer?.email;
-  const remaining = Number(secondSchedule?.amount);
+  const remaining = Number(secondSchedule?.amount) || 0;
 
   const campaignOrder = await createOrder({
-    order_number,
-    order_id: orderId,
+    orderNumber,
+    orderId: orderId,
     ...(secondSchedule?.due_at && { dueDate: secondSchedule.due_at }),
     balanceAmount: remaining ?? 0,
     paymentStatus: remaining > 0 ? "PENDING" : "PAID",
@@ -139,7 +139,7 @@ async function createCampaignOrder(
     totalAmount: new Decimal(payload.total_price),
     currency: payload.currency,
     fulfilmentStatus: mapFulfillmentStatus(payload.fulfillment_status),
-    campaignId: campaignIds[0],
+    campaignIds: campaignIds,
   });
 
   return { campaignOrder, remaining, secondSchedule, customerEmail };
@@ -150,15 +150,15 @@ async function processDraftInvoice({
   customerId,
   customerEmail,
   remaining,
-  order_number,
+  orderNumber,
   orderId,
   storeId,
 }: any) {
   const uuid = uuidv4();
 
   await prisma.campaignOrders.update({
-    where: { order_id: orderId, storeId },
-    data: { draft_order_id: uuid },
+    where: { orderId: orderId, storeId },
+    data: { draftOrderId: uuid },
   });
 
   const variables = {
@@ -166,7 +166,7 @@ async function processDraftInvoice({
       customerId,
       lineItems: [
         {
-          title: `Remaining Balance Payment for order #${order_number}`,
+          title: `Remaining Balance Payment for order #${orderNumber}`,
           quantity: 1,
           originalUnitPrice: remaining,
         },
@@ -198,8 +198,7 @@ async function processVaultPayment({
   });
 
   const { data }: any = await response?.json();
-  const methods =
-    data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
+  const methods = data?.order?.paymentCollectionDetails?.vaultedPaymentMethods;
   const mandateId = methods?.[0]?.id;
 
   await createDuePayment(
@@ -214,36 +213,52 @@ async function processVaultPayment({
   );
 }
 
-
-export const action = async ({ request }: { request: Request }) => {
+async function processOrderCreate({
+  shop,
+  payload,
+  admin,
+}: {
+  shop: string;
+  payload: any;
+  admin: any;
+}) {
   try {
-    const { topic, shop, payload, admin } = await authenticate.webhook(request);
-    if (topic !== "ORDERS_CREATE") {
-      return Response.json({ error: "Invalid topic" }, { status: 200 });
-    }
-
     const store = await getStore(shop);
     if (!store) {
-      return Response.json({ error: "Store not found" }, { status: 200 });
+      return;
+    }
+
+    if (
+      payload.source_name === "shopify_draft_order" ||
+      payload.draft_order_id
+    ) {
+      return ;
     }
 
     const storeId = store.id;
-    const lineItems = payload.line_items || [];
-    const campaignIds = extractCampaignIds(lineItems);
+    const orderId = payload.admin_graphql_api_id;
+    const existing = await prisma.campaignOrders.findUnique({
+      where: { orderId , storeId },
+    });
 
-    if (campaignIds.length === 0) {
-      return Response.json({ error: "No campaign found" }, { status: 200 });
+    if (existing) {
+      return;
     }
 
-    // Increment units sold
+    const lineItems = payload.line_items || [];
+    const campaignIds = extractCampaignIds(lineItems);
+    if (campaignIds.length === 0) {
+      return;
+    }
+
     for (const item of lineItems) {
       await incrementUnitsSold(shop, {
         id: item.variant_id,
         quantity: item.quantity,
+        campaignId: item.properties?.find((p: any) => p.name === "_campaignId")?.value,
       });
     }
 
-    // Increment campaign totals
     for (const campaignId of campaignIds) {
       await prisma.preorderCampaign.update({
         where: { id: campaignId, storeId },
@@ -256,21 +271,25 @@ export const action = async ({ request }: { request: Request }) => {
     const { campaignOrder, remaining, secondSchedule, customerEmail } =
       await createCampaignOrder(payload, storeId, campaignIds);
 
-    const campaign = await prisma.preorderCampaign.findFirst({
-      where: { id: campaignIds[0], storeId },
-    });
-
-    const vaultPayment = campaign?.getDueByValt || false;
-    const orderId = payload.admin_graphql_api_id;
-    const customerId = payload.customer?.admin_graphql_api_id;
-
     await sendCustomEmail({
       storeId,
       customerEmail,
       orderId,
-      order_number: payload.order_number,
+      orderNumber: payload.order_number,
       shop,
     });
+
+    const storePaymentSettings = await prisma.store.findUnique({
+      where: {
+        id: storeId,
+      },
+      select: {
+        getDueByVault: true,
+      },
+    });
+
+    const vaultPayment = storePaymentSettings?.getDueByVault || false;
+    const customerId = payload.customer?.admin_graphql_api_id;
 
     if (remaining > 0 && !vaultPayment) {
       await processDraftInvoice({
@@ -278,11 +297,13 @@ export const action = async ({ request }: { request: Request }) => {
         customerId,
         customerEmail,
         remaining,
-        order_number: payload.order_number,
+        orderNumber: payload.order_number,
         orderId,
         storeId,
       });
-    } else if (remaining > 0 && vaultPayment) {
+    }
+
+    if (remaining > 0 && vaultPayment) {
       await processVaultPayment({
         admin,
         orderId,
@@ -292,10 +313,28 @@ export const action = async ({ request }: { request: Request }) => {
         storeId,
       });
     }
-
-    return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error("ORDERS_CREATE webhook error:", error);
-    return new Response("Error", { status: 500 });
+    console.error("ORDERS_CREATE PROCESSING ERROR:", error);
+  }
+}
+
+export const action = async ({ request }: { request: Request }) => {
+  try {
+    const { topic, shop, payload, admin } = await authenticate.webhook(request);
+
+    if (topic !== "ORDERS_CREATE") {
+      return new Response("OK", { status: 200 });
+    }
+
+    const response = new Response("OK", { status: 200 });
+
+    processOrderCreate({ shop, payload, admin }).catch((error) =>
+      console.error("ORDERS_CREATE ASYNC ERROR:", error),
+    );
+
+    return response;
+  } catch (error) {
+    console.error("Webhook receive error:", error);
+    return new Response("OK", { status: 200 });
   }
 };

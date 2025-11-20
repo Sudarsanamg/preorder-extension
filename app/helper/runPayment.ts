@@ -36,7 +36,7 @@ export async function runPayment({
     include: {
       campaignOrders: {
         where: {
-          order_id: orderId,
+          orderId: orderId,
         },
       },
     },

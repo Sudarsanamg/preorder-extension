@@ -16,10 +16,7 @@ import {
   updateCampaignStatus,
 } from "app/models/campaign.server";
 import { createSellingPlan } from "app/services/sellingPlan.server";
-import { removeDiscountFromVariants } from "./removeDiscountFromVariants";
-import { applyDiscountToVariants } from "./applyDiscountToVariants";
-// import { success } from "zod";
-// import { GET_SHOP } from "app/graphql/queries/shop";
+import type { CampaignProduct } from "app/types/type";
 
 export const unPublishCampaign = async (
   admin: any,
@@ -31,7 +28,7 @@ export const unPublishCampaign = async (
   try {
     await admin.graphql(unpublishMutation, {
       variables: {
-        handle: { type: "preordercampaign", handle: id },
+        handle: { type: "$app:preorder-extension", handle: id },
         status: "DRAFT",
       },
     });
@@ -55,7 +52,14 @@ export const unPublishCampaign = async (
       metafields = products.flatMap((product: any) => [
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "$app:preorder-extension",
           key: "preorder",
           type: "boolean",
           value: "false",
@@ -68,16 +72,34 @@ export const unPublishCampaign = async (
       metafields = products.flatMap((product: any) => [
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "campaign_id",
+          type: "single_line_text_field",
           value: "null",
         },
         {
           ownerId: product.variantId,
-          namespace: "custom",
+          namespace: "$app:preorder-extension",
           key: "preorder",
+          type: "boolean",
           value: "false",
         },
+        {
+          ownerId: product.productId,
+          namespace: "$app:preorder-extension",
+          key: "campaign_id",
+          type: "single_line_text_field",
+          value: "null",
+        },
+        {
+          ownerId: product.productId,
+          namespace: "$app:preorder-extension",
+          key: "preorder",
+          type: "boolean",
+          value: "false",
+        },
+        
+
       ]);
     }
 
@@ -129,11 +151,6 @@ export const unPublishCampaign = async (
 
     await updateCampaignStatus(campaignId!, "UNPUBLISH", shopId!);
 
-    removeDiscountFromVariants(
-      admin,
-      products.map((product: any) => product.variantId),
-    );
-
     return {
       success: true,
       message: "Campaign unpublished successfully",
@@ -153,7 +170,7 @@ export const publishCampaign = async (
   try {
     await admin.graphql(publishMutation, {
       variables: {
-        handle: { type: "preordercampaign", handle: id },
+        handle: { type: "$app:preorder-extension", handle: id },
         status: "ACTIVE",
       },
     });
@@ -162,7 +179,7 @@ export const publishCampaign = async (
   }
 
   const store = await getStoreIdByShopId(shopId);
-  const campaignRecords = await prisma.preorderCampaign.findMany({
+  const campaignRecords = await prisma.preorderCampaign.findFirst({
     where: {
       id: campaignId,
       storeId: store?.id,
@@ -171,7 +188,7 @@ export const publishCampaign = async (
       products: true,
     },
   });
-  const products = campaignRecords[0].products;
+  const products = campaignRecords?.products || [];
 
   const campaignData = await prisma.preorderCampaign.findUnique({
     where: {
@@ -183,47 +200,49 @@ export const publishCampaign = async (
   const metafields = products.flatMap((product: any) => [
     {
       ownerId: product.variantId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "campaign_id",
+      type: "single_line_text_field",
       value: id,
     },
     {
       ownerId: product.variantId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder",
+      type: "boolean",
       value: "true",
     },
     {
       ownerId: product.variantId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder_end_date",
       type: "date_time",
       value: campaignData?.campaignEndDate,
     },
     {
       ownerId: product.variantId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "deposit_percent",
       type: "number_integer",
       value: String(campaignData?.depositPercent || "0"),
     },
     {
       ownerId: product.variantId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "balance_due_date",
       type: "date",
-      value: campaignData?.balanceDueDate,
+      value: new Date(campaignData?.balanceDueDate || new Date()).toISOString(),
     },
     {
       ownerId: product.variantId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder_max_units",
       type: "number_integer",
       value: String(product?.maxQuantity || "0"),
     },
     {
       ownerId: product.variantId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder_units_sold",
       type: "number_integer",
       value: String(product?.unitsSold || "0"),
@@ -232,49 +251,49 @@ export const publishCampaign = async (
   const productMetafields = products.flatMap((product: any) => [
     {
       ownerId: product.productId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "campaign_id",
       type: "single_line_text_field",
       value: String(id),
     },
     {
       ownerId: product.productId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder",
       type: "boolean",
       value: "true",
     },
     {
       ownerId: product.productId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder_end_date",
       type: "date_time",
       value: campaignData?.campaignEndDate,
     },
     {
       ownerId: product.productId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "deposit_percent",
       type: "number_integer",
       value: String(campaignData?.depositPercent || "0"),
     },
     {
       ownerId: product.productId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "balance_due_date",
       type: "date",
       value: campaignData?.balanceDueDate,
     },
     {
       ownerId: product.productId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder_max_units",
       type: "number_integer",
       value: String(product?.maxQuantity || "0"),
     },
     {
       ownerId: product.productId,
-      namespace: "custom",
+      namespace: "$app:preorder-extension",
       key: "preorder_units_sold",
       type: "number_integer",
       value: String(product?.unitsSold || "0"),
@@ -300,12 +319,11 @@ export const publishCampaign = async (
     throw err;
   }
 
-  //  const campaignData = await prisma.preorderCampaign.findUnique({
-  //    where: { id: campaignId },
-  //  });
   const formData = new FormData();
   formData.append("depositPercent", String(campaignData?.depositPercent));
   formData.append("balanceDueDate", String(campaignData?.balanceDueDate));
+  formData.append("discountType", String(campaignData?.discountType));
+  formData.append("discountValue", String(campaignData?.discountValue));
 
   await createSellingPlan(
     admin,
@@ -322,7 +340,7 @@ export const publishCampaign = async (
   );
   if (
     campaignData?.campaignType == "OUT_OF_STOCK" ||
-    campaignData?.campaignType == "ALLWAYS"
+    campaignData?.campaignType == "ALWAYS"
   ) {
     // const arr = products.map((product: any) => {
     //   return {
@@ -335,17 +353,6 @@ export const publishCampaign = async (
 
   updateCampaignStatus(campaignId, "PUBLISHED", shopId);
 
-  const variantIds = products.map((product: any) => {
-    return product.variantId;
-  });
-
-  await applyDiscountToVariants(
-    admin,
-    variantIds,
-    campaignData?.discountType as DiscountType,
-    Number(campaignData?.discountPercent || 0),
-    Number(campaignData?.discountFixed || 0),
-  );
 };
 
 
@@ -357,6 +364,9 @@ export const createCampaign = async (
 ) => {
   const intent = formData.get("intent");
   try {
+    const products = JSON.parse((formData.get("products") as string) || "[]");
+    const storeId = await getStoreIdByShopId(formData.get("shopId") as string)
+    await removeProductsFromOldCampagin(products,storeId?.id)
 
   const campaign = await createPreorderCampaign({
     name: formData.get("name") as string,
@@ -370,10 +380,8 @@ export const createCampaign = async (
     orderTags: JSON.parse((formData.get("orderTags") as string) || "[]"),
     customerTags: JSON.parse((formData.get("customerTags") as string) || "[]"),
     discountType: formData.get("discountType") as DiscountType,
-    discountPercent: Number(formData.get("discountPercentage") || "0"),
-    discountFixed: Number(formData.get("flatDiscount") || "0"),
+    discountValue: Number(formData.get("discountValue") || "0"),
     campaignType: formData.get("campaignType") as CampaignType,
-    getDueByValt: formData.get("getDueByValt") == "true" ? true : false,
     totalOrders: 0,
     fulfilmentmode: formData.get("fulfilmentmode") as Fulfilmentmode,
     scheduledFulfilmentType: formData.get(
@@ -385,7 +393,6 @@ export const createCampaign = async (
     campaignEndDate: new Date(formData.get("campaignEndDate") as string),
   });
 
-  const products = JSON.parse((formData.get("products") as string) || "[]");
 
   if (products.length > 0) {
     await addProductsToCampaign(
@@ -398,21 +405,21 @@ export const createCampaign = async (
     const metafields = products.flatMap((product: any) => [
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "campaign_id",
         type: "single_line_text_field",
         value: String(campaign.id),
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder",
         type: "boolean",
         value: intent === "SAVE" ? "false" : "true",
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_end_date",
         type: "date_time",
         value: new Date(
@@ -421,21 +428,21 @@ export const createCampaign = async (
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "deposit_percent",
         type: "number_integer",
         value: String(formData.get("depositPercent") || "0"),
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "balance_due_date",
         type: "date",
         value: new Date(formData.get("balanceDueDate") as string).toISOString(),
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_max_units",
         type: "number_integer",
         value:
@@ -445,7 +452,7 @@ export const createCampaign = async (
       },
       {
         ownerId: product.variantId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_units_sold",
         type: "number_integer",
         value: "0",
@@ -455,21 +462,21 @@ export const createCampaign = async (
     const productMetafields = products.flatMap((product: any) => [
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "campaign_id",
         type: "single_line_text_field",
         value: String(campaign.id),
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder",
         type: "boolean",
         value: intent === "SAVE" ? "false" : "true",
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_end_date",
         type: "date_time",
         value: new Date(
@@ -478,21 +485,21 @@ export const createCampaign = async (
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "deposit_percent",
         type: "number_integer",
         value: String(formData.get("depositPercent") || "0"),
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "balance_due_date",
         type: "date",
         value: new Date(formData.get("balanceDueDate") as string).toISOString(),
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_max_units",
         type: "number_integer",
         value:
@@ -502,7 +509,7 @@ export const createCampaign = async (
       },
       {
         ownerId: product.productId,
-        namespace: "custom",
+        namespace: "$app:preorder-extension",
         key: "preorder_units_sold",
         type: "number_integer",
         value: "0",
@@ -531,16 +538,6 @@ export const createCampaign = async (
   // }
 
   if (intent !== "SAVE") {
-    const discountType = formData.get("discountType") as DiscountType;
-
-    const varientIds = products.map((p: any) => p.variantId);
-    await applyDiscountToVariants(
-      admin,
-      varientIds,
-      discountType,
-      Number(formData.get("discountPercentage") || 0),
-      Number(formData.get("flatDiscount") || 0),
-    );
 
     await createSellingPlan(
       admin,
@@ -563,7 +560,7 @@ export const createCampaign = async (
     );
     if (
       formData.get("campaignType") == "OUT_OF_STOCK" ||
-      formData.get("campaignType") == "ALLWAYS"
+      formData.get("campaignType") == "ALWAYS"
     ) {
       allowOutOfStockForVariants(admin, products);
     }
@@ -601,9 +598,8 @@ export const createCampaign = async (
             (formData.get("campaignEndDate") as string) || Date.now(),
           ).toISOString(),
           discount_type: (formData.get("discountType") as string) || "none",
-          discountpercent:
-            (formData.get("discountPercentage") as string) || "0",
-          discountfixed: (formData.get("flatDiscount") as string) || "0",
+          discountValue:
+            (formData.get("discountValue") as string) || "0",
           campaigntags: JSON.parse(
             (formData.get("orderTags") as string) || "[]",
           ).join(","),
@@ -611,6 +607,8 @@ export const createCampaign = async (
             (formData.get("customerTags") as string) || "[]",
           ).join(","),
           campaigntype: formData.get("campaignType") as CampaignType,
+          preOrderNoteKey: formData.get("preOrderNoteKey") as string,
+          preOrderNoteValue: formData.get("preOrderNoteValue") as string,
           fulfillment: {
             type: formData.get("fulfilmentmode") as Fulfilmentmode,
             schedule: {
@@ -626,7 +624,7 @@ export const createCampaign = async (
                       formData.get("fulfilmentDate") as string,
                     ).toISOString(),
             },
-          },
+          },      
         },
         designFields: {
           ...designFields,
@@ -660,6 +658,39 @@ export const createCampaign = async (
   }
 };
 
+export const removeProductsFromOldCampagin = async (
+  products: CampaignProduct[],
+  storeId: string | undefined,
+) => {
+  if (!storeId) return;
+
+  const variantId = products.map((p: any) => p.variantId);
+
+  try {
+    const conflicts = await prisma.preorderCampaignProduct.findMany({
+      where: {
+        storeId,
+        variantId: { in: variantId },
+      },
+      include: {
+        campaign: true,
+      },
+    });
+
+    if (conflicts.length === 0) return;
+
+    await prisma.preorderCampaignProduct.deleteMany({
+      where: {
+        id: {
+          in: conflicts.map((c) => c.id),
+        },
+      },
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 export const handleCampaignStatusChange = async (
   admin: any,
   campaignId: string,
@@ -679,16 +710,23 @@ export const handleCampaignStatusChange = async (
         status: "DRAFT",
       },
     });
+
+    return { success: true, message: "Campaign Drafted " };
   }
   if (newStatus === "PUBLISHED") {
     await publishCampaign(admin, campaignId, shopId);
+    return { success: true, message: "Campaign Published " };
   }
   if (newStatus === "UNPUBLISHED") {
     await unPublishCampaign(admin, campaignId,newStatus, shopId );
+
+    return { success: true, message: "Campaign Unpublished" };
   }
   if (newStatus === "DELETE") {
     await unPublishCampaign(admin, campaignId,newStatus, shopId );
 
     await deleteCampaign(campaignId, shopId);
+
+    return { success: true, message: "Campaign Deleted " };
   }
 };
