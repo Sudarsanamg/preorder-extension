@@ -1,6 +1,5 @@
 import { authenticate } from "../shopify.server";
 import prisma from "app/db.server";
-import { v4 as uuidv4 } from "uuid";
 import { Decimal } from "@prisma/client/runtime/library";
 import nodemailer from "nodemailer";
 import type { FulfillmentStatus } from "@prisma/client";
@@ -144,6 +143,13 @@ async function createCampaignOrder(
 
   return { campaignOrder, remaining, secondSchedule, customerEmail };
 }
+const draftOrderUpdateMutation = `#graphql
+mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
+  draftOrderUpdate(id: $id, input: $input) {
+    draftOrder { id }
+    userErrors { field message }
+  }
+}`;
 
 async function processDraftInvoice({
   admin,
@@ -154,14 +160,7 @@ async function processDraftInvoice({
   orderId,
   storeId,
 }: any) {
-  const uuid = uuidv4();
-
-  await prisma.campaignOrders.update({
-    where: { orderId: orderId, storeId },
-    data: { draftOrderId: uuid },
-  });
-
-  const variables = {
+  const createVars = {
     input: {
       customerId,
       lineItems: [
@@ -171,14 +170,35 @@ async function processDraftInvoice({
           originalUnitPrice: remaining,
         },
       ],
-      note: uuid,
       useCustomerDefaultAddress: true,
     },
   };
 
-  const response = await admin?.graphql(draftOrderCreate, { variables });
-  const data = await response?.json();
-  const draftOrderId = data?.data?.draftOrderCreate?.draftOrder?.id;
+  const createResp = await admin?.graphql(draftOrderCreate, { variables: createVars });
+  const createJson = await createResp?.json();
+  const draftOrderId = createJson?.data?.draftOrderCreate?.draftOrder?.id;
+  const createErrors = createJson?.data?.draftOrderCreate?.userErrors || [];
+
+  if (!draftOrderId || createErrors.length) {
+    console.error("draftOrderCreate errors", createErrors);
+    return;
+  }
+
+  await prisma.campaignOrders.update({
+    where: { orderId, storeId },
+    data: { draftOrderId },
+  });
+
+  const updateVars = {
+    id: draftOrderId,
+    input: { note: `${draftOrderId}` },
+  };
+  const updateResp = await admin?.graphql(draftOrderUpdateMutation, { variables: updateVars });
+  const updateJson = await updateResp?.json();
+  const updateErrors = updateJson?.data?.draftOrderUpdate?.userErrors || [];
+  if (updateErrors.length) {
+    console.warn("draftOrderUpdate userErrors", updateErrors);
+  }
 
   await admin?.graphql(draftOrderInvoiceSendMutation, {
     variables: { id: draftOrderId, email: { to: customerEmail } },
