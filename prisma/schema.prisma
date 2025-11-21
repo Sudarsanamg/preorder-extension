@@ -61,6 +61,7 @@ model VaultedPayment {
   updatedAt       BigInt
   store           Store          @relation(fields: [storeId], references: [id])
   campaignOrder   CampaignOrders @relation("OrderVaultedPayment", fields: [campaignOrderId], references: [id])
+
   @@unique([orderId, storeId])
 }
 
@@ -131,13 +132,20 @@ model CampaignOrders {
 }
 
 model OrderCampaignMapping {
-  id         String           @id @default(uuid())
-  orderId    String
-  campaignId String
-  order      CampaignOrders   @relation(fields: [orderId], references: [id])
-  campaign   PreorderCampaign @relation(fields: [campaignId], references: [id])
+  id           String           @id @default(uuid())
+  orderId      String
+  campaignId   String
+  storeId      String          
+  productId    String           
+  variantId    String           
+  variantTitle String           
+  quantity     Int              
+  price        Decimal          
+  createdAt    BigInt          
+  updatedAt    BigInt          
+  order        CampaignOrders   @relation(fields: [orderId], references: [id])
+  campaign     PreorderCampaign @relation(fields: [campaignId], references: [id])
 
-  @@unique([orderId, campaignId])
 }
 
 enum PaymentStatus {

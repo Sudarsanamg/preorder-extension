@@ -126,6 +126,7 @@ async function createCampaignOrder(
   const secondSchedule = schedules.find((s: any) => s.completed_at === null && Number(s.amount) > 0);
   const customerEmail = payload.email || payload.customer?.email;
   const remaining = Number(secondSchedule?.amount) || 0;
+  const lineItems = payload.line_items || [];
 
   const campaignOrder = await createOrder({
     orderNumber,
@@ -138,7 +139,7 @@ async function createCampaignOrder(
     totalAmount: new Decimal(payload.total_price),
     currency: payload.currency,
     fulfilmentStatus: mapFulfillmentStatus(payload.fulfillment_status),
-    campaignIds: campaignIds,
+    lineItems: lineItems,
   });
 
   return { campaignOrder, remaining, secondSchedule, customerEmail };

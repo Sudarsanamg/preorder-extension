@@ -412,7 +412,7 @@ export async function createOrder({
   totalAmount,
   currency,
   fulfilmentStatus,
-  campaignIds,   
+  lineItems
 }: {
   orderNumber: number;
   orderId: string;
@@ -425,35 +425,59 @@ export async function createOrder({
   totalAmount: string;
   currency?: string;
   fulfilmentStatus?: FulfillmentStatus;
-  campaignIds: string[];   
+  lineItems: any[];
 }) {
   try {
-    const newOrder = await prisma.campaignOrders.create({
-      data: {
-        orderNumber,
-        storeId,
-        orderId,
-        draftOrderId,
-        dueDate,
-        balanceAmount,
-        paymentStatus,
-        customerEmail,
-        createdAt: BigInt(Date.now()),
-        updatedAt: BigInt(Date.now()),
-        totalAmount: new Decimal(totalAmount),
-        currency,
-        fulfilmentStatus,
-      },
-    });
-       await prisma.orderCampaignMapping.createMany({
-        data: campaignIds.map((campaignId) => ({
-          orderId: newOrder.id,
-          campaignId,
-        })),
-        skipDuplicates: true,
+    return await prisma.$transaction(async (tx) => {
+      const newOrder = await tx.campaignOrders.create({
+        data: {
+          orderNumber,
+          storeId,
+          orderId,
+          draftOrderId,
+          dueDate,
+          balanceAmount,
+          paymentStatus,
+          customerEmail,
+          createdAt: BigInt(Date.now()),
+          updatedAt: BigInt(Date.now()),
+          totalAmount: new Decimal(totalAmount),
+          currency,
+          fulfilmentStatus,
+        },
       });
 
-    return newOrder;
+      const mappingData = lineItems
+        .map((item) => {
+          const campaignId = item.properties?.find(
+            (p: any) => p.name === "_campaignId"
+          )?.value;
+
+          if (!campaignId) return null; 
+
+          return {
+            orderId: newOrder.id,
+            campaignId,
+            storeId,
+            productId: `gid://shopify/Product/${item.product_id}`,
+            variantId: `gid://shopify/ProductVariant/${item.variant_id}`,
+            variantTitle: item.title,
+            quantity: item.quantity,
+            price: new Decimal(item.price ?? 0),
+            createdAt: BigInt(Date.now()),
+            updatedAt: BigInt(Date.now()),
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null); 
+    
+      if (mappingData.length > 0) {
+        await tx.orderCampaignMapping.createMany({
+          data: mappingData,
+        });
+      }
+
+      return newOrder;
+    });
   } catch (error) {
     console.error("Error creating order:", error);
     throw error;
