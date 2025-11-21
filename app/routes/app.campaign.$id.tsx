@@ -476,6 +476,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               (formData.get("customerTags") as string) || "[]",
             ).join(","),
             campaignType: formData.get("campaignType") as CampaignType,
+            partialPaymentText:
+              (formData.get("partialPaymentText") as string) ||
+              "Partial Payment",
+            fullPaymentText:
+              (formData.get("fullPaymentText") as string) || "Full Payment",
+            partialPaymentInfoText:
+              (formData.get("partialPaymentInfoText") as string) || "",
             fulfillment: {
               type: formData.get("fulfilmentmode") as Fulfilmentmode,
               schedule: {
@@ -959,8 +966,8 @@ export default function CampaignDetail() {
   });
 
   // const navigation = useNavigation();
-  const campaignSettingsMap = parsedCampaignSettingsResponse;
-  const parsedCampaignData = campaignSettingsMap;
+  ;
+  const parsedCampaignData = parsedCampaignSettingsResponse;
   const designFieldsMap = parsedDesignSettingsResponse;
   const parsedDesignFields = designFieldsMap;
   const submit = useSubmit();
@@ -1063,10 +1070,10 @@ export default function CampaignDetail() {
       parsedCampaignData?.paymentSchedule?.type === "DAYS_AFTER"
         ? parsedCampaignData?.paymentSchedule.value
         : 0,
-    fullPaymentText: "Full Payment",
-    partialPaymentText: "Partial Payment",
+    fullPaymentText: parsedCampaignData?.fullPaymentText,
+    partialPaymentText: parsedCampaignData?.partialPaymentText,
     partialPaymentInfoText:
-      "Pay {payment} now and {remaining} will be charged on {date}",
+      parsedCampaignData?.partialPaymentInfoText || "",
     discountType: parsedCampaignData?.discountType,
     discountValue: parsedCampaignData?.discountValue,
     getPaymentsViaValtedPayments: getDueByValt,

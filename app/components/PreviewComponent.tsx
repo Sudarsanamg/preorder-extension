@@ -174,8 +174,19 @@ export const  PreviewComponent: React.FC<CampaignPreviewProps> = ({
           <div style={{ textAlign: "center" , fontFamily: designFields.fontFamily,
 }}>
             <Text as="h1" variant="headingMd">
-              Pay $3.92 now and $35.28 will be charged on{" "}
-              {formatDate(selectedDates.duePaymentDate)}
+              {campaignData.partialPaymentInfoText
+                .replace(
+                  "{payment}",
+                  `$${(discountedPrice * 0.1).toFixed(2)}`
+                )
+                .replace(
+                  "{remaining}",
+                  `$${(discountedPrice * 0.9).toFixed(2)}`
+                )
+                .replace(
+                  "{date}",
+                  formatDate(selectedDates.duePaymentDate)
+                )}
             </Text>
           </div>
         )}

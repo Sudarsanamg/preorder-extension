@@ -15,6 +15,7 @@ import {
   getStoreIdByShopId,
   updateCampaignStatus,
 } from "app/models/campaign.server";
+import { fetchMetaobject } from "app/services/metaobject.server";
 import { createSellingPlan } from "app/services/sellingPlan.server";
 import type { CampaignProduct } from "app/types/type";
 
@@ -178,6 +179,19 @@ export const publishCampaign = async (
     console.log(error);
   }
 
+    let campaignSettingsResponse = await fetchMetaobject(
+      admin,
+      campaignId,
+      "$app:preorder-extension",
+    );
+
+    let parsedCampaignSettingsResponse = await campaignSettingsResponse.json();
+    const metaobject = parsedCampaignSettingsResponse.data.metaobjectByHandle;
+    const objectField = metaobject?.fields.find((f: any) => f.key === "object");
+    const parsedObject = JSON.parse(objectField?.value);
+    parsedCampaignSettingsResponse = parsedObject?.campaignData;
+
+
   const store = await getStoreIdByShopId(shopId);
   const campaignRecords = await prisma.preorderCampaign.findFirst({
     where: {
@@ -324,6 +338,9 @@ export const publishCampaign = async (
   formData.append("balanceDueDate", String(campaignData?.balanceDueDate));
   formData.append("discountType", String(campaignData?.discountType));
   formData.append("discountValue", String(campaignData?.discountValue));
+  console.log("Campaign Settings Response:", parsedCampaignSettingsResponse);
+  formData.append("partialPaymentText", String(parsedCampaignSettingsResponse?.partialPaymentText || ""));
+  formData.append("fullPaymentText", String(parsedCampaignSettingsResponse?.fullPaymentText || ""));
 
   await createSellingPlan(
     admin,
@@ -606,6 +623,9 @@ export const createCampaign = async (
           customerTags: JSON.parse(
             (formData.get("customerTags") as string) || "[]",
           ).join(","),
+          partialPaymentText: (formData.get("partialPaymentText") as string) || "Partial Payment",
+          fullPaymentText: (formData.get("fullPaymentText") as string) || "Full Payment",
+          partialPaymentInfoText: (formData.get("partialPaymentInfoText") as string) || "",
           campaignType: formData.get("campaignType") as CampaignType,
           preOrderNoteKey: formData.get("preOrderNoteKey") as string,
           preOrderNoteValue: formData.get("preOrderNoteValue") as string,

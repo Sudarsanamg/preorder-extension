@@ -179,6 +179,25 @@
   {% assign balance_due_date = nil %}
   {% endif %}
 
+  {% assign template = campaignprops.object.value.campaignData.partialPaymentInfoText %}
+  
+  {% if balance_due_date %}
+  {% assign payment_text = initial_payment | money %}
+  {% assign remaining_text = balance_payment | money %}
+  {% assign date_text = balance_due_date | date: "%d %b %Y" %}
+  {% else %}
+  {% assign payment_text = initial_payment | money %}
+  {% assign remaining_text = balance_payment | money %}
+  {% assign date_text = "later" %}
+  {% endif %}
+  
+  {% assign formatted = template
+  | replace: "{payment}", payment_text
+  | replace: "{remaining}", remaining_text
+  | replace: "{date}", date_text
+  %}
+
+
   <div class="preorder-variant" data-variant-id="{{ variant.id }}" style="display: none;">
     {% if deposit_percent > 0 and variant.metafields["$app:preorder-extension"].preorder == true and payment_type == 'partial' %}
     <div class="preorder-payment-info" style="text-align:center;">
@@ -188,8 +207,7 @@
           font-family: {{ designSettings.fontFamily }};
         ">
         {% if balance_due_date %}
-        Pay {{ initial_payment | money }} now and {{ balance_payment | money }} by {{ balance_due_date | date: "%d %b
-        %Y" }}
+        {{ formatted }}
         {% else %}
         Pay {{ initial_payment | money }} now and the remaining balance later
         {% endif %}
