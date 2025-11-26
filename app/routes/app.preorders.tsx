@@ -18,9 +18,18 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "app/shopify.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import {  getOrdersByLimit, getStoreIdByShopId } from "app/models/campaign.server";
-import { Link, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
-import { useCallback, useEffect, useState } from "react";
+import {
+  getOrdersByLimit,
+  getStoreIdByShopId,
+} from "app/models/campaign.server";
+import {
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSubmit,
+} from "@remix-run/react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import type { IndexFiltersProps, TabProps } from "@shopify/polaris";
 import {
   // getOrdersfulfilmentStatus,
@@ -33,18 +42,24 @@ import nodemailer from "nodemailer";
 import { isStoreRegistered } from "app/helper/isStoreRegistered";
 import { formatDate } from "app/utils/formatDate";
 import { formatCurrency } from "app/helper/currencyFormatter";
+import type { FulfillmentStatus } from "@prisma/client";
+import { OrdersSkeleton } from "app/utils/loader/OrdersSkeleton";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") || "1");
   const limit = Number(url.searchParams.get("limit") || "10");
+  const fulfilmentStatus = url.searchParams.get("fulfilmentStatus");
 
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
 
   const isStoreExist = await isStoreRegistered(shop);
   if (!isStoreExist) {
-    return Response.json({ success: false, error: "Store not found" }, { status: 404 });
+    return Response.json(
+      { success: false, error: "Store not found" },
+      { status: 404 },
+    );
   }
 
   const shopQuery = `{
@@ -61,12 +76,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopId = data.data.shop.id;
   const currencyCode = data.data.shop.currencyCode;
 
-  // Add pagination to your Prisma query
-  const orders = await getOrdersByLimit(shopId, limit, (page - 1) * limit);
+  const orders = await getOrdersByLimit(
+    shopId,
+    limit,
+    (page - 1) * limit,
+    fulfilmentStatus as FulfillmentStatus,
+  );
   const storeId = await getStoreIdByShopId(shopId);
-  // console.log(storeId, "storeId");
-  const totalCount = await prisma.campaignOrders.count({ where: { storeId :storeId?.id} });
-  // console.log(totalCount, "totalCount");
+  const totalCount = await prisma.campaignOrders.count({
+    where: {
+      storeId: storeId?.id,
+      ...(fulfilmentStatus
+        ? { fulfilmentStatus: fulfilmentStatus as FulfillmentStatus }
+        : {}),
+    },
+  });
 
   const enrichedOrders = orders.map((order: any) => ({
     ...order,
@@ -80,10 +104,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     totalPages: Math.ceil(totalCount / limit),
     limit,
     shopDomain: shop,
-    currencyCode
+    currencyCode,
   };
 };
-
 
 export const action = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -116,7 +139,7 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
       },
     });
 
-    let template : any = emailSettings?.ShippingEmailSettings;
+    let template: any = emailSettings?.ShippingEmailSettings;
     if (template) {
       template.subject = subject;
       template.description = message;
@@ -171,10 +194,10 @@ export const action = async ({ request }: LoaderFunctionArgs) => {
   );
 };
 
-
 export default function AdditionalPage() {
   const [active, setActive] = useState(false);
-  const { orders, totalPages, currentPage, shopDomain,currencyCode } = useLoaderData<typeof loader>();
+  const { orders, totalPages, currentPage, shopDomain, currencyCode } =
+    useLoaderData<typeof loader>();
   const submit = useSubmit();
   let actionData = useActionData<typeof action>();
   const [isSending, setIsSending] = useState(false);
@@ -183,6 +206,14 @@ export default function AdditionalPage() {
   const [queryValue, setQueryValue] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<string | undefined>();
   const { mode, setMode } = useSetIndexFiltersMode();
+  const breakpoints = useBreakpoints();
+  const navigation = useNavigation();
+  const isLoading = navigation.state === "loading";
+  const isNavigatingRef = useRef(false);
+
+  useEffect(() => {
+    isNavigatingRef.current = navigation.state !== "idle";
+  }, [navigation.state]);
 
   const tabs: TabProps[] = [
     { content: "All", id: "all-tab" },
@@ -199,10 +230,14 @@ export default function AdditionalPage() {
   const allOrders = orders.map((order: any) => ({
     id: order.orderId,
     orderNumber: `#${order.orderNumber}`,
-    dueDate: order.dueDate ? new Date(order.dueDate).toLocaleDateString() : "Full Payment",
+    dueDate: order.dueDate
+      ? new Date(order.dueDate).toLocaleDateString()
+      : "Full Payment",
     balanceAmount: `${order.balanceAmount ?? 0}`,
     paymentStatus: order.paymentStatus,
-    fulfilmentStatus: order.fulfilmentStatus ?order.fulfilmentStatus :"UNFULFILLED",
+    fulfilmentStatus: order.fulfilmentStatus
+      ? order.fulfilmentStatus
+      : "UNFULFILLED",
     customerEmail: order.customerEmail,
   }));
 
@@ -237,7 +272,7 @@ export default function AdditionalPage() {
   }
 
   // Filtering logic
-  const filteredOrders = allOrders.filter((order:any) => {
+  const filteredOrders = allOrders.filter((order: any) => {
     const matchesQuery =
       queryValue === "" ||
       order.orderNumber.toLowerCase().includes(queryValue.toLowerCase());
@@ -257,34 +292,61 @@ export default function AdditionalPage() {
     return matchesQuery && matchesTab && matchesPaymentStatus;
   });
 
-  const handlePageChange = (direction: "next" | "previous") => {
-  const nextPage = direction === "next" ? currentPage + 1 : currentPage - 1;
-  if (nextPage >= 1 && nextPage <= totalPages) {
-    const params = new URLSearchParams({
-      page: nextPage.toString(),
-      limit: "10",
-    });
-    submit(params, { method: "get" });
-  }
-};
+  const handlePageChange = useCallback(
+    (direction: "next" | "previous" | "first") => {
+      if (isNavigatingRef.current) return;
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange ,clearSelection} =
-    useIndexResourceState(filteredOrders);
+      const nextPage =
+        direction === "next"
+          ? currentPage + 1
+          : direction === "previous"
+            ? currentPage - 1
+            : 1;
+      if (nextPage >= 1 && nextPage <= totalPages) {
+        const params = new URLSearchParams({
+          page: nextPage.toString(),
+          limit: "10",
+        });
+        const fulfilmentStatus =
+          selectedTab === 1
+            ? "UNFULFILLED"
+            : selectedTab === 2
+              ? "FULFILLED"
+              : undefined;
+        if (fulfilmentStatus) {
+          params.set("fulfilmentStatus", fulfilmentStatus);
+        }
+        submit(params, { method: "get", replace: true });
+      }
+    },
+    [currentPage, totalPages, selectedTab, submit],
+  );
+
+  useEffect(() => {
+    handlePageChange("first");
+  }, [selectedTab]);
+
+  const {
+    selectedResources,
+    allResourcesSelected,
+    handleSelectionChange,
+    clearSelection,
+  } = useIndexResourceState(filteredOrders);
 
   useEffect(() => {
     if (actionData?.success) {
       setIsSending(false);
       setActive(false);
-      shopify?.toast?.show?.('Message sent'); 
-      clearSelection(); 
+      shopify?.toast?.show?.("Message sent");
+      clearSelection();
     }
     if (actionData && !actionData.success) {
       setIsSending(false);
-      shopify?.toast?.show?.('Something went wrong',{
-        isError: true
+      shopify?.toast?.show?.("Something went wrong", {
+        isError: true,
       });
     }
-  }, [actionData]);
+  }, [actionData, clearSelection]);
 
   const resourceName = { singular: "order", plural: "orders" };
   const promotedBulkActions = [
@@ -358,7 +420,9 @@ export default function AdditionalPage() {
               Pending
             </Badge>
           )}
-          {paymentStatus === "cancelled" && <Badge tone="critical">Cancelled</Badge>}
+          {paymentStatus === "cancelled" && (
+            <Badge tone="critical">Cancelled</Badge>
+          )}
         </IndexTable.Cell>
         <IndexTable.Cell>
           {fulfilmentStatus === "FULFILLED" && (
@@ -474,39 +538,40 @@ export default function AdditionalPage() {
           </BlockStack>
         </Modal.Section>
       </Modal>
-      <div style={{ margin: 20 }}>
+      <IndexFilters
+        queryValue={queryValue}
+        queryPlaceholder="Search orders"
+        onQueryChange={handleFiltersQueryChange}
+        onQueryClear={() => setQueryValue("")}
+        cancelAction={{
+          onAction: () => setQueryValue(""),
+          disabled: false,
+          loading: false,
+        }}
+        tabs={tabs}
+        selected={selectedTab}
+        onSelect={(index) => setSelectedTab(index)}
+        filters={filters}
+        appliedFilters={appliedFilters}
+        onClearAll={() => {
+          setQueryValue("");
+          setPaymentStatus(undefined);
+        }}
+        mode={mode}
+        setMode={setMode}
+        canCreateNewView={false}
+      />
+      {isLoading ? (
+        <OrdersSkeleton />
+      ) : (
         <Card>
-          <IndexFilters
-            queryValue={queryValue}
-            queryPlaceholder="Search orders"
-            onQueryChange={handleFiltersQueryChange}
-            onQueryClear={() => setQueryValue("")}
-            cancelAction={{
-              onAction: () => setQueryValue(""),
-              disabled: false,
-              loading: false,
-            }}
-            tabs={tabs}
-            selected={selectedTab}
-            onSelect={(index) => setSelectedTab(index)}
-            filters={filters}
-            appliedFilters={appliedFilters}
-            onClearAll={() => {
-              setQueryValue("");
-              setPaymentStatus(undefined);
-            }}
-            mode={mode}
-            setMode={setMode}
-            canCreateNewView={false}
-          />
           <IndexTable
-            condensed={useBreakpoints().smDown}
+            condensed={breakpoints.smDown}
             resourceName={resourceName}
             itemCount={filteredOrders.length}
             selectedItemsCount={
               allResourcesSelected ? "All" : selectedResources.length
             }
-            
             onSelectionChange={handleSelectionChange}
             promotedBulkActions={promotedBulkActions}
             headings={[
@@ -522,12 +587,11 @@ export default function AdditionalPage() {
               onNext: () => handlePageChange("next"),
               onPrevious: () => handlePageChange("previous"),
             }}
-            
           >
             {rowMarkup}
           </IndexTable>
         </Card>
-      </div>
+      )}
     </Page>
   );
 }

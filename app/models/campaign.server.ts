@@ -13,8 +13,6 @@ export async function createStore(data: {
   currencyCode: string;
   ConfrimOrderEmailSettings: Prisma.InputJsonValue;
   ShippingEmailSettings: Prisma.InputJsonValue;
-  GeneralSettings: Prisma.InputJsonValue;
-  EmailConfig: string;
 }) {
   return prisma.store.create({
     data: {
@@ -24,8 +22,6 @@ export async function createStore(data: {
       shopifyDomain: data.shopifyDomain,
       ConfrimOrderEmailSettings: data.ConfrimOrderEmailSettings,
       ShippingEmailSettings: data.ShippingEmailSettings,
-      GeneralSettings: data.GeneralSettings,
-      EmailConfig: data.EmailConfig,
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
     },
@@ -73,7 +69,6 @@ export async function getCampaignStatus(id: string , storeId: string ) {
 export async function createPreorderCampaign(data: {
   name: string;
   depositPercent: number;
-  balanceDueDate: Date;
   refundDeadlineDays: number;
   releaseDate?: Date;
   status?: CampaignStatus;
@@ -90,16 +85,22 @@ export async function createPreorderCampaign(data: {
   fulfilmentDaysAfter: number;
   fulfilmentExactDate: Date;
   paymentType: string;
+  paymentAfterDays?: number;
+  collectionMode?: scheduledFulfilmentType;
+  balanceDueDate?: Date;
 }) {
   const store = await getStoreIdByShopId(data.shopId ?? "");
-  if(!store) throw new Error("Store not valid");
+  if (!store) throw new Error("Store not valid");
 
   return prisma.preorderCampaign.create({
     data: {
       name: data.name,
       storeId: store.id,
       depositPercent: data.depositPercent,
-      balanceDueDate: data.balanceDueDate,
+      duePaymentSchedule: {
+        type : data.collectionMode,
+        value: data.collectionMode === "DAYS_AFTER" ? data.paymentAfterDays : data.balanceDueDate,
+      },
       status: data.status ,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
@@ -111,9 +112,19 @@ export async function createPreorderCampaign(data: {
       campaignType: data.campaignType,
       totalOrders: data.totalOrders,
       fulfilmentmode: data.fulfilmentmode,
-      scheduledFulfilmentType: data.scheduledFulfilmentType,
-      fulfilmentDaysAfter: data.fulfilmentDaysAfter,
-      fulfilmentExactDate: data.fulfilmentExactDate,
+      fulfilmentSchedule:
+      data.fulfilmentmode === "SCHEDULED"
+        ? {
+            type: data.scheduledFulfilmentType,
+            value:
+              data.scheduledFulfilmentType === "DAYS_AFTER"
+                ? Number(data.fulfilmentDaysAfter)
+                : data.fulfilmentExactDate,
+          }
+          : {
+            type: data.fulfilmentmode,
+            value: "NONE",
+          },
       paymentType:data.paymentType === 'partial' ? "PARTIALPAYMENT" : "FULLPAYMENT",
       createdAt: BigInt(Date.now()),
       updatedAt: BigInt(Date.now()),
@@ -141,6 +152,8 @@ export async function updateCampaign(data: {
   fulfilmentDaysAfter: number;
   fulfilmentExactDate: Date;
   paymentType?: string;
+  paymentAfterDays?: number;
+  collectionMode?: scheduledFulfilmentType;
 }) {
   const store = await getStoreIdByShopId(data.shopId)
   if (!store) throw new Error("Store not valid")
@@ -153,8 +166,11 @@ export async function updateCampaign(data: {
     data: {
       name: data.name,
       depositPercent: data.depositPercent,
-      balanceDueDate: data.balanceDueDate,
-      status: data.status,
+      duePaymentSchedule: {
+        type : data.collectionMode,
+        value: data.collectionMode === "DAYS_AFTER" ? data.paymentAfterDays : data.balanceDueDate,
+      },
+      status: data.status ,
       campaignEndDate: data.campaignEndDate
         ? data.campaignEndDate
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -164,9 +180,19 @@ export async function updateCampaign(data: {
       discountValue: data.discountValue,
       campaignType: data.campaignType,
       fulfilmentmode: data.fulfilmentmode,
-      scheduledFulfilmentType: data.scheduledFulfilmentType,
-      fulfilmentDaysAfter: data.fulfilmentDaysAfter,
-      fulfilmentExactDate: data.fulfilmentExactDate,
+      fulfilmentSchedule:
+      data.fulfilmentmode === "SCHEDULED"
+        ? {
+            type: data.scheduledFulfilmentType,
+            value:
+              data.scheduledFulfilmentType === "DAYS_AFTER"
+                ? Number(data.fulfilmentDaysAfter)
+                : data.fulfilmentExactDate,
+          }
+          : {
+            type: data.fulfilmentmode,
+            value: "NONE",
+          },
       paymentType:data.paymentType === 'partial' ? "PARTIALPAYMENT" : "FULLPAYMENT",
       updatedAt: BigInt(Date.now()),
     },
@@ -356,11 +382,12 @@ export async function getOrders(shopId: string) {
   });
 }
 
-export async function getOrdersByLimit(shopId: string, limit = 10, skip = 0) {
+export async function getOrdersByLimit(shopId: string, limit = 10, skip = 0 , fulfilmentStatus ?: FulfillmentStatus) {
   const store = await getStoreIdByShopId(shopId as string);
   return prisma.campaignOrders.findMany({
     where: {
       storeId: store?.id,
+       ...(fulfilmentStatus ? { fulfilmentStatus } : {}),
     },
     select: {
       orderId: true,
@@ -423,7 +450,7 @@ export async function createOrder({
   storeId: string;
   customerEmail: string;
   totalAmount: string;
-  currency?: string;
+  currency: string;
   fulfilmentStatus?: FulfillmentStatus;
   lineItems: any[];
 }) {

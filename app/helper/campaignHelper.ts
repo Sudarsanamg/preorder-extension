@@ -204,7 +204,7 @@ export const publishCampaign = async (
   });
   const products = campaignRecords?.products || [];
 
-  const campaignData = await prisma.preorderCampaign.findUnique({
+  const campaignData  = await prisma.preorderCampaign.findUnique({
     where: {
       id: campaignId,
       storeId: store?.id,
@@ -240,13 +240,13 @@ export const publishCampaign = async (
       type: "number_integer",
       value: String(campaignData?.depositPercent || "0"),
     },
-    {
-      ownerId: product.variantId,
-      namespace: "$app:preorder-extension",
-      key: "balance_due_date",
-      type: "date",
-      value: new Date(campaignData?.balanceDueDate || new Date()).toISOString(),
-    },
+    // {
+    //   ownerId: product.variantId,
+    //   namespace: "$app:preorder-extension",
+    //   key: "balance_due_date",
+    //   type: "date",
+    //   value: new Date(campaignData?.duePaymentSchedule?.value || new Date()).toISOString(),
+    // },
     {
       ownerId: product.variantId,
       namespace: "$app:preorder-extension",
@@ -291,13 +291,13 @@ export const publishCampaign = async (
       type: "number_integer",
       value: String(campaignData?.depositPercent || "0"),
     },
-    {
-      ownerId: product.productId,
-      namespace: "$app:preorder-extension",
-      key: "balance_due_date",
-      type: "date",
-      value: campaignData?.balanceDueDate,
-    },
+    // {
+    //   ownerId: product.productId,
+    //   namespace: "$app:preorder-extension",
+    //   key: "balance_due_date",
+    //   type: "date",
+    //   value: campaignData?.balanceDueDate,
+    // },
     {
       ownerId: product.productId,
       namespace: "$app:preorder-extension",
@@ -333,12 +333,25 @@ export const publishCampaign = async (
     throw err;
   }
 
-  const formData = new FormData();
+  const fulfilmentSchedule :any = campaignData?.fulfilmentSchedule
+    ? campaignData?.fulfilmentSchedule
+    : null;
+  let scheduleFulfilmentValue;
+  
+  if (fulfilmentSchedule && fulfilmentSchedule.type === "EXACT_DATE") {
+    scheduleFulfilmentValue = fulfilmentSchedule.value;
+  }
+  else if (fulfilmentSchedule && fulfilmentSchedule.type === "DAYS_AFTER") {
+    scheduleFulfilmentValue = parseInt(fulfilmentSchedule.value, 10);
+  }
+
+  const duePaymentSchedule: any = campaignData?.duePaymentSchedule;
+
+   const formData = new FormData();
   formData.append("depositPercent", String(campaignData?.depositPercent));
-  formData.append("balanceDueDate", String(campaignData?.balanceDueDate));
+  formData.append("balanceDueDate", String(duePaymentSchedule?.type === "EXACT_DATE" ? duePaymentSchedule?.value : ""));
   formData.append("discountType", String(campaignData?.discountType));
   formData.append("discountValue", String(campaignData?.discountValue));
-  console.log("Campaign Settings Response:", parsedCampaignSettingsResponse);
   formData.append("partialPaymentText", String(parsedCampaignSettingsResponse?.partialPaymentText || ""));
   formData.append("fullPaymentText", String(parsedCampaignSettingsResponse?.fullPaymentText || ""));
 
@@ -349,30 +362,22 @@ export const publishCampaign = async (
     formData,
     {
       fulfillmentMode: campaignData?.fulfilmentmode as Fulfilmentmode,
-      collectionMode: "EXACT_DATE",
-      fulfillmentDate: campaignData?.fulfilmentExactDate ?? undefined,
-      customDays: 7,
-      balanceDueDate: campaignData?.balanceDueDate ?? undefined,
+      fulfillmentDate: scheduleFulfilmentValue,
+      collectionMode: duePaymentSchedule?.type as scheduledFulfilmentType,
+      customDays: duePaymentSchedule?.type === "DAYS_AFTER" ? parseInt(duePaymentSchedule?.value, 10) : 0,
+      balanceDueDate: duePaymentSchedule?.type === "EXACT_DATE" ? duePaymentSchedule?.value : undefined,
     },
   );
   if (
     campaignData?.campaignType == "OUT_OF_STOCK" ||
     campaignData?.campaignType == "ALWAYS"
   ) {
-    // const arr = products.map((product: any) => {
-    //   return {
-    //     variantId: product.productId,
-    //     productId: product.id,
-    //   };
-    // })
     allowOutOfStockForVariants(admin, products);
   }
 
   updateCampaignStatus(campaignId, "PUBLISHED", shopId);
 
 };
-
-
 
 export const createCampaign = async (
   formData: any,
@@ -389,7 +394,9 @@ export const createCampaign = async (
     name: formData.get("name") as string,
     shopId: formData.get("shopId") as string,
     depositPercent: Number(formData.get("depositPercent")),
+    collectionMode: formData.get("collectionMode") as scheduledFulfilmentType,
     balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+    paymentAfterDays : Number(formData.get("paymentAfterDays")),
     refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
     releaseDate: formData.get("campaignEndDate")
       ? new Date(formData.get("campaignEndDate") as string)

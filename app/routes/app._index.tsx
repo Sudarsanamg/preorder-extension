@@ -45,7 +45,6 @@ import productMetafieldDefinitions, {
 } from "app/utils/productMetafieldDefinitions";
 import {
   confrimOrderTemplate,
-  preorderDisplaySetting,
   ShippingEmailTemplate,
 } from "../utils/templates/emailTemplate";
 import { GET_SHOP, isShopifyPaymentsEnabled } from "app/graphql/queries/shop";
@@ -97,8 +96,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         shopifyDomain: storeDomain,
         ConfrimOrderEmailSettings: confrimOrderTemplate,
         ShippingEmailSettings: ShippingEmailTemplate,
-        GeneralSettings: preorderDisplaySetting,
-        EmailConfig: "",
         currencyCode: cuurencyCode,
       });
 

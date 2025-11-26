@@ -301,6 +301,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       name: formData.get("name") as string,
       depositPercent: Number(formData.get("depositPercent")),
       balanceDueDate: new Date(formData.get("balanceDueDate") as string),
+      collectionMode: formData.get("collectionMode") as scheduledFulfilmentType,
+      paymentAfterDays : Number(formData.get("paymentAfterDays")),
       refundDeadlineDays: Number(formData.get("refundDeadlineDays")),
       releaseDate: formData.get("campaignEndDate")
         ? new Date(formData.get("campaignEndDate") as string)

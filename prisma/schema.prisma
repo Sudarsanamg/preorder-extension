@@ -29,14 +29,12 @@ model Store {
   id                        String                    @id @default(uuid())
   shopId                    String                    @unique
   currencyCode              String
-  offlineToken              String?
+  offlineToken              String
   shopifyDomain             String                    @unique
   sendCustomEmail           Boolean                   @default(false)
   appInstalled              Boolean                   @default(true)
   ConfrimOrderEmailSettings Json?
   ShippingEmailSettings     Json?
-  GeneralSettings           Json?
-  EmailConfig               Json?
   SetupCompleted            Boolean                   @default(false)
   getDueByVault             Boolean                   @default(false)
   createdAt                 BigInt
@@ -72,18 +70,16 @@ model PreorderCampaign {
   campaignType            CampaignType              @default(ALWAYS)
   paymentType             PaymentMode?
   depositPercent          Int?
-  balanceDueDate          DateTime?
+  duePaymentSchedule      Json?
   status                  CampaignStatus            @default(DRAFT)
   campaignEndDate         DateTime
   totalOrders             Int                       @default(0)
   orderTags               Json?
   customerTags            Json?
   discountType            DiscountType              @default(NONE)
-  discountValue           Float?
+  discountValue           Int?
   fulfilmentmode          Fulfilmentmode?
-  scheduledFulfilmentType scheduledFulfilmentType?
-  fulfilmentDaysAfter     Int?
-  fulfilmentExactDate     DateTime?
+  fulfilmentSchedule      Json?                    
   createdAt               BigInt
   updatedAt               BigInt
   products                PreorderCampaignProduct[]
@@ -116,9 +112,9 @@ model CampaignOrders {
   draftOrderId     String?                @unique
   customerEmail    String                 @default("")
   dueDate          DateTime?
-  totalAmount      Decimal?
+  totalAmount      Decimal
   balanceAmount    Decimal?
-  currency         String?
+  currency         String
   paymentStatus    PaymentStatus
   fulfilmentStatus FulfillmentStatus?
   store            Store                  @relation(fields: [storeId], references: [id])
@@ -141,6 +137,7 @@ model OrderCampaignMapping {
   variantTitle String           
   quantity     Int              
   price        Decimal          
+  currency     String           @default("USD")
   createdAt    BigInt          
   updatedAt    BigInt          
   order        CampaignOrders   @relation(fields: [orderId], references: [id])

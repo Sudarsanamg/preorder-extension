@@ -2,7 +2,7 @@
 
 client_id = "409fb8e80f3145241daeff0fccc04a8c"
 name = "preorder-extension"
-application_url = "https://process-ought-purposes-score.trycloudflare.com"
+application_url = "https://novel-craig-reserved-finish.trycloudflare.com"
 embedded = true
 handle = "preorder-extension"
 
@@ -40,13 +40,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://process-ought-purposes-score.trycloudflare.com/auth/callback",
-  "https://process-ought-purposes-score.trycloudflare.com/auth/shopify/callback",
-  "https://process-ought-purposes-score.trycloudflare.com/api/auth/callback"
+  "https://novel-craig-reserved-finish.trycloudflare.com/auth/callback",
+  "https://novel-craig-reserved-finish.trycloudflare.com/auth/shopify/callback",
+  "https://novel-craig-reserved-finish.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://process-ought-purposes-score.trycloudflare.com/apps/cancel-order"
+url = "https://novel-craig-reserved-finish.trycloudflare.com/apps/cancel-order"
 subpath = "cancel-order"
 prefix = "apps"
 
